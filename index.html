@@ -405,6 +405,29 @@ async function fbDelete(colName, docId) {
   }
 }
 
+async function fbDeleteCollection(colName) {
+  const docs = await fbGetAll(colName);
+  if (!docs) return;
+  await Promise.all(docs.map(d => fbDelete(colName, d._fbId || d.id)));
+}
+
+async function fbNuclearReset(onProgress) {
+  const cols = [
+    'invoices','ledger','activities','state','lingots','customer_tokens',
+    'customer_auth',
+    'workshop_workshop1','workshop_workshop2',
+    'sessions_workshop1','sessions_workshop2',
+    'worker_workshop1','worker_workshop2',
+    'worker_sessions_workshop1','worker_sessions_workshop2',
+  ];
+  for (let i = 0; i < cols.length; i++) {
+    onProgress && onProgress(cols[i], i + 1, cols.length);
+    await fbDeleteCollection(cols[i]);
+  }
+  try { localStorage.removeItem(LS_KEY); } catch(e) {}
+  try { localStorage.removeItem('rafinage_session_v1'); } catch(e) {}
+}
+
 /* جلب مستندات مفلترة بحقل (للزبون: بياناته فقط) */
 async function fbQueryByField(colName, field, value) {
   if (!_fbReady) return null;
@@ -1869,6 +1892,83 @@ function LogTab({t,invoices,onOpenReceipt,onDeleteInvoice,onEditInvoice}){
 }
 
 
+function ResetModal({t, onClose}){
+  const [pwd, setPwd] = useState('');
+  const [phase, setPhase] = useState('input'); // input | running | done
+  const [progress, setProgress] = useState('');
+  const [step, setStep] = useState(0);
+  const TOTAL = 15;
+  const RESET_PWD = '19981998';
+
+  const handleReset = async () => {
+    if (pwd !== RESET_PWD) { alert('❌ كلمة المرور غير صحيحة.'); return; }
+    setPhase('running');
+    await fbNuclearReset((col, i, total) => {
+      setProgress(col);
+      setStep(i);
+    });
+    setPhase('done');
+    setTimeout(() => { window.location.reload(); }, 1500);
+  };
+
+  return (
+    <div onClick={phase==='input'?onClose:undefined}
+      style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.75)',zIndex:2000,display:'flex',alignItems:'center',justifyContent:'center',padding:16}}>
+      <div onClick={e=>e.stopPropagation()} dir="rtl"
+        style={{width:'100%',maxWidth:420,background:t.cardBg,border:`2px solid ${t.red}60`,borderRadius:16,padding:24,
+          fontFamily:"'Tajawal',system-ui,sans-serif",color:t.textPrimary,boxShadow:'0 24px 60px rgba(0,0,0,0.6)'}}>
+
+        {phase === 'input' && <>
+          <div style={{fontSize:22,fontWeight:900,color:t.red,marginBottom:6,display:'flex',alignItems:'center',gap:8}}>
+            <TrashIco size={20} color={t.red}/> مسح جميع البيانات
+          </div>
+          <div style={{fontSize:13,color:t.textMuted,fontWeight:700,marginBottom:18,lineHeight:1.6}}>
+            ⚠️ سيتم مسح <strong style={{color:t.red}}>جميع البيانات</strong> من التطبيق ومن Firebase نهائياً.
+            <br/>هذا الإجراء <strong style={{color:t.red}}>لا يمكن التراجع عنه</strong>.
+          </div>
+          <div style={{marginBottom:16}}>
+            <div style={{fontSize:13,fontWeight:800,color:t.textSec,marginBottom:6}}>أدخل كلمة المرور للتأكيد</div>
+            <input type="password" value={pwd} onChange={e=>setPwd(e.target.value)}
+              placeholder="كلمة المرور"
+              style={{width:'100%',background:t.inputBg,border:`1px solid ${t.red}50`,borderRadius:9,
+                padding:'10px 14px',fontSize:18,fontWeight:800,color:t.textPrimary,fontFamily:'monospace',textAlign:'center'}}/>
+          </div>
+          <div style={{display:'flex',gap:10}}>
+            <button onClick={onClose}
+              style={{flex:1,padding:'10px',background:t.inputBg,border:`1px solid ${t.border}`,borderRadius:9,
+                color:t.textSec,fontWeight:800,fontSize:15,cursor:'pointer',fontFamily:'inherit'}}>
+              إلغاء
+            </button>
+            <button onClick={handleReset}
+              style={{flex:1,padding:'10px',background:`${t.red}18`,border:`1px solid ${t.red}60`,borderRadius:9,
+                color:t.red,fontWeight:900,fontSize:15,cursor:'pointer',fontFamily:'inherit'}}>
+              <TrashIco size={13} color={t.red}/> مسح نهائي
+            </button>
+          </div>
+        </>}
+
+        {phase === 'running' && <>
+          <div style={{fontSize:18,fontWeight:900,color:t.goldSolid,marginBottom:16,textAlign:'center'}}>
+            جارٍ المسح...
+          </div>
+          <div style={{background:t.theadBg,borderRadius:8,height:10,overflow:'hidden',marginBottom:12}}>
+            <div style={{height:'100%',width:`${Math.round((step/TOTAL)*100)}%`,background:`linear-gradient(90deg,${t.red},${t.goldSolid})`,transition:'width 0.3s'}}/>
+          </div>
+          <div style={{textAlign:'center',fontSize:13,color:t.textMuted,fontFamily:'monospace',fontWeight:700}}>
+            {progress} ({step}/{TOTAL})
+          </div>
+        </>}
+
+        {phase === 'done' && <>
+          <div style={{fontSize:20,fontWeight:900,color:t.green,textAlign:'center'}}>
+            ✅ تم المسح — جارٍ إعادة التشغيل...
+          </div>
+        </>}
+      </div>
+    </div>
+  );
+}
+
 function EditInvoiceModal({t,invoice,onConfirm,onClose}){
   const [items,setItems]=useState(()=>(invoice.items||[]).map(it=>({weight:String(it.weight??''),karat:String(it.karat??'')})));
   const [price,setPrice]=useState(String(invoice.price??0));
@@ -3301,6 +3401,7 @@ function RafinageApp(){
   const [session, setSession] = useState(AUTH.enabled ? null : loadSession());
   const [custData, setCustData] = useState({ invoices: [], ledger: [] });
   const [editingInvoice, setEditingInvoice] = useState(null);
+  const [showResetModal, setShowResetModal] = useState(false);
   const [workerTab, setWorkerTab] = useState('workshop');
   const [worker1Lingots,  setWorker1Lingots]  = useState(_localDB.worker1Lingots  ?? []);
   const [worker2Lingots,  setWorker2Lingots]  = useState(_localDB.worker2Lingots  ?? []);
@@ -4113,6 +4214,7 @@ function RafinageApp(){
       <ReceiptModal t={t} isOpen={!!activeReceipt} invoice={activeReceipt} onClose={() => setActiveReceipt(null)}/>
 
       {editingInvoice && <EditInvoiceModal t={t} invoice={editingInvoice} onConfirm={handleEditInvoice} onClose={() => setEditingInvoice(null)}/>}
+      {showResetModal && <ResetModal t={t} onClose={() => setShowResetModal(false)}/>}
 
       {/* HEADER */}
       <header style={{ background: t.headerBg, borderBottom: `1px solid ${t.border}`, padding: '0 20px',
@@ -4167,6 +4269,13 @@ function RafinageApp(){
             <RotateIco size={12} color={t.textSec}/><span>استعادة</span>
           </button>
           <input ref={importInputRef} type="file" accept=".json" onChange={handleImportData} style={{ display: 'none' }}/>
+          <button onClick={() => setShowResetModal(true)}
+            title="مسح جميع البيانات"
+            style={{ display: 'flex', alignItems: 'center', gap: 5, background: `${t.red}12`,
+              border: `1px solid ${t.red}40`, borderRadius: 20, padding: '4px 11px',
+              fontSize: 14, color: t.red, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+            <TrashIco size={12} color={t.red}/><span>مسح</span>
+          </button>
           <button onClick={handleLogout}
             style={{ display: 'flex', alignItems: 'center', gap: 5, background: `${t.red}12`,
               border: `1px solid ${t.red}35`, borderRadius: 20, padding: '4px 11px',
