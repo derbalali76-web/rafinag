@@ -1765,9 +1765,17 @@ function SingleInvoiceForm({t,onSaveInvoice,debtsList,invoiceId,prefix,extraLing
   );
 }
 
-function InvoiceTab({t,onSaveInvoice,debtsList,nextInvoiceId,extraLingotBalance}){
+function InvoiceTab({t,onSaveInvoice,debtsList,nextInvoiceId,extraLingotBalance,isMobile}){
   const id1=nextInvoiceId;
   const id2=String(Number(nextInvoiceId)+1);
+  if(isMobile){
+    return (
+      <div style={{display:'flex',flexDirection:'column',flex:1,minHeight:0,overflow:'auto',padding:'10px 10px 14px',boxSizing:'border-box'}}>
+        <SingleInvoiceForm t={t} onSaveInvoice={onSaveInvoice} debtsList={debtsList}
+          invoiceId={id1} prefix="inv-a" extraLingotBalance={extraLingotBalance}/>
+      </div>
+    );
+  }
   return (
     <div style={{display:'grid',gridTemplateColumns:'1fr auto 1fr',gridTemplateRows:'1fr',gap:0,
       flex:1,minHeight:0,overflow:'hidden',padding:'14px 14px 10px',boxSizing:'border-box'}}>
@@ -3401,6 +3409,12 @@ function RafinageApp(){
   const [session, setSession] = useState(AUTH.enabled ? null : loadSession());
   const [custData, setCustData] = useState({ invoices: [], ledger: [] });
   const [editingInvoice, setEditingInvoice] = useState(null);
+  const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' && window.innerWidth < 640);
+  useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth < 640);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
   const [showResetModal, setShowResetModal] = useState(false);
   const [workerTab, setWorkerTab] = useState('workshop');
   const [worker1Lingots,  setWorker1Lingots]  = useState(_localDB.worker1Lingots  ?? []);
@@ -4217,7 +4231,7 @@ function RafinageApp(){
       {showResetModal && <ResetModal t={t} onClose={() => setShowResetModal(false)}/>}
 
       {/* HEADER */}
-      <header style={{ background: t.headerBg, borderBottom: `1px solid ${t.border}`, padding: '0 20px',
+      <header style={{ background: t.headerBg, borderBottom: `1px solid ${t.border}`, padding: isMobile ? '0 10px' : '0 20px',
         height: 56, display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         flexShrink: 0, zIndex: 20, boxShadow: t.headerShadow }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -4233,52 +4247,52 @@ function RafinageApp(){
           </div>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+        {!isMobile && <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
           {React.createElement(NAV.find(n => n.key === activeTab)?.Icon || HomeIco, { size: 15, color: t.goldAccent })}
           <span style={{ color: t.textPrimary, fontSize: 18, fontWeight: 800 }}>
             {NAV.find(n => n.key === activeTab)?.label}
           </span>
-        </div>
+        </div>}
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 5 : 7 }}>
           <FbBadge/>
-          <div style={{ background: t.dark ? `${t.goldAccent}12` : `${t.goldAccent}0E`,
+          {!isMobile && <div style={{ background: t.dark ? `${t.goldAccent}12` : `${t.goldAccent}0E`,
             border: `1px solid ${t.goldAccent}35`, borderRadius: 20, padding: '4px 11px',
             fontSize: 14, fontFamily: 'monospace', color: t.goldSolid, fontWeight: 700 }}>
             {getTodayDateString()}
-          </div>
+          </div>}
           <button onClick={() => setDark(!dark)}
             style={{ display: 'flex', alignItems: 'center', gap: 5,
               background: dark ? `${t.goldAccent}15` : t.inputBg,
               border: `1px solid ${dark ? t.goldAccent + '35' : t.border}`,
-              borderRadius: 20, padding: '4px 11px', fontSize: 14,
+              borderRadius: 20, padding: isMobile ? '6px 8px' : '4px 11px', fontSize: 14,
               color: dark ? t.goldSolid : t.textSec, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
             {dark ? <SunIco size={12} color={t.goldSolid}/> : <MoonIco size={12} color={t.textSec}/>}
-            <span>{dark ? 'فاتح' : 'داكن'}</span>
+            {!isMobile && <span>{dark ? 'فاتح' : 'داكن'}</span>}
           </button>
           <button onClick={handleExportData}
             style={{ display: 'flex', alignItems: 'center', gap: 5, background: t.inputBg,
-              border: `1px solid ${t.border}`, borderRadius: 20, padding: '4px 11px',
+              border: `1px solid ${t.border}`, borderRadius: 20, padding: isMobile ? '6px 8px' : '4px 11px',
               fontSize: 14, color: t.textSec, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
-            <ShareIco size={12} color={t.textSec}/><span>نسخة</span>
+            <ShareIco size={12} color={t.textSec}/>{!isMobile && <span>نسخة</span>}
           </button>
           <button onClick={() => importInputRef.current && importInputRef.current.click()}
             style={{ display: 'flex', alignItems: 'center', gap: 5, background: t.inputBg,
-              border: `1px solid ${t.border}`, borderRadius: 20, padding: '4px 11px',
+              border: `1px solid ${t.border}`, borderRadius: 20, padding: isMobile ? '6px 8px' : '4px 11px',
               fontSize: 14, color: t.textSec, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
-            <RotateIco size={12} color={t.textSec}/><span>استعادة</span>
+            <RotateIco size={12} color={t.textSec}/>{!isMobile && <span>استعادة</span>}
           </button>
           <input ref={importInputRef} type="file" accept=".json" onChange={handleImportData} style={{ display: 'none' }}/>
           <button onClick={() => setShowResetModal(true)}
             title="مسح جميع البيانات"
             style={{ display: 'flex', alignItems: 'center', gap: 5, background: `${t.red}12`,
-              border: `1px solid ${t.red}40`, borderRadius: 20, padding: '4px 11px',
+              border: `1px solid ${t.red}40`, borderRadius: 20, padding: isMobile ? '6px 8px' : '4px 11px',
               fontSize: 14, color: t.red, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
-            <TrashIco size={12} color={t.red}/><span>مسح</span>
+            <TrashIco size={12} color={t.red}/>{!isMobile && <span>مسح</span>}
           </button>
           <button onClick={handleLogout}
             style={{ display: 'flex', alignItems: 'center', gap: 5, background: `${t.red}12`,
-              border: `1px solid ${t.red}35`, borderRadius: 20, padding: '4px 11px',
+              border: `1px solid ${t.red}35`, borderRadius: 20, padding: isMobile ? '6px 10px' : '4px 11px',
               fontSize: 14, color: t.red, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
             <span>خروج</span>
           </button>
@@ -4286,7 +4300,7 @@ function RafinageApp(){
       </header>
 
       {/* CONTENT */}
-      <main style={{ flex: 1, padding: activeTab === 'invoice' ? 0 : 20,
+      <main style={{ flex: 1, padding: activeTab === 'invoice' ? 0 : (isMobile ? 10 : 20),
         overflow: activeTab === 'invoice' ? 'hidden' : 'auto', minHeight: 0, display: 'flex', flexDirection: 'column' }}>
         {activeTab === 'home' && <HomeTab t={t} dinarCofferTotal={dinarCofferTotal}
           extraLingotBalance={extraLingotBalance} lingotsTotalWeight={lingotsTotalWeight}
@@ -4295,7 +4309,7 @@ function RafinageApp(){
           openingDone={openingDone} onSetOpening={handleSetOpening}/>}
         <div style={{ display: activeTab === 'invoice' ? 'flex' : 'none', flex: 1, minHeight: 0 }}>
           <InvoiceTab t={t} onSaveInvoice={handleSaveInvoice} debtsList={debtsList}
-            nextInvoiceId={nextInvoiceId} extraLingotBalance={extraLingotBalance}/>
+            nextInvoiceId={nextInvoiceId} extraLingotBalance={extraLingotBalance} isMobile={isMobile}/>
         </div>
         {activeTab === 'coffer'     && <CofferTab t={t} lingots={lingotsInCoffer} onOpenTransferModal={i => setSelectedBulksToTransfer(i)}/>}
         {activeTab === 'log'        && <LogTab t={t} invoices={invoices} onOpenReceipt={inv => setActiveReceipt(inv)} onDeleteInvoice={handleDeleteInvoice} onEditInvoice={inv => setEditingInvoice(inv)}/>}
