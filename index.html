@@ -24,7 +24,7 @@
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&display=swap');
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
-html,body{font-family:'Tajawal',system-ui,sans-serif;height:100%;}
+html,body{font-family:'Tajawal',system-ui,sans-serif;height:100%;overscroll-behavior-y:none;}
 ::-webkit-scrollbar{width:5px;height:5px;}
 ::-webkit-scrollbar-track{background:transparent;}
 ::-webkit-scrollbar-thumb{background:#C9922A;border-radius:999px;}
@@ -1493,7 +1493,7 @@ function SingleInvoiceForm({t,onSaveInvoice,debtsList,invoiceId,prefix,extraLing
   useEffect(()=>{
     if(!customer){setPrevDinar(0);setPrevGold(0);return;}
     const m=debtsList.find(d=>d.name.trim().toLowerCase()===customer.trim().toLowerCase());
-    if(m){setPrevDinar(m.amount);setPrevGold(m.gold);}
+    if(m){setPrevDinar(m.amount);setPrevGold(parseFloat((m.gold||0).toFixed(2)));}
     else{setPrevDinar(0);setPrevGold(0);}
   },[customer,debtsList]);
 
@@ -1678,10 +1678,17 @@ function SingleInvoiceForm({t,onSaveInvoice,debtsList,invoiceId,prefix,extraLing
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',borderBottom:D}}>
           <div style={C('7px 8px',{borderLeft:D})}>
             {L('ذهب سابق')}
-            <div style={{display:'flex',alignItems:'center',justifyContent:'center',gap:2}}>
-              {N(prevGold,setPrevGold,{step:'0.001'})}
-              <span style={{fontSize:12,color:t.textMuted,fontWeight:700}}>غ</span>
+            <div style={{textAlign:'center',fontFamily:'monospace',fontWeight:900,fontSize:20,color:t.textPrimary,lineHeight:1.1}}>
+              {fmt(Math.round((prevGold||0)*100)/100)}
+              <span style={{fontSize:12,color:t.textMuted,fontWeight:700,marginRight:2}}>غ</span>
             </div>
+            <input type="number" step="0.01" value={prevGold ? (Math.round((prevGold)*100)/100).toFixed(2) : ''}
+              placeholder="0"
+              onChange={e=>setPrevGold(Math.round((parseFloat(e.target.value)||0)*100)/100)}
+              onBlur={e=>setPrevGold(Math.round((parseFloat(e.target.value)||0)*100)/100)}
+              style={{width:'100%',textAlign:'center',background:t.inputBg||'rgba(255,255,255,0.06)',border:`1px solid ${t.border}`,
+                borderRadius:6,marginTop:3,fontWeight:700,fontFamily:'monospace',fontSize:13,
+                color:t.textMuted,padding:'2px 0'}}/>
           </div>
           <div style={C('7px 8px',{borderLeft:D,background:t.dark?'rgba(16,185,129,0.08)':'rgba(10,158,110,0.06)',
             display:'flex',alignItems:'center',justifyContent:'center'})}>
@@ -1777,9 +1784,9 @@ function LogTab({t,invoices,onOpenReceipt,onDeleteInvoice,onEditInvoice}){
   const [filterMonth,setFilterMonth]=useState('الكل');
 
   const filtered=invoices.filter(inv=>{
-    const matchSearch=inv.customer.toLowerCase().includes(searchTerm.toLowerCase())||inv.id.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchSearch=inv.customer.toLowerCase().includes(searchTerm.toLowerCase())||String(inv.id).toLowerCase().includes(searchTerm.toLowerCase());
     const matchStatus=filterStatus==='كل'||inv.status===filterStatus;
-    const invMonth=(inv.date.split('/')[1])||'';
+    const invMonth=((inv.date||'').split('/')[1])||'';
     const matchMonth=filterMonth==='الكل'||invMonth===filterMonth;
     return matchSearch&&matchStatus&&matchMonth;
   });
@@ -3372,13 +3379,15 @@ function RafinageApp(){
 
   useEffect(() => {
     if (!FCM.enabled) return;
-    fbOnForegroundMessage((payload) => {
-      const d = (payload && (payload.data || (payload.notification && payload.notification))) || {};
-      try {
-        if (typeof Notification !== 'undefined' && Notification.permission === 'granted')
-          new Notification(d.title || 'إشعار جديد', { body: d.body || '', icon: './icon-192.png' });
-      } catch (e) {}
-    });
+    try {
+      fbOnForegroundMessage((payload) => {
+        const d = (payload && (payload.data || (payload.notification && payload.notification))) || {};
+        try {
+          if (typeof Notification !== 'undefined' && Notification.permission === 'granted')
+            new Notification(d.title || 'إشعار جديد', { body: d.body || '', icon: './icon-192.png' });
+        } catch (e) {}
+      });
+    } catch (e) {}
   }, []);
 
   const userInteractedRef = useRef(false);
@@ -4102,6 +4111,8 @@ function RafinageApp(){
         onClose={() => setSelectedBulksToTransfer([])} onConfirmTransfer={handleConfirmTransfer}/>
 
       <ReceiptModal t={t} isOpen={!!activeReceipt} invoice={activeReceipt} onClose={() => setActiveReceipt(null)}/>
+
+      {editingInvoice && <EditInvoiceModal t={t} invoice={editingInvoice} onConfirm={handleEditInvoice} onClose={() => setEditingInvoice(null)}/>}
 
       {/* HEADER */}
       <header style={{ background: t.headerBg, borderBottom: `1px solid ${t.border}`, padding: '0 20px',

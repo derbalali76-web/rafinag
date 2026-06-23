@@ -1,4 +1,4 @@
-const CACHE = 'rafinage-fix-v16';
+const CACHE = 'rafinage-fix-v18';
 const ASSETS = ['./', './index.html', './manifest.json'];
 
 self.addEventListener('install', e => {
