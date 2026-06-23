@@ -3407,6 +3407,7 @@ function RafinageApp(){
 
   /* ── المستخدم الحالي + بيانات العامل المنفصلة ── */
   const [session, setSession] = useState(AUTH.enabled ? null : loadSession());
+  const [authResolved, setAuthResolved] = useState(!AUTH.enabled);
   const [custData, setCustData] = useState({ invoices: [], ledger: [] });
   const [editingInvoice, setEditingInvoice] = useState(null);
   const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' && window.innerWidth < 640);
@@ -3430,6 +3431,7 @@ function RafinageApp(){
   useEffect(() => {
     if (!AUTH.enabled) return;
     onAuthChange(user => {
+      setAuthResolved(true);
       if (!user) { setSession(null); return; }
       setSession(resolveAuthSession(user, customerAuthRef.current));
     });
@@ -3438,6 +3440,7 @@ function RafinageApp(){
   /* ── بيانات الزبون المُصرّح بها فقط (استعلام مفلتر) ── */
   useEffect(() => {
     if (!session || session.role !== 'customer') return;
+    if (AUTH.enabled && fbStatus !== 'online') return;   // انتظر جهوزية السحابة قبل الجلب
     let cancel = false;
     (async () => {
       if (AUTH.enabled) {
@@ -3447,11 +3450,12 @@ function RafinageApp(){
       }
     })();
     return () => { cancel = true; };
-  }, [session]);
+  }, [session, fbStatus]);
 
   /* ── تحديث بيانات العامل من السحابة عند كل دخول (غير متلِف) ── */
   useEffect(() => {
     if (!session || session.role !== 'worker') return;
+    if (fbStatus !== 'online') return;   // انتظر جهوزية السحابة
     const ws = session.workshop;
     let cancel = false;
     (async () => {
@@ -3462,7 +3466,7 @@ function RafinageApp(){
       if (sess && sess.length) { ws === 'workshop1' ? setWorker1Sessions(sess) : setWorker2Sessions(sess); }
     })();
     return () => { cancel = true; };
-  }, [session]);
+  }, [session, fbStatus]);
 
   /* ── إشعارات الدفع: تسجيل رمز الجهاز للزبون + استقبال foreground ── */
   const registerCustomerToken = async (customerId, name) => {
@@ -4087,6 +4091,17 @@ function RafinageApp(){
       </div>
     );
   };
+
+  /* أثناء استعادة الجلسة المحفوظة (إعادة فتح التطبيق) */
+  if (AUTH.enabled && !authResolved && !session) {
+    return (
+      <div dir="rtl" style={{ height:'100vh', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:14, background:t.appBg, color:t.textPrimary, fontFamily:"'Tajawal',system-ui,sans-serif" }}>
+        <div style={{ width:46, height:46, borderRadius:'50%', border:`4px solid ${t.border}`, borderTopColor:t.goldSolid, animation:'spin 0.9s linear infinite' }}/>
+        <div style={{ fontSize:15, fontWeight:800, color:t.textMuted }}>جارٍ استعادة الجلسة…</div>
+        <style>{'@keyframes spin{to{transform:rotate(360deg)}}'}</style>
+      </div>
+    );
+  }
 
   /* شاشة الدخول */
   if (!session) return <LoginScreen t={t} onAuthenticate={handleAuthenticate}/>;
