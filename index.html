@@ -391,9 +391,30 @@ async function fbGetAll(colName) {
   }
 }
 
+/* اشتراك لحظي (realtime) في مجموعة — يستدعي cb عند أي تغيير محلي أو سحابي */
+function fbSubscribe(colName, cb) {
+  if (!_fbReady) return () => {};
+  let unsub = () => {};
+  let live = true;
+  (async () => {
+    try {
+      const { onSnapshot, query, limit } = await _loadSDK('firestore');
+      const col = await _fsCollection(colName);
+      const u = onSnapshot(query(col, limit(5000)), (snap) => {
+        const arr = snap.docs.map(d => ({ _fbId: d.id, ...d.data() }));
+        const ts = (x) => (x && x._createdAt && x._createdAt.seconds) ||
+                          (x && x._updatedAt && x._updatedAt.seconds) || 0;
+        arr.sort((a, b) => ts(b) - ts(a));
+        cb(arr);
+      }, (err) => console.warn('[fbSubscribe]', colName, err.message));
+      if (live) unsub = u; else u();
+    } catch (e) { console.warn('[fbSubscribe]', colName, e.message); }
+  })();
+  return () => { live = false; try { unsub(); } catch {} };
+}
+
 /* حذف document */
-async function fbDelete(colName, docId) {
-  if (!_fbReady) return false;
+async function fbDelete(colName, docId) {  if (!_fbReady) return false;
   try {
     const { doc, deleteDoc } = await _loadSDK('firestore');
     const ref = doc(_db, colName, String(docId));
@@ -2489,12 +2510,17 @@ function DebtsTab({t,debtsList,customerNames=[],onTransfer}){
    WORKSHOP TAB
 ═══════════════════════════════════════════════ */
 function WorkshopTab({t,title,description,accentColor,lingots,onReturnToCoffer,onUpdateLingots,onSave,onClearLingots,mismatchIds=[],onReconcile}){
-  const [rotorItems,setRotorItems]=useState([]);
+  const draftKey='rf_wsdraft_'+title;
+  const _draft=(()=>{try{return JSON.parse(localStorage.getItem(draftKey))||{};}catch{return {};}})();
+  const [rotorItems,setRotorItems]=useState(()=>Array.isArray(_draft.rotorItems)?_draft.rotorItems:[]);
   const [rotorWeight,setRotorWeight]=useState('');
   const [rotorKarat,setRotorKarat]=useState('');
-  const [customMfg,setCustomMfg]=useState('');
+  const [customMfg,setCustomMfg]=useState(()=>_draft.customMfg||'');
   const rotorWeightRef=useRef(null);
   const rotorKaratRef=useRef(null);
+
+  /* حفظ المسوّدة محلياً — تبقى عند التنقّل أو إعادة الفتح حتى تُحفظ الجلسة */
+  useEffect(()=>{try{localStorage.setItem(draftKey,JSON.stringify({rotorItems,customMfg}));}catch{}},[rotorItems,customMfg,draftKey]);
 
   const activeLingots=lingots.filter(l=>l.weight>0.001);
   const totalRawWeight=activeLingots.reduce((s,l)=>s+(l.weight||0),0);
@@ -2507,7 +2533,7 @@ function WorkshopTab({t,title,description,accentColor,lingots,onReturnToCoffer,o
   const remainingRaw=Math.max(0,totalRawWeight-rotorTotalRaw);
   const remainingPure24=Math.max(0,totalPure24-rotorTotalPure24);
 
-  useEffect(()=>{setCustomMfg(totalMfgSum>0?totalMfgSum.toString():'');},[totalMfgSum]);
+  useEffect(()=>{if(totalMfgSum>0)setCustomMfg(totalMfgSum.toString());},[totalMfgSum]);
 
   const mfgValue=parseFloat(customMfg)||0;
   const totalLapart=mfgValue-remainingPure24;
@@ -2534,6 +2560,7 @@ function WorkshopTab({t,title,description,accentColor,lingots,onReturnToCoffer,o
     setRotorItems([]);
     if(onClearLingots) onClearLingots();
     setCustomMfg('');
+    try{localStorage.removeItem(draftKey);}catch{}
     alert('✅ تم حفظ الجلسة في الأرشيف وتصدير PDF!\n📦 تم مسح السبائك من الورشة.');
   };
 
@@ -3536,6 +3563,24 @@ function RafinageApp(){
     const localOnly = L.filter(x => x && x.id && !ids.has(x.id));
     return [...R, ...localOnly];
   };
+
+  /* ── مزامنة فورية (realtime) للمالك: أي تغيير على أي جهاز يظهر فوراً ── */
+  useEffect(() => {
+    if (!session || session.role === 'customer' || session.role === 'worker') return;
+    if (fbStatus !== 'online') return;
+    const unsubs = [
+      fbSubscribe('lingots',            arr => setLingotsInCoffer(arr.filter(l => l.weight !== undefined))),
+      fbSubscribe('invoices',           arr => setInvoices(arr)),
+      fbSubscribe('ledger',             arr => setLedger(arr)),
+      fbSubscribe('workshop_workshop1', arr => setWorkshop1Lingots(arr)),
+      fbSubscribe('workshop_workshop2', arr => setWorkshop2Lingots(arr)),
+      fbSubscribe('sessions_workshop1', arr => setWorkshop1Sessions(arr)),
+      fbSubscribe('sessions_workshop2', arr => setWorkshop2Sessions(arr)),
+      fbSubscribe('worker_workshop1',   arr => setWorker1Lingots(arr)),
+      fbSubscribe('worker_workshop2',   arr => setWorker2Lingots(arr)),
+    ];
+    return () => unsubs.forEach(u => { try { u && u(); } catch {} });
+  }, [session, fbStatus]);
 
   /* ── تحديث بيانات العامل من السحابة عند كل دخول (غير متلِف — دمج لا استبدال) ── */
   useEffect(() => {
