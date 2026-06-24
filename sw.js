@@ -1,4 +1,4 @@
-const CACHE = 'rafinage-transfer-v23';
+const CACHE = 'rafinage-numfmt-v24';
 const ASSETS = ['./', './index.html', './manifest.json'];
 
 self.addEventListener('install', e => {

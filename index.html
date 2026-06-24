@@ -827,7 +827,7 @@ function HomeTab({t,dinarCofferTotal,extraLingotBalance,lingotsTotalWeight,recen
        <input type="text" placeholder="مثال: شراء غاز، كراء..." value={expenseDesc} onChange={e=>setExpenseDesc(e.target.value)}
          onKeyDown={e=>e.key==='Enter'&&submitExpense()}
          style={{background:t.inputBg,border:`1px solid ${t.border}`,borderRadius:9,padding:'8px 12px',fontSize:16,fontWeight:700,color:t.textPrimary,fontFamily:'inherit',textAlign:'right'}}/>
-       <input type="number" placeholder="0" value={expenseAmount} onChange={e=>setExpenseAmount(e.target.value)}
+       <input type="text" inputMode="numeric" placeholder="0" value={expenseAmount?fmtInt(expenseAmount):''} onChange={e=>setExpenseAmount(e.target.value.replace(/[^\d]/g,''))}
          onKeyDown={e=>e.key==='Enter'&&submitExpense()}
          style={{background:t.inputBg,border:`1px solid ${t.border}`,borderRadius:9,padding:'8px',fontSize:16,fontWeight:900,textAlign:'center',fontFamily:'monospace',color:t.textPrimary}}/>
        <div style={{display:'flex',gap:8}}>
@@ -1114,7 +1114,7 @@ function HomeTab({t,dinarCofferTotal,extraLingotBalance,lingotsTotalWeight,recen
           ):mkForm('مصاريف','صرف من الكوفر',t.goldSolid,'rgba(212,160,48,0.3)',
             <>
               <input style={inputStyle} type="text" placeholder="مثال: شراء غاز، كراء..." value={expenseDesc} onChange={e=>setExpenseDesc(e.target.value)} onKeyDown={e=>e.key==='Enter'&&submitExpense()}/>
-              <input style={numStyle} type="number" placeholder="0" value={expenseAmount} onChange={e=>setExpenseAmount(e.target.value)} onKeyDown={e=>e.key==='Enter'&&submitExpense()}/>
+              <input style={numStyle} type="text" inputMode="numeric" placeholder="0" value={expenseAmount?fmtInt(expenseAmount):''} onChange={e=>setExpenseAmount(e.target.value.replace(/[^\d]/g,''))} onKeyDown={e=>e.key==='Enter'&&submitExpense()}/>
             </>,
             submitExpense,()=>setExpenseActive(false),'تأكيد الصرف'
           )}
@@ -1604,10 +1604,17 @@ function SingleInvoiceForm({t,onSaveInvoice,debtsList,invoiceId,prefix,extraLing
   const C=(p,extra={})=>({padding:p,textAlign:'center',...extra});
   const L=(text,color)=><div style={{fontSize:14,color:color||t.textMuted,fontWeight:800,marginBottom:3}}>{text}</div>;
   const N=(val,set,opts={})=>(
-    <input type="number" step={opts.step||'any'} value={val||''} placeholder="0"
-      onChange={e=>set(parseFloat(e.target.value)||0)}
-      style={{width:'88%',textAlign:'center',background:'transparent',border:'none',
-        fontWeight:900,fontFamily:'monospace',fontSize:20,color:opts.color||t.textPrimary}}/>
+    opts.group ? (
+      <input type="text" inputMode="numeric" value={(val||val===0)&&val!==''?fmtInt(val):''} placeholder="0"
+        onChange={e=>{const raw=e.target.value.replace(/[^\d]/g,'');set(raw?parseInt(raw,10):0);}}
+        style={{width:'88%',textAlign:'center',background:'transparent',border:'none',
+          fontWeight:900,fontFamily:'monospace',fontSize:20,color:opts.color||t.textPrimary}}/>
+    ) : (
+      <input type="number" step={opts.step||'any'} value={val||''} placeholder="0"
+        onChange={e=>set(parseFloat(e.target.value)||0)}
+        style={{width:'88%',textAlign:'center',background:'transparent',border:'none',
+          fontWeight:900,fontFamily:'monospace',fontSize:20,color:opts.color||t.textPrimary}}/>
+    )
   );
 
   return (
@@ -1748,7 +1755,7 @@ function SingleInvoiceForm({t,onSaveInvoice,debtsList,invoiceId,prefix,extraLing
           </div>
           <div style={C('7px 8px')}>
             {L('دينار سابق')}
-            {N(prevDinar,setPrevDinar)}
+            {N(prevDinar,setPrevDinar,{group:true})}
           </div>
         </div>
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',borderBottom:D}}>
@@ -1759,7 +1766,7 @@ function SingleInvoiceForm({t,onSaveInvoice,debtsList,invoiceId,prefix,extraLing
           <div style={C('7px 8px',{borderLeft:D})}/>
           <div style={C('7px 8px')}>
             {L('💰 أخذ صوارد (دح)',t.red)}
-            {N(thisPayment,setThisPayment,{color:t.red})}
+            {N(thisPayment,setThisPayment,{color:t.red,group:true})}
           </div>
         </div>
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',background:t.dark?'#040A16':'#1B2640'}}>
