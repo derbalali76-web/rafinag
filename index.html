@@ -2356,9 +2356,13 @@ function OperationsLogTab({t,activities,onClearActivities,onDeleteActivity,custo
 /* ═══════════════════════════════════════════════
    DEBTS TAB
 ═══════════════════════════════════════════════ */
-function DebtsTab({t,debtsList}){
+function DebtsTab({t,debtsList,customerNames=[],onTransfer}){
   const [searchTerm,setSearchTerm]=useState('');
   const [sortOrder,setSortOrder]=useState('default');
+  const [xferFrom,setXferFrom]=useState(null);   // اسم الزبون المُحوِّل
+  const [xferTo,setXferTo]=useState('');
+  const [xferQty,setXferQty]=useState('');
+  const [xferType,setXferType]=useState('gold');
 
   const filtered=debtsList.filter(d=>(d.amount!==0||d.gold!==0)&&d.name.toLowerCase().includes(searchTerm.toLowerCase()));
   const sorted=[...filtered].sort((a,b)=>{
@@ -2396,7 +2400,7 @@ function DebtsTab({t,debtsList}){
 
       <Card t={t} style={{overflow:'hidden'}}>
         <table style={{width:'100%',borderCollapse:'collapse'}}>
-          <Thead t={t} cols={['الزبون','الدينار (دج)','الذهب (غ)']}/>
+          <Thead t={t} cols={['الزبون','الدينار (دج)','الذهب (غ)','تحويل']}/>
           <tbody>
             {sorted.map((d,i)=>{
               const dinar=d.amount||0,gold=d.gold||0;
@@ -2427,13 +2431,49 @@ function DebtsTab({t,debtsList}){
                       </span>
                     ):'—'}
                   </td>
+                  <td style={{padding:'14px 12px',textAlign:'center'}}>
+                    <button onClick={()=>{setXferFrom(d.name);setXferTo('');setXferQty('');setXferType(gold!==0?'gold':'dinar');}}
+                      style={{padding:'6px 14px',borderRadius:8,border:`1px solid ${(t.blue||'#3B82F6')}50`,background:`${(t.blue||'#3B82F6')}18`,color:t.blue||'#3B82F6',fontWeight:800,fontSize:14,cursor:'pointer',fontFamily:'inherit'}}>
+                      تحويل
+                    </button>
+                  </td>
                 </tr>
               );
             })}
-            {sorted.length===0&&<tr><td colSpan={3} style={{padding:28,textAlign:'center',color:t.textMuted,fontWeight:700,fontSize:17}}>لا توجد ذمم مطابقة</td></tr>}
+            {sorted.length===0&&<tr><td colSpan={4} style={{padding:28,textAlign:'center',color:t.textMuted,fontWeight:700,fontSize:17}}>لا توجد ذمم مطابقة</td></tr>}
           </tbody>
         </table>
       </Card>
+
+      {xferFrom && (
+        <div onClick={()=>setXferFrom(null)} style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.6)',zIndex:1000,display:'flex',alignItems:'center',justifyContent:'center',padding:16}}>
+          <div onClick={e=>e.stopPropagation()} dir="rtl" style={{width:'100%',maxWidth:430,background:t.cardBg,border:`1px solid ${t.border}`,borderRadius:16,padding:20,fontFamily:"'Tajawal',system-ui,sans-serif",color:t.textPrimary,boxShadow:'0 20px 60px rgba(0,0,0,0.5)'}}>
+            <div style={{fontSize:18,fontWeight:900,color:t.goldSolid,marginBottom:4}}>تحويل دين</div>
+            <div style={{fontSize:14,color:t.textMuted,fontWeight:700,marginBottom:14}}>من: <b style={{color:t.textPrimary}}>{xferFrom}</b></div>
+
+            <div style={{display:'flex',gap:8,marginBottom:12}}>
+              {[['gold','ذهب (غ)'],['dinar','دينار (دج)']].map(([k,lbl])=>(
+                <button key={k} onClick={()=>setXferType(k)} style={{flex:1,padding:'9px',borderRadius:9,border:`1px solid ${xferType===k?t.goldSolid:t.border}`,background:xferType===k?`${t.goldSolid}18`:t.inputBg,color:xferType===k?t.goldSolid:t.textSec,fontWeight:800,fontSize:15,cursor:'pointer',fontFamily:'inherit'}}>{lbl}</button>
+              ))}
+            </div>
+
+            <div style={{fontSize:13,fontWeight:800,color:t.textSec,marginBottom:4}}>المبلغ المُحوَّل</div>
+            <input type="number" inputMode="decimal" value={xferQty} onChange={e=>setXferQty(e.target.value)} placeholder={xferType==='gold'?'0.00 غ':'0 دج'}
+              style={{width:'100%',background:t.inputBg,border:`1px solid ${t.border}`,borderRadius:9,padding:'9px 12px',fontSize:16,fontWeight:800,color:t.textPrimary,fontFamily:'monospace',textAlign:'center',marginBottom:12,boxSizing:'border-box'}}/>
+
+            <div style={{fontSize:13,fontWeight:800,color:t.textSec,marginBottom:4}}>إلى الزبون</div>
+            <input type="text" list="rf-cn-xfer" value={xferTo} onChange={e=>setXferTo(e.target.value)} placeholder="اسم الزبون المُستقبِل..."
+              style={{width:'100%',background:t.inputBg,border:`1px solid ${t.border}`,borderRadius:9,padding:'9px 12px',fontSize:16,fontWeight:700,color:t.textPrimary,fontFamily:'inherit',textAlign:'right',marginBottom:14,boxSizing:'border-box'}}/>
+            <datalist id="rf-cn-xfer">{customerNames.filter(n=>n!==xferFrom).map((n,i)=><option key={i} value={n}/>)}</datalist>
+
+            <div style={{display:'flex',gap:8}}>
+              <button onClick={()=>{ const q=parseFloat(xferQty)||0; if(!xferTo.trim()){alert('⚠️ أدخل اسم الزبون المُستقبِل.');return;} if(q<=0){alert('⚠️ أدخل مبلغاً صحيحاً.');return;} onTransfer&&onTransfer(xferFrom,xferTo.trim(),q,xferType); setXferFrom(null); }}
+                style={{flex:1,padding:'11px',background:'linear-gradient(135deg,#C8920A,#EDB84A)',border:'none',borderRadius:10,color:'#1A0A00',fontWeight:900,fontSize:16,cursor:'pointer',fontFamily:'inherit'}}>تأكيد التحويل</button>
+              <button onClick={()=>setXferFrom(null)} style={{padding:'11px 16px',background:t.inputBg,border:`1px solid ${t.border}`,borderRadius:10,color:t.textSec,fontWeight:800,fontSize:16,cursor:'pointer',fontFamily:'inherit'}}>إلغاء</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -3798,6 +3838,29 @@ function RafinageApp(){
       amount:khalas, refId:bar.id });
   };
 
+  /* ── تحويل دين (ذهب/دينار) من زبون إلى آخر — يحافظ على المجموع ── */
+  const handleTransferDebt = (fromName, toName, qty, type) => {
+    userInteractedRef.current = true;
+    const q = Math.abs(Number(qty) || 0);
+    if (q <= 0 || !fromName || !toName) return;
+    if (fromName.trim().toLowerCase() === toName.trim().toLowerCase()) { alert('⚠️ لا يمكن التحويل لنفس الزبون.'); return; }
+    const from = debtsList.find(d => d.name.trim().toLowerCase() === fromName.trim().toLowerCase()) || { amount:0, gold:0 };
+    if (type === 'gold') {
+      const delta = ((from.gold || 0) < 0 ? +1 : -1) * q;  // يقلّل رصيد المُحوِّل نحو الصفر
+      postEntry({ type:'تحويل', actType:'give-gold', customer:fromName, customerId:custIdFor(fromName), debtGold:+delta,
+        desc:`تحويل ${fmt(q)} غ إلى ${toName}`, amount:q });
+      postEntry({ type:'تحويل', actType:'take-gold', customer:toName, customerId:custIdFor(toName), debtGold:-delta,
+        desc:`تحويل ${fmt(q)} غ من ${fromName}`, amount:q });
+    } else {
+      const delta = ((from.amount || 0) < 0 ? +1 : -1) * q;
+      postEntry({ type:'تحويل', actType:'give', customer:fromName, customerId:custIdFor(fromName), debtDinar:+delta,
+        desc:`تحويل ${fmtInt(q)} دج إلى ${toName}`, amount:q });
+      postEntry({ type:'تحويل', actType:'take', customer:toName, customerId:custIdFor(toName), debtDinar:-delta,
+        desc:`تحويل ${fmtInt(q)} دج من ${fromName}`, amount:q });
+    }
+    alert(`✅ حُوّل ${type==='gold'?fmt(q)+' غ':fmtInt(q)+' دج'} من ${fromName} إلى ${toName}.`);
+  };
+
   /* ── مصاريف ── */
   const handleDirectExpenseAction = (amount, desc) => {
     userInteractedRef.current = true;
@@ -4382,7 +4445,7 @@ function RafinageApp(){
         {activeTab === 'operations' && <OperationsLogTab t={t} activities={recentActivities} customers={debtsList}
           onClearActivities={() => {}}
           onDeleteActivity={handleDeleteActivity}/>}
-        {activeTab === 'debts'      && <DebtsTab t={t} debtsList={debtsList}/>}
+        {activeTab === 'debts'      && <DebtsTab t={t} debtsList={debtsList} customerNames={customerNames} onTransfer={handleTransferDebt}/>}
         {activeTab === 'customers'  && <CustomerAccountsTab t={t} names={customerNames} accounts={customerAuth} onRegister={handleRegisterCustomer} onRemove={handleRemoveCustomerAuth} authEnabled={AUTH.enabled}/>}
         {activeTab === 'workshops'  && <WorkshopsArchiveTab t={t} workshop1Sessions={workshop1Sessions} workshop2Sessions={workshop2Sessions}/>}
         {activeTab === 'workshop1'  && <WorkshopTab t={t} title="دحمون" description="ورشة دحمون للصياغة والتصنيع"
