@@ -702,7 +702,7 @@ initFirebase();
 /* ═══════════════════════════════════════════════
    HOME TAB
 ═══════════════════════════════════════════════ */
-function HomeTab({t,dinarCofferTotal,extraLingotBalance,lingotsTotalWeight,recentActivities,onAkhadAction,onDafaaAction,onDirectExpenseAction,openingDone,onSetOpening}){
+function HomeTab({t,dinarCofferTotal,extraLingotBalance,lingotsTotalWeight,recentActivities,onAkhadAction,onDafaaAction,onDirectExpenseAction,openingDone,onSetOpening,customerNames=[]}){
   const [takeActive,setTakeActive]=useState(false);
   const [giveActive,setGiveActive]=useState(false);
   const [expenseActive,setExpenseActive]=useState(false);
@@ -779,13 +779,14 @@ function HomeTab({t,dinarCofferTotal,extraLingotBalance,lingotsTotalWeight,recen
          <span style={{fontSize:13,color:t.textMuted,fontWeight:700}}>أنا أعطيت للزبون — يدين بالمبلغ</span>
          <span style={{fontWeight:900,fontSize:18,color:t.textPrimary}}>أخذ</span>
        </div>
-       <input type="text" placeholder="اسم الزبون..." value={takeCustomer} onChange={e=>setTakeCustomer(e.target.value)}
+       <input type="text" list="rf-cn" placeholder="اسم الزبون..." value={takeCustomer} onChange={e=>setTakeCustomer(e.target.value)}
          onKeyDown={e=>e.key==='Enter'&&submitTake()}
          style={{background:t.inputBg,border:`1px solid ${t.border}`,borderRadius:9,padding:'8px 12px',fontSize:16,fontWeight:700,color:t.textPrimary,fontFamily:'inherit',textAlign:'right'}}/>
        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
          <input type="number" step="0.001" placeholder="0.00" value={takeQuantity} onChange={e=>setTakeQuantity(e.target.value)}
            onKeyDown={e=>e.key==='Enter'&&submitTake()}
            style={{background:t.inputBg,border:`1px solid ${t.border}`,borderRadius:9,padding:'8px',fontSize:16,fontWeight:900,textAlign:'center',fontFamily:'monospace',color:t.textPrimary}}/>
+         <datalist id="rf-cn">{customerNames.map((n,i)=><option key={i} value={n}/>)}</datalist>
          {typeToggle(takeType,setTakeType,'لانقو','دينار',`linear-gradient(135deg,${t.red},#BE1A38)`)}
        </div>
        <div style={{display:'flex',gap:8}}>
@@ -801,7 +802,7 @@ function HomeTab({t,dinarCofferTotal,extraLingotBalance,lingotsTotalWeight,recen
          <span style={{fontSize:13,color:t.textMuted,fontWeight:700}}>الزبون أعطاني — ينقص من دينه</span>
          <span style={{fontWeight:900,fontSize:18,color:t.textPrimary}}>دفع</span>
        </div>
-       <input type="text" placeholder="اسم الزبون..." value={giveCustomer} onChange={e=>setGiveCustomer(e.target.value)}
+       <input type="text" list="rf-cn" placeholder="اسم الزبون..." value={giveCustomer} onChange={e=>setGiveCustomer(e.target.value)}
          onKeyDown={e=>e.key==='Enter'&&submitGive()}
          style={{background:t.inputBg,border:`1px solid ${t.border}`,borderRadius:9,padding:'8px 12px',fontSize:16,fontWeight:700,color:t.textPrimary,fontFamily:'inherit',textAlign:'right'}}/>
        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
@@ -1053,7 +1054,7 @@ function HomeTab({t,dinarCofferTotal,extraLingotBalance,lingotsTotalWeight,recen
             </button>
           ):mkForm('أخذ','أنا أعطيت للزبون','#EF4444','rgba(239,68,68,0.3)',
             <>
-              <input style={inputStyle} type="text" placeholder="اسم الزبون..." value={takeCustomer} onChange={e=>setTakeCustomer(e.target.value)} onKeyDown={e=>e.key==='Enter'&&submitTake()}/>
+              <input style={inputStyle} type="text" list="rf-cn" placeholder="اسم الزبون..." value={takeCustomer} onChange={e=>setTakeCustomer(e.target.value)} onKeyDown={e=>e.key==='Enter'&&submitTake()}/><datalist id="rf-cn">{customerNames.map((n,i)=><option key={i} value={n}/>)}</datalist>
               <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
                 <input style={numStyle} type="number" step="0.001" placeholder="0.00" value={takeQuantity} onChange={e=>setTakeQuantity(e.target.value)} onKeyDown={e=>e.key==='Enter'&&submitTake()}/>
                 {typeToggle(takeType,setTakeType,'لانقو','دينار','linear-gradient(135deg,#EF4444,#BE1A38)')}
@@ -1082,7 +1083,7 @@ function HomeTab({t,dinarCofferTotal,extraLingotBalance,lingotsTotalWeight,recen
             </button>
           ):mkForm('دفع','الزبون أعطاني','#10B981','rgba(16,185,129,0.3)',
             <>
-              <input style={inputStyle} type="text" placeholder="اسم الزبون..." value={giveCustomer} onChange={e=>setGiveCustomer(e.target.value)} onKeyDown={e=>e.key==='Enter'&&submitGive()}/>
+              <input style={inputStyle} type="text" list="rf-cn" placeholder="اسم الزبون..." value={giveCustomer} onChange={e=>setGiveCustomer(e.target.value)} onKeyDown={e=>e.key==='Enter'&&submitGive()}/><datalist id="rf-cn">{customerNames.map((n,i)=><option key={i} value={n}/>)}</datalist>
               <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
                 <input style={numStyle} type="number" step="0.001" placeholder="0.00" value={giveQuantity} onChange={e=>setGiveQuantity(e.target.value)} onKeyDown={e=>e.key==='Enter'&&submitGive()}/>
                 {typeToggle(giveType,setGiveType,'لانقو','دينار','linear-gradient(135deg,#10B981,#059669)')}
@@ -1217,10 +1218,12 @@ function TransferModal({t,isOpen,selectedCount,onClose,onConfirmTransfer}){
 /* ═══════════════════════════════════════════════
    COFFER TAB
 ═══════════════════════════════════════════════ */
-function CofferTab({t,lingots,onOpenTransferModal}){
+function CofferTab({t,lingots,onOpenTransferModal,onLoanLingot,customerNames=[]}){
   /* التحديد يعتمد على معرّف السبيكة (id) لا على الفهرس — حتى لا تتغيّر الإشارة عند تعديل القائمة */
   const [selectedIds,setSelectedIds]=useState([]);
   const [searchTerm,setSearchTerm]=useState('');
+  const [loanLingot,setLoanLingot]=useState(null);
+  const [loanName,setLoanName]=useState('');
 
   const totalWeight=lingots.filter(l=>l.weight>0).reduce((s,l)=>s+(l.weight*l.karat)/1000,0);
   const physicalCount=lingots.filter(l=>l.weight>0).length;
@@ -1280,7 +1283,7 @@ function CofferTab({t,lingots,onOpenTransferModal}){
 
       <Card t={t} style={{overflow:'hidden'}}>
         <table style={{width:'100%',borderCollapse:'collapse'}}>
-          <Thead t={t} cols={['اختيار','الوزن','العيار','الصافي 24k','المصدر']}/>
+          <Thead t={t} cols={['اختيار','الوزن','العيار','الصافي 24k','المصدر','سلف']}/>
           <tbody>
             {filtered.map((lingot)=>{
               const isSelected=selectedIds.includes(lingot.id);
@@ -1298,13 +1301,39 @@ function CofferTab({t,lingots,onOpenTransferModal}){
                   <td style={{padding:'12px 14px',textAlign:'center',fontFamily:'monospace',fontWeight:800,color:t.goldSolid,fontSize:17}}>{lingot.karat}</td>
                   <td style={{padding:'12px 14px',textAlign:'center',fontFamily:'monospace',fontWeight:900,color:t.green,fontSize:17}}>{fmt((lingot.weight*lingot.karat)/1000)}</td>
                   <td style={{padding:'12px 14px',textAlign:'center',fontSize:16,color:t.textSec,fontWeight:700}}>{lingot.source}</td>
+                  <td style={{padding:'12px',textAlign:'center'}}>
+                    <button onClick={e=>{e.stopPropagation();setLoanName('');setLoanLingot(lingot);}}
+                      style={{padding:'5px 13px',borderRadius:7,border:`1px solid ${(t.blue||'#3B82F6')}50`,background:`${(t.blue||'#3B82F6')}18`,color:t.blue||'#3B82F6',fontWeight:800,fontSize:14,cursor:'pointer',fontFamily:'inherit'}}>
+                      سلف
+                    </button>
+                  </td>
                 </tr>
               );
             })}
-            {filtered.length===0&&<tr><td colSpan={5} style={{padding:28,textAlign:'center',color:t.textMuted,fontWeight:700,fontSize:17}}>{searchTerm?'لم يتم العثور على نتائج':'لا توجد سبائك مسجلة حالياً'}</td></tr>}
+            {filtered.length===0&&<tr><td colSpan={6} style={{padding:28,textAlign:'center',color:t.textMuted,fontWeight:700,fontSize:17}}>{searchTerm?'لم يتم العثور على نتائج':'لا توجد سبائك مسجلة حالياً'}</td></tr>}
           </tbody>
         </table>
       </Card>
+
+      {loanLingot && (()=>{ const kh=(loanLingot.weight*loanLingot.karat)/1000; return (
+        <div onClick={()=>setLoanLingot(null)} style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.6)',zIndex:1000,display:'flex',alignItems:'center',justifyContent:'center',padding:16}}>
+          <div onClick={e=>e.stopPropagation()} dir="rtl" style={{width:'100%',maxWidth:420,background:t.cardBg,border:`1px solid ${t.border}`,borderRadius:16,padding:20,fontFamily:"'Tajawal',system-ui,sans-serif",color:t.textPrimary,boxShadow:'0 20px 60px rgba(0,0,0,0.5)'}}>
+            <div style={{fontSize:18,fontWeight:900,color:t.goldSolid,marginBottom:12}}>سلف سبيكة</div>
+            <div style={{background:t.inputBg,border:`1px solid ${t.border}`,borderRadius:10,padding:'10px 12px',marginBottom:12,fontSize:15,fontWeight:700,lineHeight:1.7}}>
+              <div>الوزن: <b style={{fontFamily:'monospace'}}>{fmt(loanLingot.weight)}</b> غ — العيار: <b style={{fontFamily:'monospace'}}>{loanLingot.karat}</b></div>
+              <div>يُسجَّل على الزبون: <b style={{fontFamily:'monospace',color:t.green}}>{fmt(kh)} غ</b> صافي 24</div>
+            </div>
+            <div style={{fontSize:13,fontWeight:800,color:t.textSec,marginBottom:4}}>اسم الزبون</div>
+            <input type="text" list="rf-cn-loan" value={loanName} onChange={e=>setLoanName(e.target.value)} placeholder="اسم الزبون..."
+              style={{width:'100%',background:t.inputBg,border:`1px solid ${t.border}`,borderRadius:9,padding:'9px 12px',fontSize:16,fontWeight:700,color:t.textPrimary,fontFamily:'inherit',textAlign:'right',marginBottom:14,boxSizing:'border-box'}}/>
+            <datalist id="rf-cn-loan">{customerNames.map((n,i)=><option key={i} value={n}/>)}</datalist>
+            <div style={{display:'flex',gap:8}}>
+              <button onClick={()=>{ if(!loanName.trim()){alert('⚠️ أدخل اسم الزبون.');return;} onLoanLingot&&onLoanLingot(loanLingot.id,loanName.trim()); setLoanLingot(null); }}
+                style={{flex:1,padding:'11px',background:'linear-gradient(135deg,#C8920A,#EDB84A)',border:'none',borderRadius:10,color:'#1A0A00',fontWeight:900,fontSize:16,cursor:'pointer',fontFamily:'inherit'}}>تأكيد السلف</button>
+              <button onClick={()=>setLoanLingot(null)} style={{padding:'11px 16px',background:t.inputBg,border:`1px solid ${t.border}`,borderRadius:10,color:t.textSec,fontWeight:800,fontSize:16,cursor:'pointer',fontFamily:'inherit'}}>إلغاء</button>
+            </div>
+          </div>
+        </div> ); })()}
     </div>
   );
 }
@@ -1500,7 +1529,7 @@ function generateInvoicePDF(data){
 
 /* ── PDF ورشة ── */
 
-function SingleInvoiceForm({t,onSaveInvoice,debtsList,invoiceId,prefix,extraLingotBalance}){
+function SingleInvoiceForm({t,onSaveInvoice,debtsList,invoiceId,prefix,extraLingotBalance,customerNames=[]}){
   const formRef=useRef(null);
   const [customer,setCustomer]=useState('');
   const [status,setStatus]=useState('خالص');
@@ -1618,7 +1647,7 @@ function SingleInvoiceForm({t,onSaveInvoice,debtsList,invoiceId,prefix,extraLing
               padding:'5px 28px 5px 8px',fontSize:14,fontWeight:700,color:t.textPrimary,
               fontFamily:'inherit',textAlign:'right'}}/>
           <UserIco size={11} color={t.textMuted} style={{position:'absolute',right:8,top:'50%',transform:'translateY(-50%)'}}/>
-          <datalist id={`cust-${prefix}`}>{debtsList.map((d,i)=><option key={i} value={d.name}/>)}</datalist>
+          <datalist id={`cust-${prefix}`}>{(customerNames.length?customerNames:debtsList.map(d=>d.name)).map((n,i)=><option key={i} value={n}/>)}</datalist>
         </div>
       </Card>
 
@@ -1765,14 +1794,14 @@ function SingleInvoiceForm({t,onSaveInvoice,debtsList,invoiceId,prefix,extraLing
   );
 }
 
-function InvoiceTab({t,onSaveInvoice,debtsList,nextInvoiceId,extraLingotBalance,isMobile}){
+function InvoiceTab({t,onSaveInvoice,debtsList,nextInvoiceId,extraLingotBalance,isMobile,customerNames=[]}){
   const id1=nextInvoiceId;
   const id2=String(Number(nextInvoiceId)+1);
   if(isMobile){
     return (
       <div style={{display:'flex',flexDirection:'column',flex:1,minHeight:0,overflow:'auto',padding:'10px 10px 14px',boxSizing:'border-box'}}>
         <SingleInvoiceForm t={t} onSaveInvoice={onSaveInvoice} debtsList={debtsList}
-          invoiceId={id1} prefix="inv-a" extraLingotBalance={extraLingotBalance}/>
+          invoiceId={id1} prefix="inv-a" extraLingotBalance={extraLingotBalance} customerNames={customerNames}/>
       </div>
     );
   }
@@ -1780,7 +1809,7 @@ function InvoiceTab({t,onSaveInvoice,debtsList,nextInvoiceId,extraLingotBalance,
     <div style={{display:'grid',gridTemplateColumns:'1fr auto 1fr',gridTemplateRows:'1fr',gap:0,
       flex:1,minHeight:0,overflow:'hidden',padding:'14px 14px 10px',boxSizing:'border-box'}}>
       <SingleInvoiceForm t={t} onSaveInvoice={onSaveInvoice} debtsList={debtsList}
-        invoiceId={id1} prefix="inv-a" extraLingotBalance={extraLingotBalance}/>
+        invoiceId={id1} prefix="inv-a" extraLingotBalance={extraLingotBalance} customerNames={customerNames}/>
 
       {/* ── DIVIDER ── */}
       <div style={{width:36,margin:'0 8px',position:'relative',
@@ -1801,7 +1830,7 @@ function InvoiceTab({t,onSaveInvoice,debtsList,nextInvoiceId,extraLingotBalance,
       </div>
 
       <SingleInvoiceForm t={t} onSaveInvoice={onSaveInvoice} debtsList={debtsList}
-        invoiceId={id2} prefix="inv-b" extraLingotBalance={extraLingotBalance}/>
+        invoiceId={id2} prefix="inv-b" extraLingotBalance={extraLingotBalance} customerNames={customerNames}/>
     </div>
   );
 }
@@ -3753,6 +3782,22 @@ function RafinageApp(){
     }
   };
 
+  /* ── سلف سبيكة لزبون: يخرج السبيكة من الكوفر ويسجّل صافي الـ24 ديناً ذهبياً ── */
+  const handleLoanLingot = (lingotId, customerName) => {
+    userInteractedRef.current = true;
+    const bar = lingotsInCoffer.find(l => l.id === lingotId);
+    if (!bar) return;
+    const khalas = _round6((bar.weight * bar.karat) / 1000);
+    /* إخراج السبيكة من الكوفر */
+    deleteLingot(bar.id);
+    setLingotsInCoffer(p => p.filter(l => l.id !== lingotId));
+    /* تسجيل دين ذهبي على الزبون (الصافي 24) — السالب يعني على الزبون */
+    postEntry({ type:'سلف', actType:'give-gold', customer:customerName, customerId:custIdFor(customerName),
+      debtGold:-khalas, gold:0, dinar:0,
+      desc:`سلف سبيكة ${fmt(bar.weight)}غ/${bar.karat} (صافي ${fmt(khalas)}غ) لـ ${customerName}`,
+      amount:khalas, refId:bar.id });
+  };
+
   /* ── مصاريف ── */
   const handleDirectExpenseAction = (amount, desc) => {
     userInteractedRef.current = true;
@@ -4327,12 +4372,12 @@ function RafinageApp(){
           extraLingotBalance={extraLingotBalance} lingotsTotalWeight={lingotsTotalWeight}
           recentActivities={recentActivities} onAkhadAction={handleAkhadAction}
           onDafaaAction={handleDafaaAction} onDirectExpenseAction={handleDirectExpenseAction}
-          openingDone={openingDone} onSetOpening={handleSetOpening}/>}
+          openingDone={openingDone} onSetOpening={handleSetOpening} customerNames={customerNames}/>}
         <div style={{ display: activeTab === 'invoice' ? 'flex' : 'none', flex: 1, minHeight: 0 }}>
           <InvoiceTab t={t} onSaveInvoice={handleSaveInvoice} debtsList={debtsList}
-            nextInvoiceId={nextInvoiceId} extraLingotBalance={extraLingotBalance} isMobile={isMobile}/>
+            nextInvoiceId={nextInvoiceId} extraLingotBalance={extraLingotBalance} isMobile={isMobile} customerNames={customerNames}/>
         </div>
-        {activeTab === 'coffer'     && <CofferTab t={t} lingots={lingotsInCoffer} onOpenTransferModal={i => setSelectedBulksToTransfer(i)}/>}
+        {activeTab === 'coffer'     && <CofferTab t={t} lingots={lingotsInCoffer} onOpenTransferModal={i => setSelectedBulksToTransfer(i)} onLoanLingot={handleLoanLingot} customerNames={customerNames}/>}
         {activeTab === 'log'        && <LogTab t={t} invoices={invoices} onOpenReceipt={inv => setActiveReceipt(inv)} onDeleteInvoice={handleDeleteInvoice} onEditInvoice={inv => setEditingInvoice(inv)}/>}
         {activeTab === 'operations' && <OperationsLogTab t={t} activities={recentActivities} customers={debtsList}
           onClearActivities={() => {}}

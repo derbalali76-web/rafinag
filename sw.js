@@ -1,4 +1,4 @@
-const CACHE = 'rafinage-merge-v20';
+const CACHE = 'rafinage-loan-v22';
 const ASSETS = ['./', './index.html', './manifest.json'];
 
 self.addEventListener('install', e => {
