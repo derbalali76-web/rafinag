@@ -2533,7 +2533,7 @@ function WorkshopTab({t,title,description,accentColor,lingots,onReturnToCoffer,o
   const remainingRaw=Math.max(0,totalRawWeight-rotorTotalRaw);
   const remainingPure24=Math.max(0,totalPure24-rotorTotalPure24);
 
-  useEffect(()=>{if(totalMfgSum>0)setCustomMfg(totalMfgSum.toString());},[totalMfgSum]);
+  /* «السلعة الواجدة» يدوية بالكامل ومحفوظة كمسوّدة — لا يُكتب فيها برمجياً */
 
   const mfgValue=parseFloat(customMfg)||0;
   const totalLapart=mfgValue-remainingPure24;
@@ -3565,19 +3565,27 @@ function RafinageApp(){
   };
 
   /* ── مزامنة فورية (realtime) للمالك: أي تغيير على أي جهاز يظهر فوراً ── */
+  const _rtSig = useRef({});
   useEffect(() => {
     if (!session || session.role === 'customer' || session.role === 'worker') return;
     if (fbStatus !== 'online') return;
+    const sigOf = (arr) => arr.length + '|' + arr.map(x => (x.id || x._fbId || '') + ':' + ((x._updatedAt && x._updatedAt.seconds) || (x._createdAt && x._createdAt.seconds) || '')).join(',');
+    const guard = (key, setter, transform) => (arr) => {
+      const s = sigOf(arr);
+      if (_rtSig.current[key] === s) return;   // لا شيء تغيّر فعلاً → لا تُعد الضبط
+      _rtSig.current[key] = s;
+      setter(transform ? transform(arr) : arr);
+    };
     const unsubs = [
-      fbSubscribe('lingots',            arr => setLingotsInCoffer(arr.filter(l => l.weight !== undefined))),
-      fbSubscribe('invoices',           arr => setInvoices(arr)),
-      fbSubscribe('ledger',             arr => setLedger(arr)),
-      fbSubscribe('workshop_workshop1', arr => setWorkshop1Lingots(arr)),
-      fbSubscribe('workshop_workshop2', arr => setWorkshop2Lingots(arr)),
-      fbSubscribe('sessions_workshop1', arr => setWorkshop1Sessions(arr)),
-      fbSubscribe('sessions_workshop2', arr => setWorkshop2Sessions(arr)),
-      fbSubscribe('worker_workshop1',   arr => setWorker1Lingots(arr)),
-      fbSubscribe('worker_workshop2',   arr => setWorker2Lingots(arr)),
+      fbSubscribe('lingots',            guard('lingots', setLingotsInCoffer, a => a.filter(l => l.weight !== undefined))),
+      fbSubscribe('invoices',           guard('invoices', setInvoices)),
+      fbSubscribe('ledger',             guard('ledger', setLedger)),
+      fbSubscribe('workshop_workshop1', guard('w1', setWorkshop1Lingots)),
+      fbSubscribe('workshop_workshop2', guard('w2', setWorkshop2Lingots)),
+      fbSubscribe('sessions_workshop1', guard('s1', setWorkshop1Sessions)),
+      fbSubscribe('sessions_workshop2', guard('s2', setWorkshop2Sessions)),
+      fbSubscribe('worker_workshop1',   guard('ww1', setWorker1Lingots)),
+      fbSubscribe('worker_workshop2',   guard('ww2', setWorker2Lingots)),
     ];
     return () => unsubs.forEach(u => { try { u && u(); } catch {} });
   }, [session, fbStatus]);
