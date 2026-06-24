@@ -3452,7 +3452,16 @@ function RafinageApp(){
     return () => { cancel = true; };
   }, [session, fbStatus]);
 
-  /* ── تحديث بيانات العامل من السحابة عند كل دخول (غير متلِف) ── */
+  /* دمج آمن حسب المعرّف: يبقي السحابة + أي عنصر محلي غير مرفوع (لا فقدان بيانات) */
+  const _mergeById = (local, remote) => {
+    const L = Array.isArray(local) ? local : [];
+    const R = Array.isArray(remote) ? remote : [];
+    const ids = new Set(R.map(x => x && x.id).filter(Boolean));
+    const localOnly = L.filter(x => x && x.id && !ids.has(x.id));
+    return [...R, ...localOnly];
+  };
+
+  /* ── تحديث بيانات العامل من السحابة عند كل دخول (غير متلِف — دمج لا استبدال) ── */
   useEffect(() => {
     if (!session || session.role !== 'worker') return;
     if (fbStatus !== 'online') return;   // انتظر جهوزية السحابة
@@ -3462,8 +3471,8 @@ function RafinageApp(){
       const bars = await fbGetAll(`worker_${ws}`);
       const sess = await fbGetAll(`worker_sessions_${ws}`);
       if (cancel) return;
-      if (bars && bars.length) { ws === 'workshop1' ? setWorker1Lingots(bars) : setWorker2Lingots(bars); }
-      if (sess && sess.length) { ws === 'workshop1' ? setWorker1Sessions(sess) : setWorker2Sessions(sess); }
+      if (bars && bars.length) { (ws === 'workshop1' ? setWorker1Lingots : setWorker2Lingots)(prev => _mergeById(prev, bars)); }
+      if (sess && sess.length) { (ws === 'workshop1' ? setWorker1Sessions : setWorker2Sessions)(prev => _mergeById(prev, sess)); }
     })();
     return () => { cancel = true; };
   }, [session, fbStatus]);
@@ -3611,15 +3620,15 @@ function RafinageApp(){
           }
           if (!remoteHasData) { setFbLoaded(true); return; }
 
-          /* تطبيق بيانات المالك من السحابة */
+          /* تطبيق بيانات المالك من السحابة — دمج لا استبدال (حماية من فقدان بيانات لم تُرفع) */
           setDark(data.dark);
-          setLedger(data.ledger || []);
-          if (data.invoices.length > 0)          setInvoices(data.invoices);
-          if (data.lingotsInCoffer.length > 0)   setLingotsInCoffer(data.lingotsInCoffer);
-          if (data.workshop1Lingots.length > 0)  setWorkshop1Lingots(data.workshop1Lingots);
-          if (data.workshop2Lingots.length > 0)  setWorkshop2Lingots(data.workshop2Lingots);
-          if (data.workshop1Sessions.length > 0) setWorkshop1Sessions(data.workshop1Sessions);
-          if (data.workshop2Sessions.length > 0) setWorkshop2Sessions(data.workshop2Sessions);
+          setLedger(_mergeById(ledger, data.ledger || []));
+          if (data.invoices.length > 0)          setInvoices(_mergeById(invoices, data.invoices));
+          if (data.lingotsInCoffer.length > 0)   setLingotsInCoffer(_mergeById(lingotsInCoffer, data.lingotsInCoffer));
+          if (data.workshop1Lingots.length > 0)  setWorkshop1Lingots(_mergeById(workshop1Lingots, data.workshop1Lingots));
+          if (data.workshop2Lingots.length > 0)  setWorkshop2Lingots(_mergeById(workshop2Lingots, data.workshop2Lingots));
+          if (data.workshop1Sessions.length > 0) setWorkshop1Sessions(_mergeById(workshop1Sessions, data.workshop1Sessions));
+          if (data.workshop2Sessions.length > 0) setWorkshop2Sessions(_mergeById(workshop2Sessions, data.workshop2Sessions));
           setFbLoaded(true);
         });
       } else {
