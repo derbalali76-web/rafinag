@@ -3727,10 +3727,7 @@ function RafinageApp(){
       postEntry({ type:'take', actType:'give', customer, customerId:custIdFor(customer), dinar:-qty, debtDinar:-qty,
         desc:`أخذ — تسليم دينار لـ ${customer}: ${fmtInt(qty)} دج`, amount:qty });
     } else {
-      const today = getTodayDateString();
-      const lingot = { id:`OUT-AKH-${Date.now()}`, source:customer, weight:-qty, karat:1000, date:today };
-      setLingotsInCoffer(p => [lingot, ...p]); addLingot(lingot);
-      postEntry({ type:'take-gold', actType:'give-gold', customer, customerId:custIdFor(customer), debtGold:-qty,
+      postEntry({ type:'take-gold', actType:'give-gold', customer, customerId:custIdFor(customer), gold:-qty, debtGold:-qty,
         desc:`أخذ — تسليم ذهب لـ ${customer}: ${fmt(qty)} غ`, amount:qty });
     }
   };
