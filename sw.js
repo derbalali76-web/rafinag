@@ -1,4 +1,4 @@
-const CACHE = 'rafinage-numfmt-v24';
+const CACHE = 'rafinage-wsmount-v25';
 const ASSETS = ['./', './index.html', './manifest.json'];
 
 self.addEventListener('install', e => {

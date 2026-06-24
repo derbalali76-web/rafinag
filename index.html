@@ -4455,20 +4455,24 @@ function RafinageApp(){
         {activeTab === 'debts'      && <DebtsTab t={t} debtsList={debtsList} customerNames={customerNames} onTransfer={handleTransferDebt}/>}
         {activeTab === 'customers'  && <CustomerAccountsTab t={t} names={customerNames} accounts={customerAuth} onRegister={handleRegisterCustomer} onRemove={handleRemoveCustomerAuth} authEnabled={AUTH.enabled}/>}
         {activeTab === 'workshops'  && <WorkshopsArchiveTab t={t} workshop1Sessions={workshop1Sessions} workshop2Sessions={workshop2Sessions}/>}
-        {activeTab === 'workshop1'  && <WorkshopTab t={t} title="دحمون" description="ورشة دحمون للصياغة والتصنيع"
+        <div style={{ display: activeTab === 'workshop1' ? 'flex' : 'none', flexDirection:'column', flex: 1, minHeight: 0 }}>
+          <WorkshopTab t={t} title="دحمون" description="ورشة دحمون للصياغة والتصنيع"
           accentColor="#0EA5E9" lingots={workshop1Lingots}
           onReturnToCoffer={id => handleReturnToCoffer('workshop1', id)}
           onUpdateLingots={ls => { ls.forEach(l => addWorkshopLingot('workshop1', l)); setWorkshop1Lingots(ls); }}
           onSave={handleWorkshopSave('workshop1')}
           onClearLingots={() => { workshop1Lingots.forEach(l => deleteWorkshopLingot('workshop1', l.id)); setWorkshop1Lingots([]); }}
-          mismatchIds={mismatchIds.workshop1} onReconcile={() => handleReconcile('workshop1')}/>}
-        {activeTab === 'workshop2'  && <WorkshopTab t={t} title="صلاح" description="ورشة صلاح للصياغة والتصنيع"
+          mismatchIds={mismatchIds.workshop1} onReconcile={() => handleReconcile('workshop1')}/>
+        </div>
+        <div style={{ display: activeTab === 'workshop2' ? 'flex' : 'none', flexDirection:'column', flex: 1, minHeight: 0 }}>
+          <WorkshopTab t={t} title="صلاح" description="ورشة صلاح للصياغة والتصنيع"
           accentColor="#8B5CF6" lingots={workshop2Lingots}
           onReturnToCoffer={id => handleReturnToCoffer('workshop2', id)}
           onUpdateLingots={ls => { ls.forEach(l => addWorkshopLingot('workshop2', l)); setWorkshop2Lingots(ls); }}
           onSave={handleWorkshopSave('workshop2')}
           onClearLingots={() => { workshop2Lingots.forEach(l => deleteWorkshopLingot('workshop2', l.id)); setWorkshop2Lingots([]); }}
-          mismatchIds={mismatchIds.workshop2} onReconcile={() => handleReconcile('workshop2')}/>}
+          mismatchIds={mismatchIds.workshop2} onReconcile={() => handleReconcile('workshop2')}/>
+        </div>
       </main>
 
       {/* BOTTOM NAV */}
