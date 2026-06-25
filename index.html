@@ -4302,9 +4302,10 @@ function RafinageApp(){
     const myLedger = AUTH.enabled
       ? custData.ledger
       : recentActivities.filter(a => a._entry && a._entry.customer && a._entry.customer.trim().toLowerCase() === norm).map(a => a._entry);
-    const myInvoices = AUTH.enabled
+    const myInvoices = (AUTH.enabled
       ? custData.invoices
-      : invoices.filter(i => i.customer && i.customer.trim().toLowerCase() === norm);
+      : invoices.filter(i => i.customer && i.customer.trim().toLowerCase() === norm)
+    ).slice().sort((a,b)=>(Number(b.id)||0)-(Number(a.id)||0));
     const myDebt = myLedger.reduce((acc, e) => ({ amount: acc.amount + (e.debtDinar || 0), gold: acc.gold + (e.debtGold || 0) }), { amount: 0, gold: 0 });
     return (
       <>

@@ -1,4 +1,4 @@
-const CACHE = 'rafinage-custmob-v30';
+const CACHE = 'rafinage-invsort-v31';
 const ASSETS = ['./', './index.html', './manifest.json'];
 
 self.addEventListener('install', e => {
