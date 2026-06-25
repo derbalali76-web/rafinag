@@ -1,4 +1,4 @@
-const CACHE = 'rafinage-autobk-v37';
+const CACHE = 'rafinage-note-v38';
 const ASSETS = ['./', './index.html', './manifest.json'];
 
 self.addEventListener('install', e => {

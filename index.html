@@ -765,9 +765,11 @@ function HomeTab({t,dinarCofferTotal,extraLingotBalance,lingotsTotalWeight,recen
   const [takeCustomer,setTakeCustomer]=useState('');
   const [takeQuantity,setTakeQuantity]=useState('');
   const [takeType,setTakeType]=useState('gold');
+  const [takeNote,setTakeNote]=useState('');
   const [giveCustomer,setGiveCustomer]=useState('');
   const [giveQuantity,setGiveQuantity]=useState('');
   const [giveType,setGiveType]=useState('gold');
+  const [giveNote,setGiveNote]=useState('');
   const [expenseDesc,setExpenseDesc]=useState('');
   const [expenseAmount,setExpenseAmount]=useState('');
   const [openingOpen,setOpeningOpen]=useState(false);
@@ -796,15 +798,15 @@ function HomeTab({t,dinarCofferTotal,extraLingotBalance,lingotsTotalWeight,recen
       alert(`⚠️ الوزن المطلوب (${fmt(qty)} غ) يتجاوز باقي اللانقو (${fmt(extraLingotBalance)} غ).`);return;
     }
     const cust=takeCustomer.trim()||'زبون عام';
-    onAkhadAction(qty,takeType,cust);
-    setTakeCustomer('');setTakeQuantity('');setTakeActive(false);
+    onAkhadAction(qty,takeType,cust,takeNote.trim());
+    setTakeCustomer('');setTakeQuantity('');setTakeNote('');setTakeActive(false);
   };
   const submitGive=()=>{
     const qty=parseFloat(giveQuantity);
     if(isNaN(qty)||qty<=0){alert('⚠️ الرجاء إدخال ميزان أو مبلغ صحيح.');return;}
     const cust=giveCustomer.trim()||'زبون عام';
-    onDafaaAction(qty,giveType,cust);
-    setGiveCustomer('');setGiveQuantity('');setGiveActive(false);
+    onDafaaAction(qty,giveType,cust,giveNote.trim());
+    setGiveCustomer('');setGiveQuantity('');setGiveNote('');setGiveActive(false);
   };
   const submitExpense=()=>{
     const amt=parseFloat(expenseAmount);
@@ -852,6 +854,9 @@ function HomeTab({t,dinarCofferTotal,extraLingotBalance,lingotsTotalWeight,recen
          <datalist id="rf-cn">{customerNames.map((n,i)=><option key={i} value={n}/>)}</datalist>
          {typeToggle(takeType,setTakeType,'لانقو','دينار',`linear-gradient(135deg,${t.red},#BE1A38)`)}
        </div>
+       <input type="text" placeholder="ملاحظة (اختياري)..." value={takeNote} onChange={e=>setTakeNote(e.target.value)}
+         onKeyDown={e=>e.key==='Enter'&&submitTake()}
+         style={{background:t.inputBg,border:`1px solid ${t.border}`,borderRadius:9,padding:'8px 12px',fontSize:14,fontWeight:600,color:t.textPrimary,fontFamily:'inherit',textAlign:'right'}}/>
        <div style={{display:'flex',gap:8}}>
          <button onClick={submitTake} style={{flex:1,padding:'9px',background:t.red,border:'none',borderRadius:9,color:'white',fontWeight:900,fontSize:16,cursor:'pointer',fontFamily:'inherit',display:'flex',alignItems:'center',justifyContent:'center',gap:6}}>
            <CheckIco size={14} color="white"/> تأكيد الأخذ
@@ -872,6 +877,9 @@ function HomeTab({t,dinarCofferTotal,extraLingotBalance,lingotsTotalWeight,recen
          {qtyInput(giveType,giveQuantity,setGiveQuantity,submitGive,{background:t.inputBg,border:`1px solid ${t.border}`,borderRadius:9,padding:'8px',fontSize:16,fontWeight:900,textAlign:'center',fontFamily:'monospace',color:t.textPrimary})}
          {typeToggle(giveType,setGiveType,'لانقو','دينار',`linear-gradient(135deg,${t.green},#059669)`)}
        </div>
+       <input type="text" placeholder="ملاحظة (اختياري)..." value={giveNote} onChange={e=>setGiveNote(e.target.value)}
+         onKeyDown={e=>e.key==='Enter'&&submitGive()}
+         style={{background:t.inputBg,border:`1px solid ${t.border}`,borderRadius:9,padding:'8px 12px',fontSize:14,fontWeight:600,color:t.textPrimary,fontFamily:'inherit',textAlign:'right'}}/>
        <div style={{display:'flex',gap:8}}>
          <button onClick={submitGive} style={{flex:1,padding:'9px',background:t.green,border:'none',borderRadius:9,color:'white',fontWeight:900,fontSize:16,cursor:'pointer',fontFamily:'inherit',display:'flex',alignItems:'center',justifyContent:'center',gap:6}}>
            <CheckIco size={14} color="white"/> تأكيد الدفع
@@ -1120,6 +1128,7 @@ function HomeTab({t,dinarCofferTotal,extraLingotBalance,lingotsTotalWeight,recen
                 {qtyInput(takeType,takeQuantity,setTakeQuantity,submitTake,numStyle)}
                 {typeToggle(takeType,setTakeType,'لانقو','دينار','linear-gradient(135deg,#EF4444,#BE1A38)')}
               </div>
+              <input style={inputStyle} type="text" placeholder="ملاحظة (اختياري)..." value={takeNote} onChange={e=>setTakeNote(e.target.value)} onKeyDown={e=>e.key==='Enter'&&submitTake()}/>
             </>,
             submitTake,()=>setTakeActive(false),'تأكيد الأخذ'
           )}
@@ -1149,6 +1158,7 @@ function HomeTab({t,dinarCofferTotal,extraLingotBalance,lingotsTotalWeight,recen
                 {qtyInput(giveType,giveQuantity,setGiveQuantity,submitGive,numStyle)}
                 {typeToggle(giveType,setGiveType,'لانقو','دينار','linear-gradient(135deg,#10B981,#059669)')}
               </div>
+              <input style={inputStyle} type="text" placeholder="ملاحظة (اختياري)..." value={giveNote} onChange={e=>setGiveNote(e.target.value)} onKeyDown={e=>e.key==='Enter'&&submitGive()}/>
             </>,
             submitGive,()=>setGiveActive(false),'تأكيد الدفع'
           )}
@@ -2375,6 +2385,7 @@ function OperationsLogTab({t,activities,onClearActivities,onDeleteActivity,custo
                       </td>
                       <td style={{padding:'10px 12px',textAlign:'center'}}>
                         <span style={{background:`${cfg.color}20`,color:cfg.color,padding:'3px 10px',borderRadius:20,fontSize:14,fontWeight:800,border:`1px solid ${cfg.color}40`}}>{cfg.label}</span>
+                        {act._entry&&act._entry.note?<div style={{fontSize:12,color:t.textMuted,fontWeight:600,marginTop:3,maxWidth:160,marginInline:'auto'}}>📝 {act._entry.note}</div>:null}
                       </td>
                       <td style={{padding:'10px 12px',textAlign:'center',fontFamily:'monospace',fontWeight:800,fontSize:16,color:t.goldSolid}}>
                         {(()=>{ const g=act._entry?Math.abs(act._entry.gold||act._entry.debtGold||0):0; return g>0?fmt(g)+' غ':'—'; })()}
@@ -3347,7 +3358,7 @@ function CustomerPortal({t,customerName,customerId,accent,myLedger,myInvoices,my
                     return (
                       <tr key={e.id||i} style={{borderBottom:`1px solid ${t.borderLight}`,opacity:e.reversed?0.5:1}}>
                         <td style={{padding:'10px 8px',textAlign:'center',fontFamily:'monospace',fontSize:12,color:t.textMuted}}>{e.date}</td>
-                        <td style={{padding:'10px 8px',textAlign:'center'}}><Badge color={cfg.color} label={cfg.label}/></td>
+                        <td style={{padding:'10px 8px',textAlign:'center'}}><Badge color={cfg.color} label={cfg.label}/>{e.note?<div style={{fontSize:11,color:t.textMuted,fontWeight:600,marginTop:3}}>📝 {e.note}</div>:null}</td>
                         {isMobile?(
                           <td style={{padding:'10px 8px',textAlign:'center',fontFamily:'monospace',fontWeight:900}}>
                             {g>0&&<div style={{color:t.goldSolid,fontSize:14}}>{fmt(g)} غ</div>}
@@ -3949,26 +3960,30 @@ function RafinageApp(){
   }, [invoices]);
 
   /* ── أخذ ── */
-  const handleAkhadAction = (qty, type, customer) => {
+  const handleAkhadAction = (qty, type, customer, note) => {
     userInteractedRef.current = true;
+    const nt = (note||'').trim();
+    const suf = nt ? ` — ${nt}` : '';
     if (type === 'dinar') {
-      postEntry({ type:'take', actType:'give', customer, customerId:custIdFor(customer), dinar:-qty, debtDinar:-qty,
-        desc:`أخذ — تسليم دينار لـ ${customer}: ${fmtInt(qty)} دج`, amount:qty });
+      postEntry({ type:'take', actType:'give', customer, customerId:custIdFor(customer), dinar:-qty, debtDinar:-qty, note:nt,
+        desc:`أخذ — تسليم دينار لـ ${customer}: ${fmtInt(qty)} دج${suf}`, amount:qty });
     } else {
-      postEntry({ type:'take-gold', actType:'give-gold', customer, customerId:custIdFor(customer), gold:-qty, debtGold:-qty,
-        desc:`أخذ — تسليم ذهب لـ ${customer}: ${fmt(qty)} غ`, amount:qty });
+      postEntry({ type:'take-gold', actType:'give-gold', customer, customerId:custIdFor(customer), gold:-qty, debtGold:-qty, note:nt,
+        desc:`أخذ — تسليم ذهب لـ ${customer}: ${fmt(qty)} غ${suf}`, amount:qty });
     }
   };
 
   /* ── دفع ── */
-  const handleDafaaAction = (qty, type, customer) => {
+  const handleDafaaAction = (qty, type, customer, note) => {
     userInteractedRef.current = true;
+    const nt = (note||'').trim();
+    const suf = nt ? ` — ${nt}` : '';
     if (type === 'dinar') {
-      postEntry({ type:'give', actType:'take', customer, customerId:custIdFor(customer), dinar:+qty, debtDinar:+qty,
-        desc:`دفع — استلام دينار من ${customer}: ${fmtInt(qty)} دج`, amount:qty });
+      postEntry({ type:'give', actType:'take', customer, customerId:custIdFor(customer), dinar:+qty, debtDinar:+qty, note:nt,
+        desc:`دفع — استلام دينار من ${customer}: ${fmtInt(qty)} دج${suf}`, amount:qty });
     } else {
-      postEntry({ type:'give-gold', actType:'take-gold', customer, customerId:custIdFor(customer), gold:+qty, debtGold:+qty,
-        desc:`دفع — استلام ذهب من ${customer}: ${fmt(qty)} غ`, amount:qty });
+      postEntry({ type:'give-gold', actType:'take-gold', customer, customerId:custIdFor(customer), gold:+qty, debtGold:+qty, note:nt,
+        desc:`دفع — استلام ذهب من ${customer}: ${fmt(qty)} غ${suf}`, amount:qty });
     }
   };
 
