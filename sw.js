@@ -1,4 +1,4 @@
-const CACHE = 'rafinage-lockboth-v35';
+const CACHE = 'rafinage-grpfull-v36';
 const ASSETS = ['./', './index.html', './manifest.json'];
 
 self.addEventListener('install', e => {

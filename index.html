@@ -723,6 +723,14 @@ initFirebase();
 /* ═══════════════════════════════════════════════
    HOME TAB
 ═══════════════════════════════════════════════ */
+function goFullscreen(){
+  try{
+    var el=document.documentElement;
+    var req=el.requestFullscreen||el.webkitRequestFullscreen||el.msRequestFullscreen;
+    if(req) req.call(el).catch(function(){});
+  }catch(e){}
+}
+
 function HomeTab({t,dinarCofferTotal,extraLingotBalance,lingotsTotalWeight,recentActivities,onAkhadAction,onDafaaAction,onDirectExpenseAction,openingDone,onSetOpening,customerNames=[]}){
   const [takeActive,setTakeActive]=useState(false);
   const [giveActive,setGiveActive]=useState(false);
@@ -793,6 +801,15 @@ function HomeTab({t,dinarCofferTotal,extraLingotBalance,lingotsTotalWeight,recen
     </div>
   );
 
+  /* حقل الكمية: يجمّع الآلاف في وضع الدينار، ويبقى عشرياً في وضع الذهب */
+  const qtyInput=(type,val,setVal,onEnter,style)=> type==='dinar'
+    ? <input type="text" inputMode="numeric" placeholder="0" value={val?fmtInt(val):''}
+        onChange={e=>setVal(e.target.value.replace(/[^\d]/g,''))}
+        onKeyDown={e=>e.key==='Enter'&&onEnter()} style={style}/>
+    : <input type="number" step="0.001" placeholder="0.00" value={val}
+        onChange={e=>setVal(e.target.value)}
+        onKeyDown={e=>e.key==='Enter'&&onEnter()} style={style}/>;
+
   const actionBtns=[
     {key:'take',label:'أخذ',Ico:DownIco,color:t.red,active:takeActive,
      content:<div style={{display:'flex',flexDirection:'column',gap:10,textAlign:'right'}}>
@@ -804,9 +821,7 @@ function HomeTab({t,dinarCofferTotal,extraLingotBalance,lingotsTotalWeight,recen
          onKeyDown={e=>e.key==='Enter'&&submitTake()}
          style={{background:t.inputBg,border:`1px solid ${t.border}`,borderRadius:9,padding:'8px 12px',fontSize:16,fontWeight:700,color:t.textPrimary,fontFamily:'inherit',textAlign:'right'}}/>
        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
-         <input type="number" step="0.001" placeholder="0.00" value={takeQuantity} onChange={e=>setTakeQuantity(e.target.value)}
-           onKeyDown={e=>e.key==='Enter'&&submitTake()}
-           style={{background:t.inputBg,border:`1px solid ${t.border}`,borderRadius:9,padding:'8px',fontSize:16,fontWeight:900,textAlign:'center',fontFamily:'monospace',color:t.textPrimary}}/>
+         {qtyInput(takeType,takeQuantity,setTakeQuantity,submitTake,{background:t.inputBg,border:`1px solid ${t.border}`,borderRadius:9,padding:'8px',fontSize:16,fontWeight:900,textAlign:'center',fontFamily:'monospace',color:t.textPrimary})}
          <datalist id="rf-cn">{customerNames.map((n,i)=><option key={i} value={n}/>)}</datalist>
          {typeToggle(takeType,setTakeType,'لانقو','دينار',`linear-gradient(135deg,${t.red},#BE1A38)`)}
        </div>
@@ -827,9 +842,7 @@ function HomeTab({t,dinarCofferTotal,extraLingotBalance,lingotsTotalWeight,recen
          onKeyDown={e=>e.key==='Enter'&&submitGive()}
          style={{background:t.inputBg,border:`1px solid ${t.border}`,borderRadius:9,padding:'8px 12px',fontSize:16,fontWeight:700,color:t.textPrimary,fontFamily:'inherit',textAlign:'right'}}/>
        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
-         <input type="number" step="0.001" placeholder="0.00" value={giveQuantity} onChange={e=>setGiveQuantity(e.target.value)}
-           onKeyDown={e=>e.key==='Enter'&&submitGive()}
-           style={{background:t.inputBg,border:`1px solid ${t.border}`,borderRadius:9,padding:'8px',fontSize:16,fontWeight:900,textAlign:'center',fontFamily:'monospace',color:t.textPrimary}}/>
+         {qtyInput(giveType,giveQuantity,setGiveQuantity,submitGive,{background:t.inputBg,border:`1px solid ${t.border}`,borderRadius:9,padding:'8px',fontSize:16,fontWeight:900,textAlign:'center',fontFamily:'monospace',color:t.textPrimary})}
          {typeToggle(giveType,setGiveType,'لانقو','دينار',`linear-gradient(135deg,${t.green},#059669)`)}
        </div>
        <div style={{display:'flex',gap:8}}>
@@ -1077,7 +1090,7 @@ function HomeTab({t,dinarCofferTotal,extraLingotBalance,lingotsTotalWeight,recen
             <>
               <input style={inputStyle} type="text" list="rf-cn" placeholder="اسم الزبون..." value={takeCustomer} onChange={e=>setTakeCustomer(e.target.value)} onKeyDown={e=>e.key==='Enter'&&submitTake()}/><datalist id="rf-cn">{customerNames.map((n,i)=><option key={i} value={n}/>)}</datalist>
               <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
-                <input style={numStyle} type="number" step="0.001" placeholder="0.00" value={takeQuantity} onChange={e=>setTakeQuantity(e.target.value)} onKeyDown={e=>e.key==='Enter'&&submitTake()}/>
+                {qtyInput(takeType,takeQuantity,setTakeQuantity,submitTake,numStyle)}
                 {typeToggle(takeType,setTakeType,'لانقو','دينار','linear-gradient(135deg,#EF4444,#BE1A38)')}
               </div>
             </>,
@@ -1106,7 +1119,7 @@ function HomeTab({t,dinarCofferTotal,extraLingotBalance,lingotsTotalWeight,recen
             <>
               <input style={inputStyle} type="text" list="rf-cn" placeholder="اسم الزبون..." value={giveCustomer} onChange={e=>setGiveCustomer(e.target.value)} onKeyDown={e=>e.key==='Enter'&&submitGive()}/><datalist id="rf-cn">{customerNames.map((n,i)=><option key={i} value={n}/>)}</datalist>
               <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
-                <input style={numStyle} type="number" step="0.001" placeholder="0.00" value={giveQuantity} onChange={e=>setGiveQuantity(e.target.value)} onKeyDown={e=>e.key==='Enter'&&submitGive()}/>
+                {qtyInput(giveType,giveQuantity,setGiveQuantity,submitGive,numStyle)}
                 {typeToggle(giveType,setGiveType,'لانقو','دينار','linear-gradient(135deg,#10B981,#059669)')}
               </div>
             </>,
@@ -2945,14 +2958,14 @@ function LoginScreen({t,onAuthenticate}){
           </div>
           <div>
             <div style={{fontSize:13,color:'#647AA0',fontWeight:800,marginBottom:5,textAlign:'right'}}>كلمة السر</div>
-            <input type="password" value={p} onChange={e=>setP(e.target.value)} onKeyDown={e=>e.key==='Enter'&&submit()}
+            <input type="password" value={p} onChange={e=>setP(e.target.value)} onKeyDown={e=>e.key==='Enter'&&(goFullscreen(),submit())}
               placeholder="••••"
               style={{width:'100%',boxSizing:'border-box',background:'#060915',border:'1px solid #1A2840',borderRadius:10,
                 padding:'10px 14px',fontSize:16,fontWeight:700,color:'#EDF1FF',fontFamily:'inherit',textAlign:'right'}}/>
           </div>
           {err&&<div style={{background:'#1A0A0A',border:'1px solid #FF4D6D',borderRadius:9,padding:'8px 12px',
             color:'#FF4D6D',fontSize:14,fontWeight:700,textAlign:'center'}}>{err}</div>}
-          <button onClick={submit} disabled={busy}
+          <button onClick={()=>{goFullscreen();submit();}} disabled={busy}
             style={{marginTop:4,padding:'11px',background:busy?'#8a7320':'linear-gradient(135deg,#C8920A,#EDB84A)',border:'none',borderRadius:10,
               color:'#1A0A00',fontWeight:900,fontSize:16,cursor:busy?'wait':'pointer',fontFamily:'inherit',boxShadow:'0 4px 18px rgba(212,160,48,0.35)'}}>
             {busy?'جارٍ الدخول…':'دخول'}
