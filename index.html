@@ -1597,7 +1597,11 @@ function SingleInvoiceForm({t,onSaveInvoice,debtsList,invoiceId,prefix,extraLing
 
   const totalNetWeight=items.reduce((s,it)=>s+(it.khalas||0),0);
   const totalRawWeight=items.reduce((s,it)=>s+(it.weight||0),0);
-  useEffect(()=>{setPrice(Number((totalRawWeight*fee).toFixed(2)));},[totalRawWeight,fee]);
+  /* زبائن تُحسب أجرتهم على ميزان الـ24 (الصافي) بدل الخام */
+  const NET_FEE_CUSTOMERS=['عبد الله شلف'];
+  const feeOnNet=NET_FEE_CUSTOMERS.includes((customer||'').trim().replace(/\s+/g,' '));
+  const feeBaseWeight=feeOnNet?totalNetWeight:totalRawWeight;
+  useEffect(()=>{setPrice(Number((feeBaseWeight*fee).toFixed(2)));},[feeBaseWeight,fee]);
 
   const remainingDinar=prevDinar-price+thisPayment;
   const remainingGold=totalNetWeight+prevGold-lingotPayment;
@@ -1747,7 +1751,7 @@ function SingleInvoiceForm({t,onSaveInvoice,debtsList,invoiceId,prefix,extraLing
             </span>
           </div>
           <div style={C('3px 6px',{borderLeft:D})}>
-            {L('أجرة (دج/غ)',t.red)}
+            {L(feeOnNet?'أجرة (على 24 ✓)':'أجرة (دج/غ)',t.red)}
             {N(fee,setFee,{color:t.red})}
           </div>
           <div style={C('3px 6px')}>
