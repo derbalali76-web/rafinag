@@ -723,6 +723,33 @@ initFirebase();
 /* ═══════════════════════════════════════════════
    HOME TAB
 ═══════════════════════════════════════════════ */
+/* ── تشفير النسخ الاحتياطية AES-GCM ── */
+function _bufToB64(buf){let s='';const b=new Uint8Array(buf);const ch=0x8000;for(let i=0;i<b.length;i+=ch){s+=String.fromCharCode.apply(null,b.subarray(i,i+ch));}return btoa(s);}
+function _b64ToBuf(b64){return Uint8Array.from(atob(b64),c=>c.charCodeAt(0));}
+async function _aesKey(){
+  const raw=new TextEncoder().encode('RAFINAG-BACKUP-KEY-v1::rafinag-157d2');
+  const hash=await crypto.subtle.digest('SHA-256',raw);
+  return crypto.subtle.importKey('raw',hash,{name:'AES-GCM'},false,['encrypt','decrypt']);
+}
+async function encryptJSON(obj){
+  const key=await _aesKey();
+  const iv=crypto.getRandomValues(new Uint8Array(12));
+  const data=new TextEncoder().encode(JSON.stringify(obj));
+  const ct=await crypto.subtle.encrypt({name:'AES-GCM',iv},key,data);
+  return {__enc:true,v:1,iv:_bufToB64(iv.buffer),data:_bufToB64(ct)};
+}
+async function decryptJSON(env){
+  const key=await _aesKey();
+  const pt=await crypto.subtle.decrypt({name:'AES-GCM',iv:_b64ToBuf(env.iv)},key,_b64ToBuf(env.data));
+  return JSON.parse(new TextDecoder().decode(pt));
+}
+function downloadJSONFile(objText,filename){
+  const blob=new Blob([objText],{type:'application/json'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');a.href=url;a.download=filename;
+  document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
+}
+
 function goFullscreen(){
   try{
     var el=document.documentElement;
@@ -3835,26 +3862,25 @@ function RafinageApp(){
   ══════════════════════════════════════════════ */
   const importInputRef = useRef(null);
 
-  const handleExportData = () => {
-    const payload = { ledger, lingotsInCoffer, workshop1Lingots, workshop2Lingots,
+  const buildBackupPayload = () => ({ ledger, lingotsInCoffer, workshop1Lingots, workshop2Lingots,
       workshop1Sessions, workshop2Sessions, invoices, dark,
-      _exportedAt: new Date().toISOString(), _version: 3 };
-    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
-    const url  = URL.createObjectURL(blob);
-    const a    = document.createElement('a');
-    a.href = url;
-    a.download = `نسخة-احتياطية-رفاينج-${getTodayDateString().replace(/\//g, '-')}.json`;
-    document.body.appendChild(a); a.click(); document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+      _exportedAt: new Date().toISOString(), _version: 3 });
+
+  const handleExportData = async () => {
+    try {
+      const env = await encryptJSON(buildBackupPayload());
+      downloadJSONFile(JSON.stringify(env), `rafinag-backup-${getTodayDateString().replace(/\//g,'-')}.json`);
+    } catch (e) { alert('⚠️ تعذّر إنشاء النسخة المشفّرة.'); }
   };
 
   const handleImportData = (e) => {
     const file = e.target.files && e.target.files[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = ev => {
+    reader.onload = async ev => {
       try {
-        const d = JSON.parse(ev.target.result);
+        let d = JSON.parse(ev.target.result);
+        if (d && d.__enc) { d = await decryptJSON(d); }   // نسخة مشفّرة → فكّ التشفير
         if (!confirm('⚠️ سيتم استبدال كل البيانات الحالية. هل أنت متأكد؟')) return;
         userInteractedRef.current = true;
         const newLedger = Array.isArray(d.ledger) ? d.ledger : migrateLegacy(d);
@@ -3873,6 +3899,42 @@ function RafinageApp(){
     reader.readAsText(file);
     e.target.value = '';
   };
+
+  /* ── نسخة احتياطية مشفّرة تلقائية كل ٣٠ دقيقة (للمالك) ── */
+  const _backupDataRef = useRef({});
+  _backupDataRef.current = { ledger, lingotsInCoffer, workshop1Lingots, workshop2Lingots,
+    workshop1Sessions, workshop2Sessions, invoices, dark };
+  const _lastBackupSig = useRef('');
+  useEffect(() => {
+    if (!session || session.role === 'customer' || session.role === 'worker') return;
+    const runBackup = async () => {
+      try {
+        const d = _backupDataRef.current;
+        const sig = `${d.ledger.length}|${d.invoices.length}|${d.lingotsInCoffer.length}|${d.workshop1Sessions.length}|${d.workshop2Sessions.length}`;
+        if (sig === _lastBackupSig.current) return;     // لا تغيير → لا نسخة مكرّرة
+        _lastBackupSig.current = sig;
+        const env = await encryptJSON({ ...d, _exportedAt: new Date().toISOString(), _version: 3, _auto: true });
+        const ts = new Date(); const pad = n => String(n).padStart(2,'0');
+        const name = `rafinag-auto-${ts.getFullYear()}${pad(ts.getMonth()+1)}${pad(ts.getDate())}-${pad(ts.getHours())}${pad(ts.getMinutes())}.json`;
+        downloadJSONFile(JSON.stringify(env), name);
+      } catch (e) { console.warn('[auto-backup]', e.message); }
+    };
+    const id = setInterval(runBackup, 30 * 60 * 1000);   // كل نصف ساعة
+    return () => clearInterval(id);
+  }, [session]);
+
+  /* ── منع المسافة خارج الحقول (بحث غوغل) و Esc ── */
+  useEffect(() => {
+    const onKey = (e) => {
+      const el = e.target || {};
+      const tag = (el.tagName || '').toLowerCase();
+      const typing = tag === 'input' || tag === 'textarea' || tag === 'select' || el.isContentEditable;
+      if (!typing && (e.key === ' ' || e.code === 'Space')) { e.preventDefault(); }
+      if (e.key === 'Escape') { e.preventDefault(); }
+    };
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
+  }, []);
 
   /* ══════════════════════════════════════════════
      CORE LOGIC
