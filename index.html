@@ -750,8 +750,18 @@ function downloadJSONFile(objText,filename){
   document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
 }
 
-function goFullscreen(){
-  try{
+/* استخراج ملاحظة المعاملة: من الحقل، أو من نهاية الوصف لأخذ/دفع */
+function noteOf(e){
+  if(!e) return '';
+  if(e.note) return e.note;
+  var t=e.actType||e.type;
+  if(['take','give','take-gold','give-gold'].indexOf(t)>=0){
+    var parts=(e.desc||'').split(' — ');
+    if(parts.length>2) return parts.slice(2).join(' — ');
+  }
+  return '';
+}
+function goFullscreen(){  try{
     var el=document.documentElement;
     var req=el.requestFullscreen||el.webkitRequestFullscreen||el.msRequestFullscreen;
     if(req) req.call(el).catch(function(){});
@@ -2385,7 +2395,7 @@ function OperationsLogTab({t,activities,onClearActivities,onDeleteActivity,custo
                       </td>
                       <td style={{padding:'10px 12px',textAlign:'center'}}>
                         <span style={{background:`${cfg.color}20`,color:cfg.color,padding:'3px 10px',borderRadius:20,fontSize:14,fontWeight:800,border:`1px solid ${cfg.color}40`}}>{cfg.label}</span>
-                        {act._entry&&act._entry.note?<div style={{fontSize:12,color:t.textMuted,fontWeight:600,marginTop:3,maxWidth:160,marginInline:'auto'}}>📝 {act._entry.note}</div>:null}
+                        {(()=>{ const nt=noteOf(act._entry); return nt?<div style={{fontSize:12,color:t.textMuted,fontWeight:600,marginTop:3,maxWidth:160,marginInline:'auto'}}>📝 {nt}</div>:null; })()}
                       </td>
                       <td style={{padding:'10px 12px',textAlign:'center',fontFamily:'monospace',fontWeight:800,fontSize:16,color:t.goldSolid}}>
                         {(()=>{ const g=act._entry?Math.abs(act._entry.gold||act._entry.debtGold||0):0; return g>0?fmt(g)+' غ':'—'; })()}
@@ -3358,7 +3368,7 @@ function CustomerPortal({t,customerName,customerId,accent,myLedger,myInvoices,my
                     return (
                       <tr key={e.id||i} style={{borderBottom:`1px solid ${t.borderLight}`,opacity:e.reversed?0.5:1}}>
                         <td style={{padding:'10px 8px',textAlign:'center',fontFamily:'monospace',fontSize:12,color:t.textMuted}}>{e.date}</td>
-                        <td style={{padding:'10px 8px',textAlign:'center'}}><Badge color={cfg.color} label={cfg.label}/>{e.note?<div style={{fontSize:11,color:t.textMuted,fontWeight:600,marginTop:3}}>📝 {e.note}</div>:null}</td>
+                        <td style={{padding:'10px 8px',textAlign:'center'}}><Badge color={cfg.color} label={cfg.label}/>{(()=>{ const nt=noteOf(e); return nt?<div style={{fontSize:11,color:t.textMuted,fontWeight:600,marginTop:3}}>📝 {nt}</div>:null; })()}</td>
                         {isMobile?(
                           <td style={{padding:'10px 8px',textAlign:'center',fontFamily:'monospace',fontWeight:900}}>
                             {g>0&&<div style={{color:t.goldSolid,fontSize:14}}>{fmt(g)} غ</div>}
