@@ -2320,7 +2320,7 @@ function OperationsLogTab({t,activities,onClearActivities,onDeleteActivity,custo
             <div style={{padding:28,textAlign:'center',color:t.textMuted,fontWeight:700,fontSize:17}}>لا توجد عمليات مطابقة</div>
           ):(
             <table style={{width:'100%',borderCollapse:'collapse'}}>
-              <Thead t={t} cols={['#','التاريخ','الاسم','النوع','العملة','المبلغ','حذف']}/>
+              <Thead t={t} cols={['#','التاريخ','الاسم','النوع','الذهب 24','المبلغ','حذف']}/>
               <tbody>
                 {filtered.map((act,i)=>{
                   const cfg=typeConfig[act.type]||{color:t.textSec,label:'عام',currency:'—'};
@@ -2336,9 +2336,11 @@ function OperationsLogTab({t,activities,onClearActivities,onDeleteActivity,custo
                       <td style={{padding:'10px 12px',textAlign:'center'}}>
                         <span style={{background:`${cfg.color}20`,color:cfg.color,padding:'3px 10px',borderRadius:20,fontSize:14,fontWeight:800,border:`1px solid ${cfg.color}40`}}>{cfg.label}</span>
                       </td>
-                      <td style={{padding:'10px 12px',textAlign:'center',fontSize:14,color:t.textSec,fontWeight:700}}>{cfg.currency}</td>
+                      <td style={{padding:'10px 12px',textAlign:'center',fontFamily:'monospace',fontWeight:800,fontSize:16,color:t.goldSolid}}>
+                        {(()=>{ const g=act._entry?Math.abs(act._entry.gold||act._entry.debtGold||0):0; return g>0?fmt(g)+' غ':'—'; })()}
+                      </td>
                       <td style={{padding:'10px 12px',textAlign:'center',fontFamily:'monospace',fontWeight:900,fontSize:18,color:cfg.color}}>
-                        {isCash?fmtInt(act.amount)+' دج':isGold?fmt(act.amount)+' غ':fmt(act.amount)+' غ'}
+                        {(()=>{ const d=act._entry?Math.abs(act._entry.dinar||act._entry.debtDinar||0):0; return d>0?fmtInt(d)+' دج':'—'; })()}
                       </td>
                       <td style={{padding:'10px 12px',textAlign:'center'}}>
                         <button onClick={()=>onDeleteActivity&&onDeleteActivity(act,i)}

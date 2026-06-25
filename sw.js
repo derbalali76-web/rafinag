@@ -1,4 +1,4 @@
-const CACHE = 'rafinage-wsfix-v27';
+const CACHE = 'rafinage-goldcol-v28';
 const ASSETS = ['./', './index.html', './manifest.json'];
 
 self.addEventListener('install', e => {
