@@ -1623,18 +1623,18 @@ function SingleInvoiceForm({t,onSaveInvoice,debtsList,invoiceId,prefix,extraLing
 
   const D=`1px solid ${t.border}`;
   const C=(p,extra={})=>({padding:p,textAlign:'center',...extra});
-  const L=(text,color)=><div style={{fontSize:14,color:color||t.textMuted,fontWeight:800,marginBottom:3}}>{text}</div>;
+  const L=(text,color)=><div style={{fontSize:11,color:color||t.textMuted,fontWeight:800,marginBottom:1}}>{text}</div>;
   const N=(val,set,opts={})=>(
     opts.group ? (
       <input type="text" inputMode="numeric" value={(val||val===0)&&val!==''?fmtInt(val):''} placeholder="0"
         onChange={e=>{const raw=e.target.value.replace(/[^\d]/g,'');set(raw?parseInt(raw,10):0);}}
         style={{width:'88%',textAlign:'center',background:'transparent',border:'none',
-          fontWeight:900,fontFamily:'monospace',fontSize:20,color:opts.color||t.textPrimary}}/>
+          fontWeight:900,fontFamily:'monospace',fontSize:15,color:opts.color||t.textPrimary}}/>
     ) : (
       <input type="number" step={opts.step||'any'} value={val||''} placeholder="0"
         onChange={e=>set(parseFloat(e.target.value)||0)}
         style={{width:'88%',textAlign:'center',background:'transparent',border:'none',
-          fontWeight:900,fontFamily:'monospace',fontSize:20,color:opts.color||t.textPrimary}}/>
+          fontWeight:900,fontFamily:'monospace',fontSize:15,color:opts.color||t.textPrimary}}/>
     )
   );
 
@@ -1740,25 +1740,25 @@ function SingleInvoiceForm({t,onSaveInvoice,debtsList,invoiceId,prefix,extraLing
       {/* STATS */}
       <Card t={t} style={{overflow:'hidden'}}>
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',borderBottom:D}}>
-          <div style={C('7px 8px',{borderLeft:D})}>
+          <div style={C('3px 6px',{borderLeft:D})}>
             {L('مجموع خالص')}
-            <span style={{fontFamily:'monospace',fontWeight:900,fontSize:20,color:t.green}}>
+            <span style={{fontFamily:'monospace',fontWeight:900,fontSize:16,color:t.green}}>
               {fmt(totalNetWeight)}<span style={{fontSize:14}}> غ</span>
             </span>
           </div>
-          <div style={C('7px 8px',{borderLeft:D})}>
+          <div style={C('3px 6px',{borderLeft:D})}>
             {L('أجرة (دج/غ)',t.red)}
             {N(fee,setFee,{color:t.red})}
           </div>
-          <div style={C('7px 8px')}>
+          <div style={C('3px 6px')}>
             {L('قيمة دج')}
-            <span style={{fontFamily:'monospace',fontWeight:900,fontSize:20,color:t.textPrimary}}>{fmtInt(price)}</span>
+            <span style={{fontFamily:'monospace',fontWeight:900,fontSize:16,color:t.textPrimary}}>{fmtInt(price)}</span>
           </div>
         </div>
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',borderBottom:D}}>
-          <div style={C('7px 8px',{borderLeft:D})}>
+          <div style={C('3px 6px',{borderLeft:D})}>
             {L('ذهب سابق')}
-            <div style={{textAlign:'center',fontFamily:'monospace',fontWeight:900,fontSize:20,color:t.textPrimary,lineHeight:1.1}}>
+            <div style={{textAlign:'center',fontFamily:'monospace',fontWeight:900,fontSize:16,color:t.textPrimary,lineHeight:1.1}}>
               {fmt(Math.round((prevGold||0)*100)/100)}
               <span style={{fontSize:12,color:t.textMuted,fontWeight:700,marginRight:2}}>غ</span>
             </div>
@@ -1770,34 +1770,34 @@ function SingleInvoiceForm({t,onSaveInvoice,debtsList,invoiceId,prefix,extraLing
                 borderRadius:6,marginTop:3,fontWeight:700,fontFamily:'monospace',fontSize:13,
                 color:t.textMuted,padding:'2px 0'}}/>
           </div>
-          <div style={C('7px 8px',{borderLeft:D,background:t.dark?'rgba(16,185,129,0.08)':'rgba(10,158,110,0.06)',
+          <div style={C('3px 6px',{borderLeft:D,background:t.dark?'rgba(16,185,129,0.08)':'rgba(10,158,110,0.06)',
             display:'flex',alignItems:'center',justifyContent:'center'})}>
             <span style={{color:t.green,fontWeight:900,fontSize:14}}>الرصيد السابق</span>
           </div>
-          <div style={C('7px 8px')}>
+          <div style={C('3px 6px')}>
             {L('دينار سابق')}
             {N(prevDinar,setPrevDinar,{group:true})}
           </div>
         </div>
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',borderBottom:D}}>
-          <div style={C('7px 8px',{borderLeft:D})}>
+          <div style={C('3px 6px',{borderLeft:D})}>
             {L('🪙 دفع لانقو (غ)',t.goldSolid)}
             {N(lingotPayment,setLingotPayment,{step:'0.001',color:t.goldSolid})}
           </div>
-          <div style={C('7px 8px',{borderLeft:D})}/>
-          <div style={C('7px 8px')}>
+          <div style={C('3px 6px',{borderLeft:D})}/>
+          <div style={C('3px 6px')}>
             {L('💰 أخذ صوارد (دح)',t.red)}
             {N(thisPayment,setThisPayment,{color:t.red,group:true})}
           </div>
         </div>
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',background:t.dark?'#040A16':'#1B2640'}}>
-          <div style={{padding:'10px 10px',textAlign:'center',borderLeft:'1px solid rgba(255,255,255,0.08)'}}>
-            <span style={{fontFamily:'monospace',fontWeight:900,fontSize:21,color:t.green}}>
+          <div style={{padding:'6px 8px',textAlign:'center',borderLeft:'1px solid rgba(255,255,255,0.08)'}}>
+            <span style={{fontFamily:'monospace',fontWeight:900,fontSize:17,color:t.green}}>
               {fmt(remainingGold)}<span style={{fontSize:16}}> غ</span>
             </span>
           </div>
-          <div style={{padding:'10px 10px',textAlign:'center'}}>
-            <span style={{fontFamily:'monospace',fontWeight:900,fontSize:21,color:t.goldSolid}}>
+          <div style={{padding:'6px 8px',textAlign:'center'}}>
+            <span style={{fontFamily:'monospace',fontWeight:900,fontSize:17,color:t.goldSolid}}>
               {fmtInt(remainingDinar)}
             </span>
           </div>
