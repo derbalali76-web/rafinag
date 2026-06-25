@@ -3663,6 +3663,7 @@ function RafinageApp(){
       fbSubscribe('sessions_workshop2', guard('s2', setWorkshop2Sessions)),
       fbSubscribe('worker_workshop1',   guard('ww1', setWorker1Lingots)),
       fbSubscribe('worker_workshop2',   guard('ww2', setWorker2Lingots)),
+      fbSubscribe('customer_auth',      guard('cauth', arr => setCustomerAuth(arr.map(c=>({key:c.key||c._fbId,name:c.name,phone:c.phone,pin:c.pin}))))),
     ];
     return () => unsubs.forEach(u => { try { u && u(); } catch {} });
   }, [session, fbStatus]);
