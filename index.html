@@ -2293,6 +2293,7 @@ function OperationsLogTab({t,activities,onClearActivities,onDeleteActivity,custo
     'give-gold':{color:'#DC2A4A',label:'تسليم ذهب',currency:'غ'},
     expense:{color:'#C9922A',label:'مصاريف',currency:'دج'},
     'رافيناج':{color:'#D4AF37',label:'رافيناج',currency:'ذهب 24'},
+    'تعديل':{color:'#E8833A',label:'تصحيح فاتورة',currency:'—'},
     'reversal':{color:'#94A3B8',label:'قيد عكسي',currency:'—'},
   };
 
@@ -3285,6 +3286,7 @@ function CustomerPortal({t,customerName,customerId,accent,myLedger,myInvoices,my
   /* النوع من منظور الزبون (معكوس): ما يستلمه المتجر = دفعه الزبون، والعكس */
   const txCfg={
     'رافيناج':{label:'رافيناج',color:'#818CF8'},
+    'تعديل':{label:'تصحيح فاتورة',color:'#E8833A'},
     take:{label:'دفع',color:'#34D399'}, give:{label:'استلام',color:'#FB7185'},
     'take-gold':{label:'دفع ذهب',color:'#34D399'}, 'give-gold':{label:'استلام ذهب',color:'#FB7185'},
     reversal:{label:'قيد عكسي',color:'#94A3B8'},
@@ -4159,9 +4161,9 @@ function RafinageApp(){
 
     /* 3) قيد تعديل (نفس اصطلاح الفاتورة الأصلية) — يحدّث المخزون وحساب الزبون */
     if (dNet !== 0 || dPrice !== 0) {
-      postEntry({ type:'تعديل', actType:'رافيناج', customer: inv.customer, customerId: inv.customerId || custIdFor(inv.customer),
-        gold: -dNet, debtGold: +dNet, debtDinar: -dPrice, dinar: 0,
-        desc:`تعديل سند #${invId}: ${reason}`, amount: Math.abs(dPrice) || Math.abs(dNet), refId: invId });
+      postEntry({ type:'تعديل', actType:'تعديل', customer: inv.customer, customerId: inv.customerId || custIdFor(inv.customer),
+        gold: -dNet, debtGold: +dNet, debtDinar: -dPrice, dinar: 0, note: reason,
+        desc:`تصحيح فاتورة سند #${invId}: ${reason}`, amount: Math.abs(dPrice) || Math.abs(dNet), refId: invId });
     }
     setEditingInvoice(null);
     alert(`✅ عُدّل السند #${invId}\nفرق الخالص: ${fmt(dNet)} غ | فرق السعر: ${fmtInt(dPrice)} دج\nالسبب: ${reason}`);

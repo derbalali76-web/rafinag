@@ -1,4 +1,4 @@
-const CACHE = 'rafinage-dlvrotor-v45';
+const CACHE = 'rafinage-editnote-v46';
 const ASSETS = ['./', './index.html', './manifest.json'];
 
 self.addEventListener('install', e => {
