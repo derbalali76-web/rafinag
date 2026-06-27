@@ -1,4 +1,4 @@
-const CACHE = 'rafinage-xfername-v44';
+const CACHE = 'rafinage-dlvrotor-v45';
 const ASSETS = ['./', './index.html', './manifest.json'];
 
 self.addEventListener('install', e => {

@@ -1532,6 +1532,7 @@ function ReceiptModal({t,isOpen,invoice,onClose}){
 function generateInvoicePDF(data){
   const invoiceId=data.id||data.invoiceId;
   const customer=data.customer||'زبون عام';
+  const deliverer=data.deliverer||'';
   const items=(data.items||[]).filter(it=>(it.weight||0)>0&&(it.karat||0)>0);
   const price=data.price||0;
   const fee=data.fee||0;
@@ -1559,6 +1560,7 @@ function generateInvoicePDF(data){
     <div style="text-align:center;margin-bottom:22px;">
       <div style="font-size:26px;font-weight:900;color:#C0390F;">&#x1F525; فاتورة رافيناج</div>
       <div style="font-size:13px;color:#777;margin-top:6px;">${customer} – ${date}</div>
+      ${deliverer?`<div style="font-size:12px;color:#999;margin-top:2px;">المسلِّم: ${deliverer}</div>`:''}
     </div>
     <table style="width:100%;border-collapse:collapse;margin-bottom:20px;border:1px solid #ccc;">
       <thead><tr style="background:#1a1a1a;color:white;">
@@ -1681,7 +1683,7 @@ function SingleInvoiceForm({t,onSaveInvoice,debtsList,invoiceId,prefix,extraLing
     if(lingotPayment>0&&lingotPayment>(extraLingotBalance||0)){
       alert(`⚠️ دفع اللانقو (${fmt(lingotPayment)} غ) يتجاوز باقي اللانقو المتاح (${fmt(extraLingotBalance||0)} غ).`);return;
     }
-    generateInvoicePDF({invoiceId,customer:customer.trim(),items:activeItems,price,fee,prevDinar,prevGold,thisPayment,lingotPayment,status,remainingDinar,remainingGold});
+    generateInvoicePDF({invoiceId,customer:customer.trim(),deliverer:deliverer.trim(),items:activeItems,price,fee,prevDinar,prevGold,thisPayment,lingotPayment,status,remainingDinar,remainingGold});
     onSaveInvoice({invoiceId,customer:customer.trim(),deliverer:deliverer.trim(),items:activeItems,price,fee,prevDinar,prevGold,thisPayment,lingotPayment,status});
     handleClearForm();
   };
@@ -4236,7 +4238,11 @@ function RafinageApp(){
     const list = workshopKey === 'workshop1' ? workshop1Lingots : workshop2Lingots;
     const target = list.find(l => l.id === lingotId);
     if (!target) return;
+    const wsName = workshopKey === 'workshop1' ? 'دحمون' : 'صلاح';
     const item = { ...target }; delete item.transferDate; delete item.targetWorkshop;
+    /* السبيكة تحفظ مصدرها — إلا إن كانت روتور فتُسجَّل «روتور - [الورشة]» */
+    const isRotor = (target.source || '').includes('روتور') || String(target.id || '').startsWith('ROT-');
+    if (isRotor) item.source = `روتور - ${wsName}`;
     deleteWorkshopLingot(workshopKey, lingotId);
     addLingot(item);
     if (workshopKey === 'workshop1') setWorkshop1Lingots(p => p.filter(l => l.id !== lingotId));
