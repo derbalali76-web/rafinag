@@ -1613,6 +1613,7 @@ function generateInvoicePDF(data){
 function SingleInvoiceForm({t,onSaveInvoice,debtsList,invoiceId,prefix,extraLingotBalance,customerNames=[]}){
   const formRef=useRef(null);
   const [customer,setCustomer]=useState('');
+  const [deliverer,setDeliverer]=useState('');
   const [status,setStatus]=useState('خالص');
   const calcRows=()=>Math.max(12,Math.floor((window.innerHeight-390)/36));
   const [items,setItems]=useState(()=>Array.from({length:calcRows()},()=>({weight:0,karat:0,khalas:0})));
@@ -1667,7 +1668,7 @@ function SingleInvoiceForm({t,onSaveInvoice,debtsList,invoiceId,prefix,extraLing
   const remainingGold=totalNetWeight+prevGold-lingotPayment;
 
   const handleClearForm=()=>{
-    setCustomer('');setStatus('خالص');
+    setCustomer('');setDeliverer('');setStatus('خالص');
     setItems(Array.from({length:calcRows()},()=>({weight:0,karat:0,khalas:0})));
     setFee(0);setPrevDinar(0);setPrevGold(0);setThisPayment(0);setLingotPayment(0);
   };
@@ -1681,7 +1682,7 @@ function SingleInvoiceForm({t,onSaveInvoice,debtsList,invoiceId,prefix,extraLing
       alert(`⚠️ دفع اللانقو (${fmt(lingotPayment)} غ) يتجاوز باقي اللانقو المتاح (${fmt(extraLingotBalance||0)} غ).`);return;
     }
     generateInvoicePDF({invoiceId,customer:customer.trim(),items:activeItems,price,fee,prevDinar,prevGold,thisPayment,lingotPayment,status,remainingDinar,remainingGold});
-    onSaveInvoice({invoiceId,customer:customer.trim(),items:activeItems,price,fee,prevDinar,prevGold,thisPayment,lingotPayment,status});
+    onSaveInvoice({invoiceId,customer:customer.trim(),deliverer:deliverer.trim(),items:activeItems,price,fee,prevDinar,prevGold,thisPayment,lingotPayment,status});
     handleClearForm();
   };
 
@@ -1740,6 +1741,13 @@ function SingleInvoiceForm({t,onSaveInvoice,debtsList,invoiceId,prefix,extraLing
               fontFamily:'inherit',textAlign:'right'}}/>
           <UserIco size={11} color={t.textMuted} style={{position:'absolute',right:8,top:'50%',transform:'translateY(-50%)'}}/>
           <datalist id={`cust-${prefix}`}>{(customerNames.length?customerNames:debtsList.map(d=>d.name)).map((n,i)=><option key={i} value={n}/>)}</datalist>
+        </div>
+        <div style={{position:'relative',flexShrink:0,width:120}}>
+          <input type="text" placeholder="المسلِّم..." value={deliverer}
+            onChange={e=>setDeliverer(e.target.value)}
+            style={{width:'100%',background:t.inputBg,border:`1px solid ${t.border}`,borderRadius:7,
+              padding:'5px 8px',fontSize:13,fontWeight:700,color:t.textPrimary,
+              fontFamily:'inherit',textAlign:'right',boxSizing:'border-box'}}/>
         </div>
       </Card>
 
@@ -2454,6 +2462,9 @@ function DebtsTab({t,debtsList,customerNames=[],onTransfer}){
   const [xferTo,setXferTo]=useState('');
   const [xferQty,setXferQty]=useState('');
   const [xferType,setXferType]=useState('gold');
+  const [xferNote,setXferNote]=useState('');
+  const [xferWithFee,setXferWithFee]=useState(true);
+  const xferIsAbdallah = (xferFrom||'').trim().replace(/\s+/g,' ') === 'عبد الله شلف';
 
   const filtered=debtsList.filter(d=>(d.amount!==0||d.gold!==0)&&d.name.toLowerCase().includes(searchTerm.toLowerCase()));
   const sorted=[...filtered].sort((a,b)=>{
@@ -2557,8 +2568,23 @@ function DebtsTab({t,debtsList,customerNames=[],onTransfer}){
               style={{width:'100%',background:t.inputBg,border:`1px solid ${t.border}`,borderRadius:9,padding:'9px 12px',fontSize:16,fontWeight:700,color:t.textPrimary,fontFamily:'inherit',textAlign:'right',marginBottom:14,boxSizing:'border-box'}}/>
             <datalist id="rf-cn-xfer">{customerNames.filter(n=>n!==xferFrom).map((n,i)=><option key={i} value={n}/>)}</datalist>
 
+            {xferIsAbdallah && xferType==='gold' && (
+              <div style={{marginBottom:14}}>
+                <div style={{fontSize:13,fontWeight:800,color:t.textSec,marginBottom:4}}>نوع التحويل</div>
+                <div style={{display:'flex',gap:8}}>
+                  {[[true,'بأجرة'],[false,'عادي (بدون أجرة)']].map(([k,lbl])=>(
+                    <button key={String(k)} onClick={()=>setXferWithFee(k)} style={{flex:1,padding:'9px',borderRadius:9,border:`1px solid ${xferWithFee===k?t.goldSolid:t.border}`,background:xferWithFee===k?`${t.goldSolid}18`:t.inputBg,color:xferWithFee===k?t.goldSolid:t.textSec,fontWeight:800,fontSize:14,cursor:'pointer',fontFamily:'inherit'}}>{lbl}</button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div style={{fontSize:13,fontWeight:800,color:t.textSec,marginBottom:4}}>ملاحظة (اختياري)</div>
+            <input type="text" value={xferNote} onChange={e=>setXferNote(e.target.value)} placeholder="ملاحظة تظهر في السجل..."
+              style={{width:'100%',background:t.inputBg,border:`1px solid ${t.border}`,borderRadius:9,padding:'9px 12px',fontSize:15,fontWeight:600,color:t.textPrimary,fontFamily:'inherit',textAlign:'right',marginBottom:14,boxSizing:'border-box'}}/>
+
             <div style={{display:'flex',gap:8}}>
-              <button onClick={()=>{ const q=parseFloat(xferQty)||0; if(!xferTo.trim()){alert('⚠️ أدخل اسم الزبون المُستقبِل.');return;} if(q<=0){alert('⚠️ أدخل مبلغاً صحيحاً.');return;} onTransfer&&onTransfer(xferFrom,xferTo.trim(),q,xferType); setXferFrom(null); }}
+              <button onClick={()=>{ const q=parseFloat(xferQty)||0; if(!xferTo.trim()){alert('⚠️ أدخل اسم الزبون المُستقبِل.');return;} if(q<=0){alert('⚠️ أدخل مبلغاً صحيحاً.');return;} onTransfer&&onTransfer(xferFrom,xferTo.trim(),q,xferType,xferWithFee,xferNote.trim()); setXferFrom(null);setXferNote('');setXferWithFee(true); }}
                 style={{flex:1,padding:'11px',background:'linear-gradient(135deg,#C8920A,#EDB84A)',border:'none',borderRadius:10,color:'#1A0A00',fontWeight:900,fontSize:16,cursor:'pointer',fontFamily:'inherit'}}>تأكيد التحويل</button>
               <button onClick={()=>setXferFrom(null)} style={{padding:'11px 16px',background:t.inputBg,border:`1px solid ${t.border}`,borderRadius:10,color:t.textSec,fontWeight:800,fontSize:16,cursor:'pointer',fontFamily:'inherit'}}>إلغاء</button>
             </div>
@@ -4016,32 +4042,33 @@ function RafinageApp(){
   };
 
   /* ── تحويل دين (ذهب/دينار) من زبون إلى آخر — يحافظ على المجموع ── */
-  const handleTransferDebt = (fromName, toName, qty, type) => {
+  const handleTransferDebt = (fromName, toName, qty, type, withFee, note) => {
     userInteractedRef.current = true;
     const q = Math.abs(Number(qty) || 0);
     if (q <= 0 || !fromName || !toName) return;
     if (fromName.trim().toLowerCase() === toName.trim().toLowerCase()) { alert('⚠️ لا يمكن التحويل لنفس الزبون.'); return; }
+    const nt = (note||'').trim();
     const from = debtsList.find(d => d.name.trim().toLowerCase() === fromName.trim().toLowerCase()) || { amount:0, gold:0 };
     if (type === 'gold') {
       const delta = ((from.gold || 0) < 0 ? +1 : -1) * q;  // يقلّل رصيد المُحوِّل نحو الصفر
-      postEntry({ type:'تحويل', actType:'give-gold', customer:fromName, customerId:custIdFor(fromName), debtGold:+delta,
+      postEntry({ type:'تحويل', actType:'give-gold', customer:fromName, customerId:custIdFor(fromName), debtGold:+delta, note:nt,
         desc:`تحويل ${fmt(q)} غ إلى ${toName}`, amount:q });
-      postEntry({ type:'تحويل', actType:'take-gold', customer:toName, customerId:custIdFor(toName), debtGold:-delta,
+      postEntry({ type:'تحويل', actType:'take-gold', customer:toName, customerId:custIdFor(toName), debtGold:-delta, note:nt,
         desc:`تحويل ${fmt(q)} غ من ${fromName}`, amount:q });
-      /* أجرة خاصة عند التحويل من «عبد الله شلف» */
-      if ((fromName||'').trim().replace(/\s+/g,' ') === 'عبد الله شلف') {
+      /* أجرة خاصة عند التحويل من «عبد الله شلف» — فقط إن اختير «بأجرة» */
+      if (withFee && (fromName||'').trim().replace(/\s+/g,' ') === 'عبد الله شلف') {
         const feeFrom = Math.round(q * 1000);                  // أجرة المُحوِّل (له) = الوزن × 1000
         const feeTo   = Math.round((q / 0.705) * 2000);        // أجرة المستلم (عليه) = الوزن ÷ 0.705 × 2000
-        postEntry({ type:'تحويل', actType:'take', customer:fromName, customerId:custIdFor(fromName), debtDinar:+feeFrom,
+        postEntry({ type:'تحويل', actType:'take', customer:fromName, customerId:custIdFor(fromName), debtDinar:+feeFrom, note:nt,
           desc:`أجرة تحويل (له): ${fmt(q)}غ × 1000 = ${fmtInt(feeFrom)} دج`, amount:feeFrom });
-        postEntry({ type:'تحويل', actType:'give', customer:toName, customerId:custIdFor(toName), debtDinar:-feeTo,
+        postEntry({ type:'تحويل', actType:'give', customer:toName, customerId:custIdFor(toName), debtDinar:-feeTo, note:nt,
           desc:`أجرة تحويل (عليه): ${fmt(q)}غ ÷ 0.705 × 2000 = ${fmtInt(feeTo)} دج`, amount:feeTo });
       }
     } else {
       const delta = ((from.amount || 0) < 0 ? +1 : -1) * q;
-      postEntry({ type:'تحويل', actType:'give', customer:fromName, customerId:custIdFor(fromName), debtDinar:+delta,
+      postEntry({ type:'تحويل', actType:'give', customer:fromName, customerId:custIdFor(fromName), debtDinar:+delta, note:nt,
         desc:`تحويل ${fmtInt(q)} دج إلى ${toName}`, amount:q });
-      postEntry({ type:'تحويل', actType:'take', customer:toName, customerId:custIdFor(toName), debtDinar:-delta,
+      postEntry({ type:'تحويل', actType:'take', customer:toName, customerId:custIdFor(toName), debtDinar:-delta, note:nt,
         desc:`تحويل ${fmtInt(q)} دج من ${fromName}`, amount:q });
     }
     alert(`✅ حُوّل ${type==='gold'?fmt(q)+' غ':fmtInt(q)+' دج'} من ${fromName} إلى ${toName}.`);
@@ -4057,14 +4084,15 @@ function RafinageApp(){
   /* ── حفظ فاتورة رافيناج ── */
   const handleSaveInvoice = (data) => {
     userInteractedRef.current = true;
-    const { customer, items, price, fee, prevDinar, prevGold, thisPayment, lingotPayment, status } = data;
+    const { customer, deliverer, items, price, fee, prevDinar, prevGold, thisPayment, lingotPayment, status } = data;
+    const dlvNote = deliverer ? `المسلِّم: ${deliverer}` : '';
     const netWeight     = items.reduce((s, it) => s + (it.khalas || 0), 0);
     const remaining     = prevDinar - price + thisPayment;
     const remainingGold = netWeight + prevGold - lingotPayment;
     let invId = String(data.invoiceId || nextInvoiceId);
     if (invoices.some(i => i.id === invId)) invId = nextInvoiceId;
     const today = getTodayDateString();
-    const newInvoice = { id:invId, customer, customerId:custIdFor(customer), date:today, items, netWeight, price, fee, grandTotal:price,
+    const newInvoice = { id:invId, customer, customerId:custIdFor(customer), deliverer:deliverer||'', date:today, items, netWeight, price, fee, grandTotal:price,
       prevDinar, prevGold, thisPayment, lingotPayment, remaining, remainingGold, status };
     setInvoices(p => [newInvoice, ...p]); addInvoice(newInvoice);
 
@@ -4076,14 +4104,14 @@ function RafinageApp(){
 
     /* قيد مالي واحد يلخّص أثر الفاتورة (refId = رقم الفاتورة) */
     if (status === 'خالص') {
-      postEntry({ type:'رافيناج', actType:'رافيناج', customer, customerId:custIdFor(customer), dinar:+price, gold:-netWeight,
+      postEntry({ type:'رافيناج', actType:'رافيناج', customer, customerId:custIdFor(customer), dinar:+price, gold:-netWeight, note:dlvNote,
         desc:`تصفية رافيناج: ${customer} (سند #${invId})`, amount:price, refId:invId });
     } else {
       const cur  = debtsList.find(d => d.name.trim().toLowerCase() === customer.trim().toLowerCase()) || { amount:0, gold:0 };
       const dDin = _round6(remaining     - (cur.amount || 0));
       const dGld = _round6(remainingGold - (cur.gold   || 0));
       postEntry({ type:'رافيناج', actType:'رافيناج', customer, customerId:custIdFor(customer),
-        dinar:+thisPayment, gold:-lingotPayment, debtDinar:dDin, debtGold:dGld,
+        dinar:+thisPayment, gold:-lingotPayment, debtDinar:dDin, debtGold:dGld, note:dlvNote,
         desc:`تصفية رافيناج: ${customer} (سند #${invId})`, amount:price, refId:invId });
     }
     setActiveReceipt(newInvoice);
