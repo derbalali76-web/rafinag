@@ -1,4 +1,4 @@
-const CACHE = 'rafinage-editnote-v46';
+const CACHE = 'rafinage-signdiff-v47';
 const ASSETS = ['./', './index.html', './manifest.json'];
 
 self.addEventListener('install', e => {

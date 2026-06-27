@@ -2409,10 +2409,10 @@ function OperationsLogTab({t,activities,onClearActivities,onDeleteActivity,custo
                         {(()=>{ const nt=noteOf(act._entry); return nt?<div style={{fontSize:12,color:t.textMuted,fontWeight:600,marginTop:3,maxWidth:160,marginInline:'auto'}}>📝 {nt}</div>:null; })()}
                       </td>
                       <td style={{padding:'10px 12px',textAlign:'center',fontFamily:'monospace',fontWeight:800,fontSize:16,color:t.goldSolid}}>
-                        {(()=>{ const g=act._entry?Math.abs(act._entry.gold||act._entry.debtGold||0):0; return g>0?fmt(g)+' غ':'—'; })()}
+                        {(()=>{ const e=act._entry; if(e&&e.diffGold!=null){ const v=e.diffGold; if(v===0)return '—'; return <span style={{color:v>0?'#10B981':'#EF4444'}}>{(v>0?'+':'−')+fmt(Math.abs(v))+' غ'}</span>; } const g=e?Math.abs(e.gold||e.debtGold||0):0; return g>0?fmt(g)+' غ':'—'; })()}
                       </td>
                       <td style={{padding:'10px 12px',textAlign:'center',fontFamily:'monospace',fontWeight:900,fontSize:18,color:cfg.color}}>
-                        {(()=>{ const d=act._entry?Math.abs(act._entry.dinar||act._entry.debtDinar||0):0; return d>0?fmtInt(d)+' دج':'—'; })()}
+                        {(()=>{ const e=act._entry; if(e&&e.diffDinar!=null){ const v=e.diffDinar; if(v===0)return '—'; return <span style={{color:v>0?'#10B981':'#EF4444'}}>{(v>0?'+':'−')+fmtInt(Math.abs(v))+' دج'}</span>; } const d=e?Math.abs(e.dinar||e.debtDinar||0):0; return d>0?fmtInt(d)+' دج':'—'; })()}
                       </td>
                       <td style={{padding:'10px 12px',textAlign:'center'}}>
                         <button onClick={()=>onDeleteActivity&&onDeleteActivity(act,i)}
@@ -3393,24 +3393,30 @@ function CustomerPortal({t,customerName,customerId,accent,myLedger,myInvoices,my
                 <tbody>
                   {myLedger.map((e,i)=>{
                     const cfg=txCfg[e.actType||e.type]||{label:'—',color:t.textSec};
+                    const isCorr=e.diffGold!=null||e.diffDinar!=null;
                     const g=Math.abs(e.gold||e.debtGold||0);
                     const d=Math.abs(e.dinar||e.debtDinar||0);
+                    const goldNode=isCorr
+                      ? (e.diffGold?<span style={{color:e.diffGold>0?'#10B981':'#EF4444'}}>{(e.diffGold>0?'+':'−')+fmt(Math.abs(e.diffGold))+' غ'}</span>:null)
+                      : (g>0?<span style={{color:t.goldSolid}}>{fmt(g)+' غ'}</span>:null);
+                    const dinarNode=isCorr
+                      ? (e.diffDinar?<span style={{color:e.diffDinar>0?'#10B981':'#EF4444'}}>{(e.diffDinar>0?'+':'−')+fmtInt(Math.abs(e.diffDinar))+' دج'}</span>:null)
+                      : (d>0?<span style={{color:t.textPrimary}}>{fmtInt(d)+' دج'}</span>:null);
                     return (
                       <tr key={e.id||i} style={{borderBottom:`1px solid ${t.borderLight}`,opacity:e.reversed?0.5:1}}>
                         <td style={{padding:'10px 8px',textAlign:'center',fontFamily:'monospace',fontSize:12,color:t.textMuted}}>{e.date}</td>
                         <td style={{padding:'10px 8px',textAlign:'center'}}><Badge color={cfg.color} label={cfg.label}/>{(()=>{ const nt=noteOf(e); return nt?<div style={{fontSize:11,color:t.textMuted,fontWeight:600,marginTop:3}}>📝 {nt}</div>:null; })()}</td>
                         {isMobile?(
-                          <td style={{padding:'10px 8px',textAlign:'center',fontFamily:'monospace',fontWeight:900}}>
-                            {g>0&&<div style={{color:t.goldSolid,fontSize:14}}>{fmt(g)} غ</div>}
-                            {d>0&&<div style={{color:t.textPrimary,fontSize:14}}>{fmtInt(d)} دج</div>}
-                            {g<=0&&d<=0&&<span style={{color:t.textMuted}}>—</span>}
+                          <td style={{padding:'10px 8px',textAlign:'center',fontFamily:'monospace',fontWeight:900,fontSize:14}}>
+                            {goldNode}{goldNode&&dinarNode?<br/>:null}{dinarNode}
+                            {!goldNode&&!dinarNode&&<span style={{color:t.textMuted}}>—</span>}
                           </td>
                         ):(<>
-                          <td style={{padding:'10px 12px',textAlign:'center',fontFamily:'monospace',fontWeight:800,fontSize:14,color:t.goldSolid}}>
-                            {g>0?`${fmt(g)} غ`:'—'}
+                          <td style={{padding:'10px 12px',textAlign:'center',fontFamily:'monospace',fontWeight:800,fontSize:14}}>
+                            {goldNode||'—'}
                           </td>
-                          <td style={{padding:'10px 12px',textAlign:'center',fontFamily:'monospace',fontWeight:900,fontSize:15,color:t.textPrimary}}>
-                            {d>0?`${fmtInt(d)} دج`:'—'}
+                          <td style={{padding:'10px 12px',textAlign:'center',fontFamily:'monospace',fontWeight:900,fontSize:15}}>
+                            {dinarNode||'—'}
                           </td>
                         </>)}
                       </tr>
@@ -3545,6 +3551,8 @@ function makeEntry(p){
     debtGold:  p.debtGold || 0,     /* تغيّر دين الزبون (ذهب) */
     desc:      p.desc || '',
     note:      p.note || '',
+    diffGold:  p.diffGold != null ? p.diffGold : undefined,   /* فرق الذهب بإشارته (للتصحيح) */
+    diffDinar: p.diffDinar != null ? p.diffDinar : undefined, /* فرق الدينار بإشارته (للتصحيح) */
     amount:    p.amount != null ? p.amount : undefined,
     refId:     p.refId || null,
     reverses:  p.reverses || null,
@@ -4162,7 +4170,7 @@ function RafinageApp(){
     /* 3) قيد تعديل (نفس اصطلاح الفاتورة الأصلية) — يحدّث المخزون وحساب الزبون */
     if (dNet !== 0 || dPrice !== 0) {
       postEntry({ type:'تعديل', actType:'تعديل', customer: inv.customer, customerId: inv.customerId || custIdFor(inv.customer),
-        gold: -dNet, debtGold: +dNet, debtDinar: -dPrice, dinar: 0, note: reason,
+        gold: -dNet, debtGold: +dNet, debtDinar: -dPrice, dinar: 0, note: reason, diffGold: dNet, diffDinar: dPrice,
         desc:`تصحيح فاتورة سند #${invId}: ${reason}`, amount: Math.abs(dPrice) || Math.abs(dNet), refId: invId });
     }
     setEditingInvoice(null);
