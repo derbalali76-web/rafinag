@@ -4048,27 +4048,30 @@ function RafinageApp(){
     if (q <= 0 || !fromName || !toName) return;
     if (fromName.trim().toLowerCase() === toName.trim().toLowerCase()) { alert('⚠️ لا يمكن التحويل لنفس الزبون.'); return; }
     const nt = (note||'').trim();
+    const sfx = nt ? ` — ${nt}` : '';
+    const noteFrom = `تحويل إلى ${toName}${sfx}`;   // يظهر عند المُحوِّل
+    const noteTo   = `تحويل من ${fromName}${sfx}`;   // يظهر عند المستلِم (من سلّمه)
     const from = debtsList.find(d => d.name.trim().toLowerCase() === fromName.trim().toLowerCase()) || { amount:0, gold:0 };
     if (type === 'gold') {
       const delta = ((from.gold || 0) < 0 ? +1 : -1) * q;  // يقلّل رصيد المُحوِّل نحو الصفر
-      postEntry({ type:'تحويل', actType:'give-gold', customer:fromName, customerId:custIdFor(fromName), debtGold:+delta, note:nt,
+      postEntry({ type:'تحويل', actType:'give-gold', customer:fromName, customerId:custIdFor(fromName), debtGold:+delta, note:noteFrom,
         desc:`تحويل ${fmt(q)} غ إلى ${toName}`, amount:q });
-      postEntry({ type:'تحويل', actType:'take-gold', customer:toName, customerId:custIdFor(toName), debtGold:-delta, note:nt,
+      postEntry({ type:'تحويل', actType:'take-gold', customer:toName, customerId:custIdFor(toName), debtGold:-delta, note:noteTo,
         desc:`تحويل ${fmt(q)} غ من ${fromName}`, amount:q });
       /* أجرة خاصة عند التحويل من «عبد الله شلف» — فقط إن اختير «بأجرة» */
       if (withFee && (fromName||'').trim().replace(/\s+/g,' ') === 'عبد الله شلف') {
         const feeFrom = Math.round(q * 1000);                  // أجرة المُحوِّل (له) = الوزن × 1000
         const feeTo   = Math.round((q / 0.705) * 2000);        // أجرة المستلم (عليه) = الوزن ÷ 0.705 × 2000
-        postEntry({ type:'تحويل', actType:'take', customer:fromName, customerId:custIdFor(fromName), debtDinar:+feeFrom, note:nt,
+        postEntry({ type:'تحويل', actType:'take', customer:fromName, customerId:custIdFor(fromName), debtDinar:+feeFrom, note:`أجرة تحويل إلى ${toName}${sfx}`,
           desc:`أجرة تحويل (له): ${fmt(q)}غ × 1000 = ${fmtInt(feeFrom)} دج`, amount:feeFrom });
-        postEntry({ type:'تحويل', actType:'give', customer:toName, customerId:custIdFor(toName), debtDinar:-feeTo, note:nt,
+        postEntry({ type:'تحويل', actType:'give', customer:toName, customerId:custIdFor(toName), debtDinar:-feeTo, note:`أجرة تحويل من ${fromName}${sfx}`,
           desc:`أجرة تحويل (عليه): ${fmt(q)}غ ÷ 0.705 × 2000 = ${fmtInt(feeTo)} دج`, amount:feeTo });
       }
     } else {
       const delta = ((from.amount || 0) < 0 ? +1 : -1) * q;
-      postEntry({ type:'تحويل', actType:'give', customer:fromName, customerId:custIdFor(fromName), debtDinar:+delta, note:nt,
+      postEntry({ type:'تحويل', actType:'give', customer:fromName, customerId:custIdFor(fromName), debtDinar:+delta, note:noteFrom,
         desc:`تحويل ${fmtInt(q)} دج إلى ${toName}`, amount:q });
-      postEntry({ type:'تحويل', actType:'take', customer:toName, customerId:custIdFor(toName), debtDinar:-delta, note:nt,
+      postEntry({ type:'تحويل', actType:'take', customer:toName, customerId:custIdFor(toName), debtDinar:-delta, note:noteTo,
         desc:`تحويل ${fmtInt(q)} دج من ${fromName}`, amount:q });
     }
     alert(`✅ حُوّل ${type==='gold'?fmt(q)+' غ':fmtInt(q)+' دج'} من ${fromName} إلى ${toName}.`);
