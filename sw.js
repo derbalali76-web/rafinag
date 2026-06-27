@@ -1,4 +1,4 @@
-const CACHE = 'rafinage-signdiff-v47';
+const CACHE = 'rafinage-salah-v48';
 const ASSETS = ['./', './index.html', './manifest.json'];
 
 self.addEventListener('install', e => {

@@ -1662,9 +1662,12 @@ function SingleInvoiceForm({t,onSaveInvoice,debtsList,invoiceId,prefix,extraLing
   const totalRawWeight=items.reduce((s,it)=>s+(it.weight||0),0);
   /* زبائن تُحسب أجرتهم على ميزان الـ24 (الصافي) بدل الخام */
   const NET_FEE_CUSTOMERS=['عبد الله شلف'];
-  const feeOnNet=NET_FEE_CUSTOMERS.includes((customer||'').trim().replace(/\s+/g,' '));
+  const NO_FEE_CUSTOMERS=['صلاح'];
+  const _custKey=(customer||'').trim().replace(/\s+/g,' ');
+  const feeOnNet=NET_FEE_CUSTOMERS.includes(_custKey);
+  const noFee=NO_FEE_CUSTOMERS.includes(_custKey);
   const feeBaseWeight=feeOnNet?totalNetWeight:totalRawWeight;
-  useEffect(()=>{setPrice(Number((feeBaseWeight*fee).toFixed(2)));},[feeBaseWeight,fee]);
+  useEffect(()=>{setPrice(noFee?0:Number((feeBaseWeight*fee).toFixed(2)));},[feeBaseWeight,fee,noFee]);
 
   const remainingDinar=prevDinar-price+thisPayment;
   const remainingGold=totalNetWeight+prevGold-lingotPayment;
@@ -1821,7 +1824,7 @@ function SingleInvoiceForm({t,onSaveInvoice,debtsList,invoiceId,prefix,extraLing
             </span>
           </div>
           <div style={C('3px 6px',{borderLeft:D})}>
-            {L(feeOnNet?'أجرة (على 24 ✓)':'أجرة (دج/غ)',t.red)}
+            {L(noFee?'أجرة (بدون أجرة)':feeOnNet?'أجرة (على 24 ✓)':'أجرة (دج/غ)',t.red)}
             {N(fee,setFee,{color:t.red})}
           </div>
           <div style={C('3px 6px')}>
@@ -2467,7 +2470,7 @@ function DebtsTab({t,debtsList,customerNames=[],onTransfer}){
   const [xferType,setXferType]=useState('gold');
   const [xferNote,setXferNote]=useState('');
   const [xferWithFee,setXferWithFee]=useState(true);
-  const xferIsAbdallah = (xferFrom||'').trim().replace(/\s+/g,' ') === 'عبد الله شلف';
+  const xferIsAbdallah = ['عبد الله شلف','صلاح'].includes((xferFrom||'').trim().replace(/\s+/g,' '));
 
   const filtered=debtsList.filter(d=>(d.amount!==0||d.gold!==0)&&d.name.toLowerCase().includes(searchTerm.toLowerCase()));
   const sorted=[...filtered].sort((a,b)=>{
@@ -4070,8 +4073,8 @@ function RafinageApp(){
         desc:`تحويل ${fmt(q)} غ إلى ${toName}`, amount:q });
       postEntry({ type:'تحويل', actType:'take-gold', customer:toName, customerId:custIdFor(toName), debtGold:-delta, note:noteTo,
         desc:`تحويل ${fmt(q)} غ من ${fromName}`, amount:q });
-      /* أجرة خاصة عند التحويل من «عبد الله شلف» — فقط إن اختير «بأجرة» */
-      if (withFee && (fromName||'').trim().replace(/\s+/g,' ') === 'عبد الله شلف') {
+      /* أجرة خاصة عند التحويل من «عبد الله شلف» أو «صلاح» — فقط إن اختير «بأجرة» */
+      if (withFee && ['عبد الله شلف','صلاح'].includes((fromName||'').trim().replace(/\s+/g,' '))) {
         const feeFrom = Math.round(q * 1000);                  // أجرة المُحوِّل (له) = الوزن × 1000
         const feeTo   = Math.round((q / 0.705) * 2000);        // أجرة المستلم (عليه) = الوزن ÷ 0.705 × 2000
         postEntry({ type:'تحويل', actType:'take', customer:fromName, customerId:custIdFor(fromName), debtDinar:+feeFrom, note:`أجرة تحويل إلى ${toName}${sfx}`,
