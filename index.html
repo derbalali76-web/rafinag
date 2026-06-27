@@ -4028,6 +4028,15 @@ function RafinageApp(){
         desc:`تحويل ${fmt(q)} غ إلى ${toName}`, amount:q });
       postEntry({ type:'تحويل', actType:'take-gold', customer:toName, customerId:custIdFor(toName), debtGold:-delta,
         desc:`تحويل ${fmt(q)} غ من ${fromName}`, amount:q });
+      /* أجرة خاصة عند التحويل من «عبد الله شلف» */
+      if ((fromName||'').trim().replace(/\s+/g,' ') === 'عبد الله شلف') {
+        const feeFrom = Math.round(q * 1000);                  // أجرة المُحوِّل (له) = الوزن × 1000
+        const feeTo   = Math.round((q / 0.705) * 2000);        // أجرة المستلم (عليه) = الوزن ÷ 0.705 × 2000
+        postEntry({ type:'تحويل', actType:'take', customer:fromName, customerId:custIdFor(fromName), debtDinar:+feeFrom,
+          desc:`أجرة تحويل (له): ${fmt(q)}غ × 1000 = ${fmtInt(feeFrom)} دج`, amount:feeFrom });
+        postEntry({ type:'تحويل', actType:'give', customer:toName, customerId:custIdFor(toName), debtDinar:-feeTo,
+          desc:`أجرة تحويل (عليه): ${fmt(q)}غ ÷ 0.705 × 2000 = ${fmtInt(feeTo)} دج`, amount:feeTo });
+      }
     } else {
       const delta = ((from.amount || 0) < 0 ? +1 : -1) * q;
       postEntry({ type:'تحويل', actType:'give', customer:fromName, customerId:custIdFor(fromName), debtDinar:+delta,

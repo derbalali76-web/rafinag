@@ -1,4 +1,4 @@
-const CACHE = 'rafinage-custauth-v41';
+const CACHE = 'rafinage-xferfee-v42';
 const ASSETS = ['./', './index.html', './manifest.json'];
 
 self.addEventListener('install', e => {
