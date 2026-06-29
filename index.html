@@ -2479,15 +2479,30 @@ function DebtsTab({t,debtsList,customerNames=[],onTransfer}){
     return 0;
   });
 
-  const totalDinar=debtsList.reduce((s,d)=>s+(d.amount<0?Math.abs(d.amount):0),0);
-  const totalGold=debtsList.reduce((s,d)=>s+(d.gold>0?d.gold:0),0);
-  const totalDebtors=debtsList.filter(d=>d.amount<0||d.gold>0).length;
+  const dinarLana   = debtsList.reduce((s,d)=>s+(d.amount<0?Math.abs(d.amount):0),0); // الزبائن مدينون لنا
+  const dinarAlayna = debtsList.reduce((s,d)=>s+(d.amount>0?d.amount:0),0);            // نحن مدينون لهم
+  const goldLana    = debtsList.reduce((s,d)=>s+(d.gold<0?Math.abs(d.gold):0),0);
+  const goldAlayna  = debtsList.reduce((s,d)=>s+(d.gold>0?d.gold:0),0);
+  const netDinar    = dinarLana - dinarAlayna;   // موجب = صافٍ لنا، سالب = صافٍ علينا
+  const netGold     = goldLana  - goldAlayna;
+  const totalDebtors=debtsList.filter(d=>d.amount!==0||d.gold!==0).length;
+
+  const NetCard=({label,net,unit,fmtFn})=>{
+    const lana = net>=0;
+    return (
+      <Card t={t} style={{padding:'13px 14px',textAlign:'center'}}>
+        <div style={{fontSize:13,fontWeight:800,color:t.textMuted,marginBottom:7}}>{label}</div>
+        <div style={{fontSize:12,fontWeight:800,color:lana?t.green:t.red,marginBottom:2}}>{net===0?'متوازن':(lana?'صافٍ لنا':'صافٍ علينا')}</div>
+        <div style={{fontFamily:'monospace',fontWeight:900,fontSize:24,color:lana?t.textPrimary:t.red}}>{fmtFn(Math.abs(net))} {unit}</div>
+      </Card>
+    );
+  };
 
   return (
     <div style={{display:'flex',flexDirection:'column',gap:16}}>
       <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
-        <StatCard t={t} label="إجمالي الديون (دينار)" value={`${fmtInt(totalDinar)} دج`} accent={t.red}/>
-        <StatCard t={t} label="إجمالي الذمة (ذهب خالص)" value={`${fmt(totalGold)} غ`} accent={t.goldSolid}/>
+        <NetCard label="صافي الديون (دينار)" net={netDinar} unit="دج" fmtFn={fmtInt}/>
+        <NetCard label="صافي الذمة (ذهب خالص)" net={netGold} unit="غ" fmtFn={fmt}/>
       </div>
 
       <Card t={t} style={{padding:'11px 14px',display:'flex',alignItems:'center',gap:10,flexWrap:'wrap'}}>

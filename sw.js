@@ -1,4 +1,4 @@
-const CACHE = 'rafinage-ledmerge-v50';
+const CACHE = 'rafinage-debtnet-v52';
 const ASSETS = ['./', './index.html', './manifest.json'];
 
 self.addEventListener('install', e => {
