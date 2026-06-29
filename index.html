@@ -2110,7 +2110,8 @@ function ResetModal({t, onClose}){
 function EditInvoiceModal({t,invoice,onConfirm,onClose}){
   const [items,setItems]=useState(()=>(invoice.items||[]).map(it=>({weight:String(it.weight??''),karat:String(it.karat??'')})));
   const [price,setPrice]=useState(String(invoice.price??0));
-  const [reason,setReason]=useState('');
+  const [errWeight,setErrWeight]=useState(false);
+  const [errKarat,setErrKarat]=useState(false);
   const setItem=(i,f,v)=>setItems(p=>p.map((it,idx)=>idx===i?{...it,[f]:v}:it));
   const kh=(it)=>(((parseFloat(it.weight)||0)*(parseFloat(it.karat)||0))/1000);
   const newNet=items.reduce((s,it)=>s+kh(it),0);
@@ -2118,8 +2119,9 @@ function EditInvoiceModal({t,invoice,onConfirm,onClose}){
   const dNet=newNet-oldNet;
   const dPrice=(parseFloat(price)||0)-(invoice.price||0);
   const submit=()=>{
-    if(!reason.trim()){alert('⚠️ الرجاء إدخال سبب التعديل.');return;}
-    onConfirm(invoice.id, items.map(it=>({weight:parseFloat(it.weight)||0,karat:parseFloat(it.karat)||0})), parseFloat(price)||0, reason.trim());
+    const reasons=[errWeight&&'خطأ في الميزان',errKarat&&'خطأ في العيار'].filter(Boolean);
+    if(reasons.length===0){alert('⚠️ اختر سبب التعديل (الميزان و/أو العيار).');return;}
+    onConfirm(invoice.id, items.map(it=>({weight:parseFloat(it.weight)||0,karat:parseFloat(it.karat)||0})), parseFloat(price)||0, reasons.join(' + '));
   };
   return (
     <div onClick={onClose} style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.6)',zIndex:1000,display:'flex',alignItems:'center',justifyContent:'center',padding:16}}>
@@ -2163,9 +2165,14 @@ function EditInvoiceModal({t,invoice,onConfirm,onClose}){
         </div>
 
         <div style={{marginBottom:14}}>
-          <div style={{fontSize:13,fontWeight:800,color:t.textSec,marginBottom:4}}>سبب التعديل (إلزامي)</div>
-          <textarea value={reason} onChange={e=>setReason(e.target.value)} rows={2} placeholder="مثال: تصحيح وزن السبيكة بعد إعادة الوزن"
-            style={{width:'100%',background:t.inputBg,border:`1px solid ${t.border}`,borderRadius:8,padding:'9px',fontSize:15,fontWeight:700,color:t.textPrimary,fontFamily:'inherit',resize:'vertical'}}/>
+          <div style={{fontSize:13,fontWeight:800,color:t.textSec,marginBottom:6}}>سبب التعديل (إلزامي — يمكن اختيار الاثنين)</div>
+          <div style={{display:'flex',gap:8}}>
+            {[['errWeight',errWeight,setErrWeight,'خطأ في الميزان'],['errKarat',errKarat,setErrKarat,'خطأ في العيار']].map(([k,val,set,lbl])=>(
+              <button key={k} onClick={()=>set(!val)} style={{flex:1,padding:'11px',borderRadius:10,border:`2px solid ${val?t.goldSolid:t.border}`,background:val?`${t.goldSolid}1F`:t.inputBg,color:val?t.goldSolid:t.textSec,fontWeight:800,fontSize:14,cursor:'pointer',fontFamily:'inherit',display:'flex',alignItems:'center',justifyContent:'center',gap:6}}>
+                <span style={{fontSize:16}}>{val?'☑':'☐'}</span>{lbl}
+              </button>
+            ))}
+          </div>
         </div>
 
         <button onClick={submit} style={{width:'100%',padding:'12px',background:'linear-gradient(135deg,#C8920A,#EDB84A)',border:'none',borderRadius:10,color:'#1A0A00',fontWeight:900,fontSize:16,cursor:'pointer',fontFamily:'inherit'}}>
