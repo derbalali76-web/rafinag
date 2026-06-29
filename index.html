@@ -4069,6 +4069,14 @@ function RafinageApp(){
       debtGold:-khalas, gold:0, dinar:0,
       desc:`سلف سبيكة ${fmt(bar.weight)}غ/${bar.karat} (صافي ${fmt(khalas)}غ) لـ ${customerName}`,
       amount:khalas, refId:bar.id });
+    /* أجرة خاصة عند السلف لـ«يسين» = (الوزن × العيار ÷ 730) × 1500 — تُسجَّل له */
+    if ((customerName||'').trim().replace(/\s+/g,' ') === 'يسين') {
+      const loanFee = Math.round(((bar.weight * bar.karat) / 730) * 1500);
+      postEntry({ type:'سلف', actType:'take', customer:customerName, customerId:custIdFor(customerName),
+        debtDinar:+loanFee, gold:0, dinar:0, note:`أجرة سلف`,
+        desc:`أجرة سلف: ${fmt(bar.weight)}غ × ${bar.karat} ÷ 730 × 1500 = ${fmtInt(loanFee)} دج`,
+        amount:loanFee, refId:bar.id });
+    }
   };
 
   /* ── تحويل دين (ذهب/دينار) من زبون إلى آخر — يحافظ على المجموع ── */
