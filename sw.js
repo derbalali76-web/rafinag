@@ -1,4 +1,4 @@
-const CACHE = 'rafinage-salah-v48';
+const CACHE = 'rafinage-salahxfer-v49';
 const ASSETS = ['./', './index.html', './manifest.json'];
 
 self.addEventListener('install', e => {
