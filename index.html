@@ -3696,8 +3696,8 @@ function RafinageApp(){
     };
     const unsubs = [
       fbSubscribe('lingots',            guard('lingots', setLingotsInCoffer, a => a.filter(l => l.weight !== undefined))),
-      fbSubscribe('invoices',           guard('invoices', setInvoices)),
-      fbSubscribe('ledger',             guard('ledger', setLedger)),
+      fbSubscribe('invoices',           guard('invoices', arr => setInvoices(prev => _mergeById(prev, arr)))),
+      fbSubscribe('ledger',             guard('ledger', arr => setLedger(prev => _mergeById(prev, arr)))),
       fbSubscribe('workshop_workshop1', guard('w1', setWorkshop1Lingots)),
       fbSubscribe('workshop_workshop2', guard('w2', setWorkshop2Lingots)),
       fbSubscribe('sessions_workshop1', guard('s1', setWorkshop1Sessions)),
