@@ -789,12 +789,17 @@ function HomeTab({t,dinarCofferTotal,extraLingotBalance,lingotsTotalWeight,recen
   const addDebtRow=()=>setOpDebts(p=>[...p,{name:'',dinar:'',gold:''}]);
   const removeDebtRow=i=>setOpDebts(p=>p.filter((_,j)=>j!==i));
   const updateDebtRow=(i,field,val)=>setOpDebts(p=>p.map((r,j)=>j===i?{...r,[field]:val}:r));
+  const [opBars,setOpBars]=useState([{weight:'',karat:''}]);
+  const addBarRow=()=>setOpBars(p=>[...p,{weight:'',karat:''}]);
+  const removeBarRow=i=>setOpBars(p=>p.filter((_,j)=>j!==i));
+  const updateBarRow=(i,field,val)=>setOpBars(p=>p.map((r,j)=>j===i?{...r,[field]:val}:r));
   const submitOpening=()=>{
     const d=parseFloat(opDinar)||0;
     const l=parseFloat(opLingot)||0;
     const debts=opDebts.filter(r=>r.name.trim()).map(r=>({name:r.name.trim(),amount:parseFloat(r.dinar)||0,gold:parseFloat(r.gold)||0}));
-    if(d===0&&l===0&&debts.length===0){alert('⚠️ أدخل رصيداً أو ديناً واحداً على الأقل.');return;}
-    onSetOpening(d,l,debts);
+    const bars=opBars.filter(r=>(parseFloat(r.weight)||0)>0&&(parseFloat(r.karat)||0)>0).map(r=>({weight:parseFloat(r.weight),karat:parseFloat(r.karat)}));
+    if(d===0&&l===0&&debts.length===0&&bars.length===0){alert('⚠️ أدخل رصيداً أو ديناً أو سبيكة واحدة على الأقل.');return;}
+    onSetOpening(d,l,debts,bars);
     setOpeningOpen(false);
   };
 
@@ -999,6 +1004,40 @@ function HomeTab({t,dinarCofferTotal,extraLingotBalance,lingotsTotalWeight,recen
                     style={{width:'100%',boxSizing:'border-box',background:'rgba(255,255,255,0.07)',border:'1px solid rgba(52,211,153,0.3)',
                       borderRadius:10,padding:'9px 12px',fontSize:16,fontWeight:900,fontFamily:'monospace',color:'#34D399',textAlign:'center'}}/>
                 </div>
+              </div>
+
+              {/* ── سبائك افتتاحية في الكوفر ── */}
+              <div style={{borderTop:'1px solid rgba(255,255,255,0.1)',paddingTop:12}}>
+                <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:10}}>
+                  <button onClick={addBarRow}
+                    style={{padding:'5px 12px',background:'rgba(212,175,55,0.15)',border:'1px solid rgba(212,175,55,0.35)',
+                      borderRadius:8,color:'#EDB84A',fontWeight:800,fontSize:13,cursor:'pointer',fontFamily:'inherit'}}>
+                    + إضافة سبيكة
+                  </button>
+                  <span style={{fontSize:13,color:'rgba(255,255,255,0.5)',fontWeight:800}}>◈ سبائك الكوفر الافتتاحية</span>
+                </div>
+                <div style={{display:'grid',gridTemplateColumns:'1.4fr 1.4fr 28px',gap:6,marginBottom:6}}>
+                  <div style={{fontSize:11,color:'rgba(255,255,255,0.35)',fontWeight:800,textAlign:'center'}}>الميزان (غ)</div>
+                  <div style={{fontSize:11,color:'rgba(237,184,74,0.5)',fontWeight:800,textAlign:'center'}}>العيار</div>
+                  <div/>
+                </div>
+                {opBars.map((row,i)=>(
+                  <div key={i} style={{display:'grid',gridTemplateColumns:'1.4fr 1.4fr 28px',gap:6,marginBottom:6}}>
+                    <input type="number" step="0.001" value={row.weight} onChange={e=>updateBarRow(i,'weight',e.target.value)}
+                      placeholder="0.000"
+                      style={{background:'rgba(255,255,255,0.07)',border:'1px solid rgba(255,255,255,0.15)',
+                        borderRadius:8,padding:'7px 8px',fontSize:13,fontWeight:900,fontFamily:'monospace',color:'#EDF1FF',textAlign:'center'}}/>
+                    <input type="number" step="1" value={row.karat} onChange={e=>updateBarRow(i,'karat',e.target.value)}
+                      placeholder="مثال: 916"
+                      style={{background:'rgba(255,255,255,0.07)',border:'1px solid rgba(237,184,74,0.2)',
+                        borderRadius:8,padding:'7px 8px',fontSize:13,fontWeight:900,fontFamily:'monospace',color:'#EDB84A',textAlign:'center'}}/>
+                    <button onClick={()=>removeBarRow(i)}
+                      style={{background:'rgba(239,68,68,0.1)',border:'1px solid rgba(239,68,68,0.25)',borderRadius:7,
+                        color:'#EF4444',fontSize:14,cursor:'pointer',fontWeight:900,padding:0,display:'flex',alignItems:'center',justifyContent:'center'}}>
+                      ✕
+                    </button>
+                  </div>
+                ))}
               </div>
 
               {/* ── الديون الافتتاحية ── */}
@@ -4287,14 +4326,20 @@ function RafinageApp(){
   };
 
   /* ── الرصيد الافتتاحي ── */
-  const handleSetOpening = (dinar, lingot, debts = []) => {
+  const handleSetOpening = (dinar, lingot, debts = [], bars = []) => {
     userInteractedRef.current = true;
     const today = getTodayDateString();
     const debtSummary = debts.length > 0 ? ` | ديون: ${debts.length} زبون` : '';
+    const barSummary = bars.length > 0 ? ` | سبائك: ${bars.length}` : '';
     postEntry({ type:'opening', actType:'take', party:'النظام',
       dinar: dinar > 0 ? dinar : 0, gold: lingot > 0 ? lingot : 0,
-      desc:`رصيد افتتاحي — كوفر: ${fmtInt(dinar)} دج | لانقو: ${fmt(lingot)} غ${debtSummary}`,
+      desc:`رصيد افتتاحي — كوفر: ${fmtInt(dinar)} دج | لانقو: ${fmt(lingot)} غ${barSummary}${debtSummary}`,
       amount: dinar, date:today });
+    bars.forEach((b, idx) => {
+      const bar = { id:`OPN-${Date.now()}-${idx}`, source:'رصيد افتتاحي', weight:b.weight, karat:b.karat, date:today };
+      addLingot(bar);
+      setLingotsInCoffer(p => [bar, ...p]);
+    });
     debts.forEach(d => {
       const amt = d.amount || 0, g = d.gold || 0;
       if (amt === 0 && g === 0) return;
