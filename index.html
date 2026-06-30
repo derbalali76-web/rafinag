@@ -1381,7 +1381,10 @@ function CofferTab({t,lingots,onOpenTransferModal,onLoanLingot,customerNames=[]}
                   <td style={{padding:'12px 14px',textAlign:'center',fontFamily:'monospace',fontWeight:900,color:t.textPrimary,fontSize:17}}>{fmt(lingot.weight)}</td>
                   <td style={{padding:'12px 14px',textAlign:'center',fontFamily:'monospace',fontWeight:800,color:t.goldSolid,fontSize:17}}>{lingot.karat}</td>
                   <td style={{padding:'12px 14px',textAlign:'center',fontFamily:'monospace',fontWeight:900,color:t.green,fontSize:17}}>{fmt((lingot.weight*lingot.karat)/1000)}</td>
-                  <td style={{padding:'12px 14px',textAlign:'center',fontSize:16,color:t.textSec,fontWeight:700}}>{lingot.source}</td>
+                  <td style={{padding:'12px 14px',textAlign:'center',fontSize:16,color:t.textSec,fontWeight:700}}>
+                    <div>{lingot.source}</div>
+                    {(()=>{ const m=String(lingot.id||'').match(/^L-(.+)-\d+$/); return m?<div style={{fontSize:11,color:t.textMuted,fontWeight:600,marginTop:2}}>فاتورة #{m[1]}</div>:null; })()}
+                  </td>
                   <td style={{padding:'12px',textAlign:'center'}}>
                     <button onClick={e=>{e.stopPropagation();setLoanName('');setLoanLingot(lingot);}}
                       style={{padding:'5px 13px',borderRadius:7,border:`1px solid ${(t.blue||'#3B82F6')}50`,background:`${(t.blue||'#3B82F6')}18`,color:t.blue||'#3B82F6',fontWeight:800,fontSize:14,cursor:'pointer',fontFamily:'inherit'}}>
