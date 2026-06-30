@@ -3623,6 +3623,35 @@ function migrateLegacy(local){
 
 const _round6 = n => Math.round((n + Number.EPSILON) * 1e6) / 1e6;
 
+/* صفحة بحث وهمية للطوارئ — تُخفي التطبيق. تُغلق بثلاث مسافات. */
+function DecoyScreen(){
+  const [q,setQ]=React.useState('');
+  const L=[['G','#4285F4'],['o','#EA4335'],['o','#FBBC05'],['g','#4285F4'],['l','#34A853'],['e','#EA4335']];
+  return (
+    <div style={{position:'fixed',inset:0,zIndex:2147483647,background:'#fff',direction:'ltr',display:'flex',flexDirection:'column',alignItems:'center',fontFamily:'Arial,Helvetica,sans-serif',overflow:'auto'}}>
+      <div style={{width:'100%',display:'flex',justifyContent:'flex-end',alignItems:'center',gap:18,padding:'12px 18px',boxSizing:'border-box',fontSize:13,color:'#3c4043'}}>
+        <span>Gmail</span><span>Images</span>
+        <span style={{display:'inline-grid',gridTemplateColumns:'repeat(3,4px)',gap:2}}>{Array.from({length:9}).map((_,i)=><span key={i} style={{width:4,height:4,background:'#5f6368',borderRadius:1}}/>)}</span>
+        <span style={{width:30,height:30,borderRadius:'50%',background:'#1a73e8',color:'#fff',display:'inline-flex',alignItems:'center',justifyContent:'center',fontWeight:700,fontSize:14}}>R</span>
+      </div>
+      <div style={{marginTop:'13vh',width:'100%',maxWidth:560,padding:'0 20px',boxSizing:'border-box',display:'flex',flexDirection:'column',alignItems:'center'}}>
+        <div style={{fontSize:'clamp(54px,9vw,90px)',fontWeight:500,letterSpacing:-3,marginBottom:24}}>
+          {L.map(([c,col],i)=><span key={i} style={{color:col}}>{c}</span>)}
+        </div>
+        <div style={{width:'100%',display:'flex',alignItems:'center',gap:13,border:'1px solid #dfe1e5',borderRadius:24,padding:'10px 16px',boxShadow:'0 1px 6px rgba(32,33,36,.18)',boxSizing:'border-box'}}>
+          <span style={{color:'#9aa0a6',fontSize:18}}>&#128269;</span>
+          <input value={q} onChange={e=>setQ(e.target.value)} style={{flex:1,border:'none',outline:'none',fontSize:16,background:'transparent',color:'#202124'}}/>
+          <span style={{color:'#4285f4',fontSize:18}}>&#127908;</span>
+        </div>
+        <div style={{display:'flex',gap:12,marginTop:28}}>
+          <div style={{background:'#f8f9fa',border:'1px solid #f8f9fa',borderRadius:4,padding:'9px 16px',fontSize:14,color:'#3c4043',cursor:'pointer'}}>Google Search</div>
+          <div style={{background:'#f8f9fa',border:'1px solid #f8f9fa',borderRadius:4,padding:'9px 16px',fontSize:14,color:'#3c4043',cursor:'pointer'}}>I'm Feeling Lucky</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function RafinageApp(){
   const _localDB = useMemo(loadDB, []);
 
@@ -3633,6 +3662,8 @@ function RafinageApp(){
   const [dark, setDark] = useState(_localDB.dark ?? false);
   const t = useMemo(() => makeTheme(dark), [dark]);
   const [activeTab, setActiveTab] = useState('home');
+  const [decoy, setDecoy] = useState(false);
+  const _spaceTimes = useRef([]);
 
   /* ── السجل التراكمي = مصدر الحقيقة ── */
   const [ledger, setLedger] = useState(() =>
@@ -4010,18 +4041,32 @@ function RafinageApp(){
     return () => clearInterval(id);
   }, [session]);
 
-  /* ── منع المسافة خارج الحقول (بحث غوغل) و Esc ── */
+  /* ── نظام الطوارئ: ٣ ضغطات مسافة → صفحة غوغل وهمية | Esc → خروج ── */
+  const exitApp = () => {
+    try { window.close(); } catch (e) {}
+    try { window.open('', '_self'); window.close(); } catch (e) {}
+    try { window.location.href = 'https://www.google.com'; } catch (e) {}
+  };
   useEffect(() => {
     const onKey = (e) => {
+      if (e.key === 'Escape') { e.preventDefault(); exitApp(); return; }
       const el = e.target || {};
       const tag = (el.tagName || '').toLowerCase();
       const typing = tag === 'input' || tag === 'textarea' || tag === 'select' || el.isContentEditable;
-      if (!typing && (e.key === ' ' || e.code === 'Space')) { e.preventDefault(); }
-      if (e.key === 'Escape') { e.preventDefault(); }
+      /* رصد ٣ مسافات متتالية — يعمل خارج حقول الكتابة، أو دائماً أثناء الصفحة الوهمية */
+      if ((e.key === ' ' || e.code === 'Space') && (!typing || decoy)) {
+        e.preventDefault();
+        const now = Date.now();
+        _spaceTimes.current = [..._spaceTimes.current.filter(t => now - t < 800), now];
+        if (_spaceTimes.current.length >= 3) {
+          _spaceTimes.current = [];
+          setDecoy(d => !d);
+        }
+      }
     };
     window.addEventListener('keydown', onKey, true);
     return () => window.removeEventListener('keydown', onKey, true);
-  }, []);
+  }, [decoy]);
 
   /* ══════════════════════════════════════════════
      CORE LOGIC
@@ -4518,8 +4563,36 @@ function RafinageApp(){
     );
   }
 
+  /* شاشة الطوارئ الوهمية (غوغل) — تُخفي التطبيق بالكامل */
+  if (decoy) {
+    const gl = [['G','#4285F4'],['o','#EA4335'],['o','#FBBC05'],['g','#4285F4'],['l','#34A853'],['e','#EA4335']];
+    return (
+      <div onContextMenu={e=>e.preventDefault()} style={{position:'fixed',inset:0,background:'#fff',zIndex:99999,display:'flex',flexDirection:'column',alignItems:'center',fontFamily:'arial,sans-serif',direction:'ltr'}}>
+        <div style={{display:'flex',justifyContent:'flex-end',width:'100%',padding:'14px 18px',gap:18,fontSize:13,color:'#1a0dab',boxSizing:'border-box'}}>
+          <span style={{cursor:'pointer',color:'#000'}}>Gmail</span><span style={{cursor:'pointer',color:'#000'}}>Images</span>
+          <span style={{width:24,height:24,borderRadius:'50%',background:'#4285F4',color:'#fff',display:'flex',alignItems:'center',justifyContent:'center',fontWeight:700}}>A</span>
+        </div>
+        <div style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'flex-start',marginTop:'14vh',width:'100%',padding:'0 16px',boxSizing:'border-box'}}>
+          <div style={{fontSize:'clamp(56px,11vw,92px)',fontWeight:500,letterSpacing:-2,marginBottom:26,userSelect:'none'}}>
+            {gl.map(([c,col],i)=><span key={i} style={{color:col}}>{c}</span>)}
+          </div>
+          <div style={{display:'flex',alignItems:'center',width:'min(560px,100%)',border:'1px solid #dfe1e5',borderRadius:24,padding:'11px 18px',boxShadow:'0 1px 6px rgba(32,33,36,.18)'}}>
+            <span style={{color:'#9aa0a6',fontSize:18,marginRight:12}}>🔍</span>
+            <input readOnly placeholder="" style={{flex:1,border:'none',outline:'none',fontSize:16,background:'transparent'}}/>
+            <span style={{color:'#4285F4',fontSize:20,marginLeft:10}}>🎤</span>
+          </div>
+          <div style={{display:'flex',gap:12,marginTop:28}}>
+            <div style={{background:'#f8f9fa',border:'1px solid #f8f9fa',borderRadius:4,padding:'9px 16px',fontSize:14,color:'#3c4043',cursor:'pointer'}}>Google Search</div>
+            <div style={{background:'#f8f9fa',border:'1px solid #f8f9fa',borderRadius:4,padding:'9px 16px',fontSize:14,color:'#3c4043',cursor:'pointer'}}>I'm Feeling Lucky</div>
+          </div>
+        </div>
+        <div style={{width:'100%',background:'#f2f2f2',color:'#70757a',fontSize:13,padding:'14px 22px',boxSizing:'border-box'}}>Algeria</div>
+      </div>
+    );
+  }
+
   /* شاشة الدخول */
-  if (!session) return <LoginScreen t={t} onAuthenticate={handleAuthenticate}/>;
+  if (!session) return <>{decoy && <DecoyScreen/>}<LoginScreen t={t} onAuthenticate={handleAuthenticate}/></>;
 
   /* بوابة الزبون — سجل معاملاته وفواتيره فقط (قراءة فقط) */
   if (session.role === 'customer') {
@@ -4542,6 +4615,7 @@ function RafinageApp(){
           dark={dark} setDark={setDark} fbBadge={<FbBadge/>}/>
         {activeReceipt && <ReceiptModal t={t} isOpen={!!activeReceipt} invoice={activeReceipt} onClose={() => setActiveReceipt(null)}/>}
         {editingInvoice && <EditInvoiceModal t={t} invoice={editingInvoice} onConfirm={handleEditInvoice} onClose={() => setEditingInvoice(null)}/>}
+        {decoy && <DecoyScreen/>}
       </>
     );
   }
@@ -4660,6 +4734,7 @@ function RafinageApp(){
 
       {editingInvoice && <EditInvoiceModal t={t} invoice={editingInvoice} onConfirm={handleEditInvoice} onClose={() => setEditingInvoice(null)}/>}
       {showResetModal && <ResetModal t={t} onClose={() => setShowResetModal(false)}/>}
+      {decoy && <DecoyScreen/>}
 
       {/* HEADER */}
       <header style={{ background: t.headerBg, borderBottom: `1px solid ${t.border}`, padding: isMobile ? '0 10px' : '0 20px',
