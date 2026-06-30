@@ -3578,6 +3578,7 @@ function makeEntry(p){
     note:      p.note || '',
     diffGold:  p.diffGold != null ? p.diffGold : undefined,   /* فرق الذهب بإشارته (للتصحيح) */
     diffDinar: p.diffDinar != null ? p.diffDinar : undefined, /* فرق الدينار بإشارته (للتصحيح) */
+    restoreBar: p.restoreBar || undefined,   /* بيانات السبيكة لإعادتها عند إلغاء السلف */
     amount:    p.amount != null ? p.amount : undefined,
     refId:     p.refId || null,
     reverses:  p.reverses || null,
@@ -4074,6 +4075,7 @@ function RafinageApp(){
     /* تسجيل دين ذهبي على الزبون (الصافي 24) — السالب يعني على الزبون */
     postEntry({ type:'سلف', actType:'give-gold', customer:customerName, customerId:custIdFor(customerName),
       debtGold:-khalas, gold:0, dinar:0,
+      restoreBar:{ id:bar.id, weight:bar.weight, karat:bar.karat, source:bar.source||'' },
       desc:`سلف سبيكة ${fmt(bar.weight)}غ/${bar.karat} (صافي ${fmt(khalas)}غ) لـ ${customerName}`,
       amount:khalas, refId:bar.id });
     /* أجرة خاصة عند السلف لـ«يسين» = (الوزن × العيار ÷ 730) × 1500 — تُسجَّل له */
@@ -4205,6 +4207,23 @@ function RafinageApp(){
     setWorkshop1Lingots(p => p.map(l => { if (upd[l.id]) { const nl = fix(l); addWorkshopLingot('workshop1', nl); return nl; } return l; }));
     setWorkshop2Lingots(p => p.map(l => { if (upd[l.id]) { const nl = fix(l); addWorkshopLingot('workshop2', nl); return nl; } return l; }));
 
+    /* 2.5) إن كانت السبيكة مُسلَّفة لزبون آخر: حدّث دين ذهبه بفرق الصافي */
+    items2.forEach((it, idx) => {
+      const barId = `L-${invId}-${idx + 1}`;
+      const loan = ledger.find(x => x.type === 'سلف' && x.actType === 'give-gold' && x.refId === barId && !x.reverses && !x.reversed);
+      if (loan) {
+        const newKh = it.khalas || 0;
+        const oldKh = loan.amount || 0;
+        const dK = _round6(newKh - oldKh);
+        if (dK !== 0) {
+          postEntry({ type:'تعديل', actType:'تعديل', customer: loan.customer, customerId: loan.customerId,
+            debtGold: -dK, gold: 0, dinar: 0, note: reason, diffGold: -dK,
+            desc:`تصحيح سلف سبيكة (${loan.customer}) سند #${invId}: ${reason}`,
+            amount: Math.abs(dK), refId: invId });
+        }
+      }
+    });
+
     /* 3) قيد تعديل (نفس اصطلاح الفاتورة الأصلية) — يحدّث المخزون وحساب الزبون */
     if (dNet !== 0 || dPrice !== 0) {
       postEntry({ type:'تعديل', actType:'تعديل', customer: inv.customer, customerId: inv.customerId || custIdFor(inv.customer),
@@ -4260,6 +4279,17 @@ function RafinageApp(){
     if (e.type === 'رافيناج' && e.refId) {
       const inv = invoices.find(i => i.id === e.refId);
       if (inv) { voidInvoice(inv); return; }
+    }
+    /* إلغاء سلف: اعكس الدين + أعِد السبيكة للكوفر + اعكس أجرة السلف إن وُجدت */
+    if (e.type === 'سلف' && e.actType === 'give-gold') {
+      reverseEntry(e);
+      if (e.restoreBar && e.restoreBar.id) {
+        const exists = lingotsInCoffer.some(l => l.id === e.restoreBar.id);
+        if (!exists) { addLingot(e.restoreBar); setLingotsInCoffer(p => [e.restoreBar, ...p]); }
+      }
+      const feeSib = ledger.find(x => x.type === 'سلف' && x.actType === 'take' && x.refId === e.refId && !x.reverses && !x.reversed);
+      if (feeSib) reverseEntry(feeSib);
+      return;
     }
     reverseEntry(e);
   };

@@ -1,4 +1,4 @@
-const CACHE = 'rafinage-editreason-v54';
+const CACHE = 'rafinage-loanfix-v55';
 const ASSETS = ['./', './index.html', './manifest.json'];
 
 self.addEventListener('install', e => {
