@@ -1,4 +1,4 @@
-const CACHE = 'rafinage-panic-v56';
+const CACHE = 'rafinage-loanlabel-v57';
 const ASSETS = ['./', './index.html', './manifest.json'];
 
 self.addEventListener('install', e => {

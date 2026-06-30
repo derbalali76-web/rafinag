@@ -2304,6 +2304,8 @@ function OperationsLogTab({t,activities,onClearActivities,onDeleteActivity,custo
     expense:{color:'#C9922A',label:'مصاريف',currency:'دج'},
     'رافيناج':{color:'#D4AF37',label:'رافيناج',currency:'ذهب 24'},
     'تعديل':{color:'#E8833A',label:'تصحيح فاتورة',currency:'—'},
+    'سلف':{color:'#8B5CF6',label:'سلف',currency:'غ'},
+    'أجرة-سلف':{color:'#8B5CF6',label:'أجرة سلف',currency:'دج'},
     'reversal':{color:'#94A3B8',label:'قيد عكسي',currency:'—'},
   };
 
@@ -3312,6 +3314,8 @@ function CustomerPortal({t,customerName,customerId,accent,myLedger,myInvoices,my
   const txCfg={
     'رافيناج':{label:'رافيناج',color:'#818CF8'},
     'تعديل':{label:'تصحيح فاتورة',color:'#E8833A'},
+    'سلف':{label:'سلف',color:'#8B5CF6'},
+    'أجرة-سلف':{label:'أجرة سلف',color:'#8B5CF6'},
     take:{label:'دفع',color:'#34D399'}, give:{label:'استلام',color:'#FB7185'},
     'take-gold':{label:'دفع ذهب',color:'#34D399'}, 'give-gold':{label:'استلام ذهب',color:'#FB7185'},
     reversal:{label:'قيد عكسي',color:'#94A3B8'},
@@ -4118,7 +4122,7 @@ function RafinageApp(){
     deleteLingot(bar.id);
     setLingotsInCoffer(p => p.filter(l => l.id !== lingotId));
     /* تسجيل دين ذهبي على الزبون (الصافي 24) — السالب يعني على الزبون */
-    postEntry({ type:'سلف', actType:'give-gold', customer:customerName, customerId:custIdFor(customerName),
+    postEntry({ type:'سلف', actType:'سلف', customer:customerName, customerId:custIdFor(customerName),
       debtGold:-khalas, gold:0, dinar:0,
       restoreBar:{ id:bar.id, weight:bar.weight, karat:bar.karat, source:bar.source||'' },
       desc:`سلف سبيكة ${fmt(bar.weight)}غ/${bar.karat} (صافي ${fmt(khalas)}غ) لـ ${customerName}`,
@@ -4126,7 +4130,7 @@ function RafinageApp(){
     /* أجرة خاصة عند السلف لـ«يسين» = (الوزن × العيار ÷ 730) × 1500 — تُسجَّل له */
     if ((customerName||'').trim().replace(/\s+/g,' ') === 'يسين') {
       const loanFee = Math.round(((bar.weight * bar.karat) / 730) * 1500);
-      postEntry({ type:'سلف', actType:'take', customer:customerName, customerId:custIdFor(customerName),
+      postEntry({ type:'سلف', actType:'أجرة-سلف', customer:customerName, customerId:custIdFor(customerName),
         debtDinar:+loanFee, gold:0, dinar:0, note:`أجرة سلف`,
         desc:`أجرة سلف: ${fmt(bar.weight)}غ × ${bar.karat} ÷ 730 × 1500 = ${fmtInt(loanFee)} دج`,
         amount:loanFee, refId:bar.id });
@@ -4255,7 +4259,7 @@ function RafinageApp(){
     /* 2.5) إن كانت السبيكة مُسلَّفة لزبون آخر: حدّث دين ذهبه بفرق الصافي */
     items2.forEach((it, idx) => {
       const barId = `L-${invId}-${idx + 1}`;
-      const loan = ledger.find(x => x.type === 'سلف' && x.actType === 'give-gold' && x.refId === barId && !x.reverses && !x.reversed);
+      const loan = ledger.find(x => x.type === 'سلف' && x.restoreBar && x.refId === barId && !x.reverses && !x.reversed);
       if (loan) {
         const newKh = it.khalas || 0;
         const oldKh = loan.amount || 0;
@@ -4326,13 +4330,13 @@ function RafinageApp(){
       if (inv) { voidInvoice(inv); return; }
     }
     /* إلغاء سلف: اعكس الدين + أعِد السبيكة للكوفر + اعكس أجرة السلف إن وُجدت */
-    if (e.type === 'سلف' && e.actType === 'give-gold') {
+    if (e.type === 'سلف' && e.restoreBar) {
       reverseEntry(e);
-      if (e.restoreBar && e.restoreBar.id) {
+      if (e.restoreBar.id) {
         const exists = lingotsInCoffer.some(l => l.id === e.restoreBar.id);
         if (!exists) { addLingot(e.restoreBar); setLingotsInCoffer(p => [e.restoreBar, ...p]); }
       }
-      const feeSib = ledger.find(x => x.type === 'سلف' && x.actType === 'take' && x.refId === e.refId && !x.reverses && !x.reversed);
+      const feeSib = ledger.find(x => x.type === 'سلف' && x.actType === 'أجرة-سلف' && x.refId === e.refId && !x.reverses && !x.reversed);
       if (feeSib) reverseEntry(feeSib);
       return;
     }
