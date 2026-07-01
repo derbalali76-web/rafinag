@@ -794,24 +794,16 @@ function HomeTab({t,dinarCofferTotal,extraLingotBalance,lingotsTotalWeight,recen
   const removeBarRow=i=>setOpBars(p=>p.filter((_,j)=>j!==i));
   const updateBarRow=(i,field,val)=>setOpBars(p=>p.map((r,j)=>j===i?{...r,[field]:val}:r));
   const opFormRef=useRef(null);
-  useEffect(()=>{
-    if(!openingOpen)return;
-    const onKey=(e)=>{
-      if(e.key!=='ArrowDown'&&e.key!=='ArrowUp'&&e.key!=='Enter')return;
-      const box=opFormRef.current; if(!box)return;
-      const ae=document.activeElement;
-      if(!ae||ae.tagName!=='INPUT'||!box.contains(ae))return;
-      const inputs=Array.from(box.querySelectorAll('input')).filter(el=>!el.disabled&&el.type!=='hidden');
-      const idx=inputs.indexOf(ae);
-      if(idx===-1)return;
-      e.preventDefault(); e.stopPropagation();
-      const dir=e.key==='ArrowUp'?-1:1;
-      const next=idx+dir;
-      if(next>=0&&next<inputs.length){inputs[next].focus();try{inputs[next].select();}catch(_){}}
-    };
-    window.addEventListener('keydown',onKey,true);
-    return ()=>window.removeEventListener('keydown',onKey,true);
-  },[openingOpen]);
+  const navField=(e)=>{
+    if(e.key!=='ArrowDown'&&e.key!=='ArrowUp'&&e.key!=='Enter')return;
+    const box=opFormRef.current; if(!box)return;
+    const inputs=Array.from(box.querySelectorAll('input')).filter(el=>!el.disabled&&el.type!=='hidden');
+    const idx=inputs.indexOf(e.currentTarget);
+    if(idx===-1)return;
+    e.preventDefault();
+    const nx=inputs[idx+(e.key==='ArrowUp'?-1:1)];
+    if(nx){nx.focus();try{nx.select();}catch(_){}}
+  };
   const submitOpening=()=>{
     const d=parseFloat(opDinar)||0;
     const l=parseFloat(opLingot)||0;
@@ -1013,13 +1005,13 @@ function HomeTab({t,dinarCofferTotal,extraLingotBalance,lingotsTotalWeight,recen
               <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
                 <div>
                   <div style={{fontSize:12,color:'rgba(237,184,74,0.7)',fontWeight:800,marginBottom:5,textAlign:'right'}}>صوارد الكوفر (دج)</div>
-                  <input type="number" value={opDinar} onChange={e=>setOpDinar(e.target.value)} placeholder="0"
+                  <input type="number" value={opDinar} onChange={e=>setOpDinar(e.target.value)} onKeyDown={navField} placeholder="0"
                     style={{width:'100%',boxSizing:'border-box',background:'rgba(255,255,255,0.07)',border:'1px solid rgba(237,184,74,0.3)',
                       borderRadius:10,padding:'9px 12px',fontSize:16,fontWeight:900,fontFamily:'monospace',color:'#EDB84A',textAlign:'center'}}/>
                 </div>
                 <div>
                   <div style={{fontSize:12,color:'rgba(52,211,153,0.8)',fontWeight:800,marginBottom:5,textAlign:'right'}}>باقي اللانقو (غ)</div>
-                  <input type="number" step="0.001" value={opLingot} onChange={e=>setOpLingot(e.target.value)} placeholder="0.000"
+                  <input type="number" step="0.001" value={opLingot} onChange={e=>setOpLingot(e.target.value)} onKeyDown={navField} placeholder="0.000"
                     style={{width:'100%',boxSizing:'border-box',background:'rgba(255,255,255,0.07)',border:'1px solid rgba(52,211,153,0.3)',
                       borderRadius:10,padding:'9px 12px',fontSize:16,fontWeight:900,fontFamily:'monospace',color:'#34D399',textAlign:'center'}}/>
                 </div>
@@ -1042,11 +1034,11 @@ function HomeTab({t,dinarCofferTotal,extraLingotBalance,lingotsTotalWeight,recen
                 </div>
                 {opBars.map((row,i)=>(
                   <div key={i} style={{display:'grid',gridTemplateColumns:'1.4fr 1.4fr 28px',gap:6,marginBottom:6}}>
-                    <input type="number" step="0.001" value={row.weight} onChange={e=>updateBarRow(i,'weight',e.target.value)}
+                    <input type="number" step="0.001" value={row.weight} onChange={e=>updateBarRow(i,'weight',e.target.value)} onKeyDown={navField}
                       placeholder="0.000"
                       style={{background:'rgba(255,255,255,0.07)',border:'1px solid rgba(255,255,255,0.15)',
                         borderRadius:8,padding:'7px 8px',fontSize:13,fontWeight:900,fontFamily:'monospace',color:'#EDF1FF',textAlign:'center'}}/>
-                    <input type="number" step="1" value={row.karat} onChange={e=>updateBarRow(i,'karat',e.target.value)}
+                    <input type="number" step="1" value={row.karat} onChange={e=>updateBarRow(i,'karat',e.target.value)} onKeyDown={navField}
                       placeholder="مثال: 916"
                       style={{background:'rgba(255,255,255,0.07)',border:'1px solid rgba(237,184,74,0.2)',
                         borderRadius:8,padding:'7px 8px',fontSize:13,fontWeight:900,fontFamily:'monospace',color:'#EDB84A',textAlign:'center'}}/>
@@ -1078,17 +1070,17 @@ function HomeTab({t,dinarCofferTotal,extraLingotBalance,lingotsTotalWeight,recen
                 </div>
                 {opDebts.map((row,i)=>(
                   <div key={i} style={{display:'grid',gridTemplateColumns:'2fr 1.2fr 1.2fr 28px',gap:6,marginBottom:6}}>
-                    <input type="text" value={row.name} onChange={e=>updateDebtRow(i,'name',e.target.value)}
+                    <input type="text" value={row.name} onChange={e=>updateDebtRow(i,'name',e.target.value)} onKeyDown={navField}
                       placeholder="اسم الزبون..."
                       style={{background:'rgba(255,255,255,0.07)',border:'1px solid rgba(255,255,255,0.15)',
                         borderRadius:8,padding:'7px 10px',fontSize:14,fontWeight:700,color:'#EDF1FF',fontFamily:'inherit',textAlign:'right'}}/>
-                    <input type="number" value={row.dinar} onChange={e=>updateDebtRow(i,'dinar',e.target.value)}
+                    <input type="number" value={row.dinar} onChange={e=>updateDebtRow(i,'dinar',e.target.value)} onKeyDown={navField}
                       placeholder="0"
                       style={{background:'rgba(255,255,255,0.07)',
                         border:`1px solid ${parseFloat(row.dinar)<0?'rgba(239,68,68,0.4)':'rgba(237,184,74,0.2)'}`,
                         borderRadius:8,padding:'7px 8px',fontSize:13,fontWeight:900,fontFamily:'monospace',
                         color:parseFloat(row.dinar)<0?'#EF4444':'#EDB84A',textAlign:'center'}}/>
-                    <input type="number" step="0.001" value={row.gold} onChange={e=>updateDebtRow(i,'gold',e.target.value)}
+                    <input type="number" step="0.001" value={row.gold} onChange={e=>updateDebtRow(i,'gold',e.target.value)} onKeyDown={navField}
                       placeholder="0.000"
                       style={{background:'rgba(255,255,255,0.07)',
                         border:`1px solid ${parseFloat(row.gold)<0?'rgba(239,68,68,0.4)':'rgba(52,211,153,0.2)'}`,
