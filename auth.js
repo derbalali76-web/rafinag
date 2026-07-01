@@ -128,11 +128,17 @@ async function doLogin(){
     let users;
     try{users=await _loadUsers();}catch(e){users=_usersCache;}
 
-    /* قاعدة جديدة فارغة: أول دخول يُنشئ حساب admin بكلمة السر المُدخَلة */
+    /* قاعدة جديدة فارغة: أول دخول يُنشئ حساب admin بكلمة السر المُدخَلة
+       الترتيب مهم: مصادقة Firebase أولاً (القواعد تشترط auth للكتابة في _users) */
     if(!users[uname]){
         if(Object.keys(users).length===0){
+            const _authOk=await _fbSignInEmail(uname,pw,true);
+            if(!_authOk){
+                if(btn){btn.disabled=false;btn.textContent=origTxt;}
+                return _showLoginErr('تعذّر إنشاء الحساب — فعّل Email/Password في Authentication');
+            }
             try{ await _saveUser(uname,true); users=_usersCache; }
-            catch(e){ if(btn){btn.disabled=false;btn.textContent=origTxt;} return _showLoginErr('تعذّر إنشاء حساب المسؤول — تحقّق من الاتصال'); }
+            catch(e){ if(btn){btn.disabled=false;btn.textContent=origTxt;} return _showLoginErr('تعذّر الحفظ — انشر قواعد Realtime Database'); }
         }else{
             if(btn){btn.disabled=false;btn.textContent=origTxt;}
             return _showLoginErr('حساب المسؤول غير موجود');
@@ -186,10 +192,14 @@ async function doLoginWorker(){
     let users;
     try{users=await _loadUsers();}catch(e){users=_usersCache;}
     if(!users[uname]){
-        /* أول دخول لهذا العامل: كلمة السر يجب أن تطابق كلمة rafinag الأصلية */
+        /* أول دخول لهذا العامل: كلمة السر يجب أن تطابق كلمة rafinag الأصلية
+           الترتيب: مصادقة أولاً ثم كتابة _users (القواعد تشترط auth) */
         if(pw!==seed.pw)return _showLoginErr('كلمة المرور خاطئة');
+        const _authOk=await _fbSignInEmail(uname,pw,true);
+        if(!_authOk)return _showLoginErr('تعذّر إنشاء الحساب — تحقّق من الاتصال');
         try{await _saveUserMeta(uname,{isAdmin:false,role:'worker',workshop:seed.workshop});}
-        catch(e){return _showLoginErr('تعذّر إنشاء الحساب — تحقّق من الاتصال');}
+        catch(e){return _showLoginErr('تعذّر الحفظ — انشر قواعد Realtime Database');}
+        return _finishLogin(uname,pw,'worker',seed.workshop,'');
     }
     const _ok=await _fbSignInEmail(uname,pw,true);
     if(!_ok)return _showLoginErr('كلمة المرور خاطئة');
