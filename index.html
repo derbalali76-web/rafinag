@@ -795,16 +795,32 @@ function HomeTab({t,dinarCofferTotal,extraLingotBalance,lingotsTotalWeight,recen
   const updateBarRow=(i,field,val)=>setOpBars(p=>p.map((r,j)=>j===i?{...r,[field]:val}:r));
   const opFormRef=useRef(null);
   const navField=(e)=>{
-    if(e.key!=='ArrowDown'&&e.key!=='ArrowUp'&&e.key!=='Enter')return;
+    const k=e.key;
+    if(k!=='ArrowDown'&&k!=='ArrowUp'&&k!=='ArrowLeft'&&k!=='ArrowRight'&&k!=='Enter')return;
     const cur=e.currentTarget;
     const box=(cur&&cur.closest&&cur.closest('[data-opform]'))||opFormRef.current;
     if(!box)return;
     const inputs=Array.from(box.querySelectorAll('input')).filter(el=>!el.disabled&&el.type!=='hidden');
-    const idx=inputs.indexOf(cur);
-    if(idx===-1)return;
-    e.preventDefault();
-    const nx=inputs[idx+(e.key==='ArrowUp'?-1:1)];
-    if(nx){nx.focus();try{nx.select();}catch(_){}}
+    if(inputs.length<2)return;
+    const cr=cur.getBoundingClientRect();
+    const cx=cr.left+cr.width/2, cy=cr.top+cr.height/2;
+    const dir=(k==='Enter')?'ArrowDown':k;
+    let best=null,bestScore=Infinity;
+    for(const el of inputs){
+      if(el===cur)continue;
+      const r=el.getBoundingClientRect();
+      const x=r.left+r.width/2, y=r.top+r.height/2;
+      const dx=x-cx, dy=y-cy;
+      let ok=false,primary=0,secondary=0;
+      if(dir==='ArrowDown'){ok=dy>4;primary=dy;secondary=Math.abs(dx);}
+      else if(dir==='ArrowUp'){ok=dy<-4;primary=-dy;secondary=Math.abs(dx);}
+      else if(dir==='ArrowRight'){ok=dx>4;primary=dx;secondary=Math.abs(dy);}
+      else if(dir==='ArrowLeft'){ok=dx<-4;primary=-dx;secondary=Math.abs(dy);}
+      if(!ok)continue;
+      const score=primary+secondary*4;
+      if(score<bestScore){bestScore=score;best=el;}
+    }
+    if(best){e.preventDefault();best.focus();try{best.select();}catch(_){}}
   };
   const submitOpening=()=>{
     const d=parseFloat(opDinar)||0;
@@ -3736,7 +3752,7 @@ function migrateLegacy(local){
 }
 
 const _round6 = n => Math.round((n + Number.EPSILON) * 1e6) / 1e6;
-const APP_VERSION = 'v66';
+const APP_VERSION = 'v67';
 
 /* صفحة بحث وهمية للطوارئ — تُخفي التطبيق. تُغلق بثلاث مسافات. */
 function DecoyScreen(){
