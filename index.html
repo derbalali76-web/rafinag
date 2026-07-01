@@ -796,9 +796,11 @@ function HomeTab({t,dinarCofferTotal,extraLingotBalance,lingotsTotalWeight,recen
   const opFormRef=useRef(null);
   const navField=(e)=>{
     if(e.key!=='ArrowDown'&&e.key!=='ArrowUp'&&e.key!=='Enter')return;
-    const box=opFormRef.current; if(!box)return;
+    const cur=e.currentTarget;
+    const box=(cur&&cur.closest&&cur.closest('[data-opform]'))||opFormRef.current;
+    if(!box)return;
     const inputs=Array.from(box.querySelectorAll('input')).filter(el=>!el.disabled&&el.type!=='hidden');
-    const idx=inputs.indexOf(e.currentTarget);
+    const idx=inputs.indexOf(cur);
     if(idx===-1)return;
     e.preventDefault();
     const nx=inputs[idx+(e.key==='ArrowUp'?-1:1)];
@@ -995,7 +997,7 @@ function HomeTab({t,dinarCofferTotal,extraLingotBalance,lingotsTotalWeight,recen
               </button>
             </div>
           ):(
-            <div ref={opFormRef} style={{display:'flex',flexDirection:'column',gap:14}}>
+            <div ref={opFormRef} data-opform style={{display:'flex',flexDirection:'column',gap:14}}>
               <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
                 <span style={{fontSize:12,color:'rgba(255,255,255,0.4)',fontWeight:700}}>تُدخل مرة واحدة فقط</span>
                 <span style={{fontSize:15,fontWeight:900,color:'rgba(237,184,74,0.9)'}}>الأرصدة الافتتاحية</span>
@@ -3734,6 +3736,7 @@ function migrateLegacy(local){
 }
 
 const _round6 = n => Math.round((n + Number.EPSILON) * 1e6) / 1e6;
+const APP_VERSION = 'v66';
 
 /* صفحة بحث وهمية للطوارئ — تُخفي التطبيق. تُغلق بثلاث مسافات. */
 function DecoyScreen(){
@@ -4868,7 +4871,7 @@ function RafinageApp(){
           <div>
             <div style={{ fontWeight: 900, fontSize: 17, lineHeight: 1.1, background: t.goldGrad,
               WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>منظومة الرفاينج</div>
-            <div style={{ fontSize: 11, color: t.textMuted, fontWeight: 700, letterSpacing: 1 }}>GOLD REFINING PRO</div>
+            <div style={{ fontSize: 11, color: t.textMuted, fontWeight: 700, letterSpacing: 1 }}>GOLD REFINING PRO <span style={{ color: t.goldSolid, fontWeight: 900, letterSpacing: 0 }}>· {APP_VERSION}</span></div>
           </div>
         </div>
 
