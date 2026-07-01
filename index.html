@@ -4015,9 +4015,10 @@ function RafinageApp(){
             (invoices && invoices.length > 0) ||
             (lingotsInCoffer && lingotsInCoffer.length > 0);
 
-          /* تفاعل المستخدم، أو محلي فيه بيانات والسحابة فارغة → نُبقي المحلي ونرفعه */
-          if (userInteractedRef.current || (localHasData && !remoteHasData)) {
-            if (localHasData) ledger.forEach(e => addLedgerEntry(e));
+          /* أبقِ المحلي وارفعه فقط إن كان فيه بيانات فعلاً (تفاعل، أو السحابة فارغة).
+             إن كان المحلي فارغاً (بعد مسح الكاش) نطبّق السحابة دائماً حتى لو تفاعل المستخدم. */
+          if (localHasData && (userInteractedRef.current || !remoteHasData)) {
+            ledger.forEach(e => addLedgerEntry(e));
             setFbLoaded(true);
             return;
           }
