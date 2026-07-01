@@ -1,4 +1,4 @@
-const CACHE = 'rafinage-openbars-v59';
+const CACHE = 'rafinage-barfix-v60';
 const ASSETS = ['./', './index.html', './manifest.json'];
 
 self.addEventListener('install', e => {

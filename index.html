@@ -1338,12 +1338,20 @@ function TransferModal({t,isOpen,selectedCount,onClose,onConfirmTransfer}){
 /* ═══════════════════════════════════════════════
    COFFER TAB
 ═══════════════════════════════════════════════ */
-function CofferTab({t,lingots,onOpenTransferModal,onLoanLingot,customerNames=[]}){
+function CofferTab({t,lingots,onOpenTransferModal,onLoanLingot,onAddBar,onEditBar,onDeleteBar,customerNames=[]}){
   /* التحديد يعتمد على معرّف السبيكة (id) لا على الفهرس — حتى لا تتغيّر الإشارة عند تعديل القائمة */
   const [selectedIds,setSelectedIds]=useState([]);
   const [searchTerm,setSearchTerm]=useState('');
   const [loanLingot,setLoanLingot]=useState(null);
   const [loanName,setLoanName]=useState('');
+  const [barModal,setBarModal]=useState(null);   // {id?, weight, karat, source}
+  const submitBarModal=()=>{
+    const w=parseFloat(barModal.weight)||0, k=parseFloat(barModal.karat)||0;
+    if(w<=0||k<=0){alert('⚠️ أدخل ميزاناً وعياراً صحيحين.');return;}
+    if(barModal.id) onEditBar(barModal.id,w,k);
+    else onAddBar(w,k,(barModal.source||'').trim()||'رصيد افتتاحي');
+    setBarModal(null);
+  };
 
   const totalWeight=lingots.filter(l=>l.weight>0).reduce((s,l)=>s+(l.weight*l.karat)/1000,0);
   const physicalCount=lingots.filter(l=>l.weight>0).length;
@@ -1392,6 +1400,10 @@ function CofferTab({t,lingots,onOpenTransferModal,onLoanLingot,customerNames=[]}
             style={{width:'100%',background:t.inputBg,border:`1px solid ${t.border}`,borderRadius:9,padding:'8px 36px 8px 12px',fontSize:16,fontWeight:700,color:t.textPrimary,fontFamily:'inherit',textAlign:'right'}}/>
           <SearchIco size={14} color={t.textMuted} style={{position:'absolute',right:12,top:'50%',transform:'translateY(-50%)'}}/>
         </div>
+        <button onClick={()=>setBarModal({weight:'',karat:'',source:'رصيد افتتاحي'})}
+          style={{padding:'8px 14px',background:`${t.goldAccent}18`,border:`1px solid ${t.goldAccent}55`,borderRadius:9,fontSize:14,fontWeight:800,color:t.goldSolid,cursor:'pointer',fontFamily:'inherit',whiteSpace:'nowrap'}}>
+          + إضافة سبيكة
+        </button>
         {filtered.length>0&&(
           <button onClick={()=>setSelectedIds(isAllSelected?[]:filtered.map(l=>l.id))}
             style={{padding:'8px 14px',background:t.inputBg,border:`1px solid ${t.border}`,borderRadius:9,fontSize:14,fontWeight:800,color:t.textSec,cursor:'pointer',fontFamily:'inherit',display:'flex',alignItems:'center',gap:6,whiteSpace:'nowrap'}}>
@@ -1403,7 +1415,7 @@ function CofferTab({t,lingots,onOpenTransferModal,onLoanLingot,customerNames=[]}
 
       <Card t={t} style={{overflow:'hidden'}}>
         <table style={{width:'100%',borderCollapse:'collapse'}}>
-          <Thead t={t} cols={['اختيار','الوزن','العيار','الصافي 24k','المصدر','سلف']}/>
+          <Thead t={t} cols={['اختيار','الوزن','العيار','الصافي 24k','المصدر','إجراءات']}/>
           <tbody>
             {filtered.map((lingot)=>{
               const isSelected=selectedIds.includes(lingot.id);
@@ -1425,10 +1437,22 @@ function CofferTab({t,lingots,onOpenTransferModal,onLoanLingot,customerNames=[]}
                     {(()=>{ const m=String(lingot.id||'').match(/^L-(.+)-\d+$/); return m?<div style={{fontSize:11,color:t.textMuted,fontWeight:600,marginTop:2}}>فاتورة #{m[1]}</div>:null; })()}
                   </td>
                   <td style={{padding:'12px',textAlign:'center'}}>
-                    <button onClick={e=>{e.stopPropagation();setLoanName('');setLoanLingot(lingot);}}
-                      style={{padding:'5px 13px',borderRadius:7,border:`1px solid ${(t.blue||'#3B82F6')}50`,background:`${(t.blue||'#3B82F6')}18`,color:t.blue||'#3B82F6',fontWeight:800,fontSize:14,cursor:'pointer',fontFamily:'inherit'}}>
-                      سلف
-                    </button>
+                    <div style={{display:'flex',gap:6,justifyContent:'center',alignItems:'center'}}>
+                      <button onClick={e=>{e.stopPropagation();setLoanName('');setLoanLingot(lingot);}}
+                        style={{padding:'5px 13px',borderRadius:7,border:`1px solid ${(t.blue||'#3B82F6')}50`,background:`${(t.blue||'#3B82F6')}18`,color:t.blue||'#3B82F6',fontWeight:800,fontSize:14,cursor:'pointer',fontFamily:'inherit'}}>
+                        سلف
+                      </button>
+                      <button onClick={e=>{e.stopPropagation();setBarModal({id:lingot.id,weight:String(lingot.weight),karat:String(lingot.karat),source:lingot.source||''});}}
+                        title="تعديل"
+                        style={{padding:'5px 9px',borderRadius:7,border:`1px solid ${t.border}`,background:t.inputBg,color:t.textSec,fontWeight:800,fontSize:14,cursor:'pointer',fontFamily:'inherit'}}>
+                        ✎
+                      </button>
+                      <button onClick={e=>{e.stopPropagation(); if(confirm(`حذف السبيكة (${fmt(lingot.weight)}غ / ${lingot.karat})؟`)) onDeleteBar(lingot.id);}}
+                        title="حذف"
+                        style={{padding:'5px 9px',borderRadius:7,border:'1px solid rgba(239,68,68,0.35)',background:'rgba(239,68,68,0.12)',color:'#EF4444',fontWeight:900,fontSize:14,cursor:'pointer',fontFamily:'inherit'}}>
+                        ✕
+                      </button>
+                    </div>
                   </td>
                 </tr>
               );
@@ -1437,6 +1461,37 @@ function CofferTab({t,lingots,onOpenTransferModal,onLoanLingot,customerNames=[]}
           </tbody>
         </table>
       </Card>
+
+      {barModal && (
+        <div onClick={()=>setBarModal(null)} style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.6)',zIndex:1000,display:'flex',alignItems:'center',justifyContent:'center',padding:16}}>
+          <div onClick={e=>e.stopPropagation()} dir="rtl" style={{width:'100%',maxWidth:400,background:t.cardBg,border:`1px solid ${t.border}`,borderRadius:16,padding:20,fontFamily:"'Tajawal',system-ui,sans-serif",color:t.textPrimary,boxShadow:'0 20px 60px rgba(0,0,0,0.5)'}}>
+            <div style={{fontSize:18,fontWeight:900,color:t.goldSolid,marginBottom:14}}>{barModal.id?'تعديل سبيكة':'إضافة سبيكة للكوفر'}</div>
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:12}}>
+              <div>
+                <div style={{fontSize:12,fontWeight:800,color:t.textSec,marginBottom:5}}>الميزان (غ)</div>
+                <input type="number" step="0.001" value={barModal.weight} onChange={e=>setBarModal(m=>({...m,weight:e.target.value}))} placeholder="0.000"
+                  style={{width:'100%',boxSizing:'border-box',background:t.inputBg,border:`1px solid ${t.border}`,borderRadius:9,padding:'9px 10px',fontSize:16,fontWeight:900,fontFamily:'monospace',color:t.textPrimary,textAlign:'center'}}/>
+              </div>
+              <div>
+                <div style={{fontSize:12,fontWeight:800,color:t.textSec,marginBottom:5}}>العيار</div>
+                <input type="number" step="1" value={barModal.karat} onChange={e=>setBarModal(m=>({...m,karat:e.target.value}))} placeholder="مثال: 916"
+                  style={{width:'100%',boxSizing:'border-box',background:t.inputBg,border:`1px solid ${t.border}`,borderRadius:9,padding:'9px 10px',fontSize:16,fontWeight:900,fontFamily:'monospace',color:t.goldSolid,textAlign:'center'}}/>
+              </div>
+            </div>
+            {!barModal.id && (
+              <div style={{marginBottom:14}}>
+                <div style={{fontSize:12,fontWeight:800,color:t.textSec,marginBottom:5}}>المصدر</div>
+                <input type="text" value={barModal.source} onChange={e=>setBarModal(m=>({...m,source:e.target.value}))} placeholder="رصيد افتتاحي"
+                  style={{width:'100%',boxSizing:'border-box',background:t.inputBg,border:`1px solid ${t.border}`,borderRadius:9,padding:'9px 10px',fontSize:15,fontWeight:700,color:t.textPrimary,fontFamily:'inherit',textAlign:'right'}}/>
+              </div>
+            )}
+            <div style={{display:'flex',gap:8}}>
+              <button onClick={submitBarModal} style={{flex:1,padding:'11px',borderRadius:10,border:'none',background:t.goldSolid,color:'#1a1200',fontWeight:900,fontSize:15,cursor:'pointer',fontFamily:'inherit'}}>{barModal.id?'حفظ التعديل':'إضافة'}</button>
+              <button onClick={()=>setBarModal(null)} style={{padding:'11px 18px',borderRadius:10,border:`1px solid ${t.border}`,background:t.inputBg,color:t.textSec,fontWeight:800,fontSize:15,cursor:'pointer',fontFamily:'inherit'}}>إلغاء</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {loanLingot && (()=>{ const kh=(loanLingot.weight*loanLingot.karat)/1000; return (
         <div onClick={()=>setLoanLingot(null)} style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.6)',zIndex:1000,display:'flex',alignItems:'center',justifyContent:'center',padding:16}}>
@@ -4869,7 +4924,11 @@ function RafinageApp(){
           <InvoiceTab t={t} onSaveInvoice={handleSaveInvoice} debtsList={debtsList}
             nextInvoiceId={nextInvoiceId} extraLingotBalance={extraLingotBalance} isMobile={isMobile} customerNames={customerNames}/>
         </div>
-        {activeTab === 'coffer'     && <CofferTab t={t} lingots={lingotsInCoffer} onOpenTransferModal={i => setSelectedBulksToTransfer(i)} onLoanLingot={handleLoanLingot} customerNames={customerNames}/>}
+        {activeTab === 'coffer'     && <CofferTab t={t} lingots={lingotsInCoffer} onOpenTransferModal={i => setSelectedBulksToTransfer(i)} onLoanLingot={handleLoanLingot}
+          onAddBar={(w,k,src)=>{ userInteractedRef.current=true; const bar={id:`MAN-${Date.now()}`,source:src,weight:w,karat:k,date:getTodayDateString()}; addLingot(bar); setLingotsInCoffer(p=>[bar,...p]); }}
+          onEditBar={(id,w,k)=>{ userInteractedRef.current=true; setLingotsInCoffer(p=>p.map(l=>{ if(l.id===id){ const nl={...l,weight:w,karat:k}; addLingot(nl); return nl; } return l; })); }}
+          onDeleteBar={(id)=>{ userInteractedRef.current=true; deleteLingot(id); setLingotsInCoffer(p=>p.filter(l=>l.id!==id)); }}
+          customerNames={customerNames}/>}
         {activeTab === 'log'        && <LogTab t={t} invoices={invoices} onOpenReceipt={inv => setActiveReceipt(inv)} onDeleteInvoice={handleDeleteInvoice} onEditInvoice={inv => setEditingInvoice(inv)}/>}
         {activeTab === 'operations' && <OperationsLogTab t={t} activities={recentActivities} customers={debtsList}
           onClearActivities={() => {}}
