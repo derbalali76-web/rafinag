@@ -1,4 +1,4 @@
-const CACHE = 'rafinage-oparrows-v62';
+const CACHE = 'rafinage-oparrows3-v64';
 const ASSETS = ['./', './index.html', './manifest.json'];
 
 self.addEventListener('install', e => {

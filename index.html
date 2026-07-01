@@ -794,16 +794,24 @@ function HomeTab({t,dinarCofferTotal,extraLingotBalance,lingotsTotalWeight,recen
   const removeBarRow=i=>setOpBars(p=>p.filter((_,j)=>j!==i));
   const updateBarRow=(i,field,val)=>setOpBars(p=>p.map((r,j)=>j===i?{...r,[field]:val}:r));
   const opFormRef=useRef(null);
-  const opArrowNav=(e)=>{
-    if(e.key!=='ArrowDown'&&e.key!=='ArrowUp')return;
-    const box=opFormRef.current; if(!box)return;
-    const inputs=Array.from(box.querySelectorAll('input')).filter(el=>!el.disabled&&el.offsetParent!==null);
-    const idx=inputs.indexOf(document.activeElement);
-    if(idx===-1)return;
-    e.preventDefault();
-    const next=e.key==='ArrowDown'?idx+1:idx-1;
-    if(next>=0&&next<inputs.length){inputs[next].focus();inputs[next].select&&inputs[next].select();}
-  };
+  useEffect(()=>{
+    if(!openingOpen)return;
+    const onKey=(e)=>{
+      if(e.key!=='ArrowDown'&&e.key!=='ArrowUp'&&e.key!=='Enter')return;
+      const box=opFormRef.current; if(!box)return;
+      const ae=document.activeElement;
+      if(!ae||ae.tagName!=='INPUT'||!box.contains(ae))return;
+      const inputs=Array.from(box.querySelectorAll('input')).filter(el=>!el.disabled&&el.type!=='hidden');
+      const idx=inputs.indexOf(ae);
+      if(idx===-1)return;
+      e.preventDefault(); e.stopPropagation();
+      const dir=e.key==='ArrowUp'?-1:1;
+      const next=idx+dir;
+      if(next>=0&&next<inputs.length){inputs[next].focus();try{inputs[next].select();}catch(_){}}
+    };
+    window.addEventListener('keydown',onKey,true);
+    return ()=>window.removeEventListener('keydown',onKey,true);
+  },[openingOpen]);
   const submitOpening=()=>{
     const d=parseFloat(opDinar)||0;
     const l=parseFloat(opLingot)||0;
@@ -995,7 +1003,7 @@ function HomeTab({t,dinarCofferTotal,extraLingotBalance,lingotsTotalWeight,recen
               </button>
             </div>
           ):(
-            <div ref={opFormRef} onKeyDown={opArrowNav} style={{display:'flex',flexDirection:'column',gap:14}}>
+            <div ref={opFormRef} style={{display:'flex',flexDirection:'column',gap:14}}>
               <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
                 <span style={{fontSize:12,color:'rgba(255,255,255,0.4)',fontWeight:700}}>تُدخل مرة واحدة فقط</span>
                 <span style={{fontSize:15,fontWeight:900,color:'rgba(237,184,74,0.9)'}}>الأرصدة الافتتاحية</span>
