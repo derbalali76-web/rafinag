@@ -1,4 +1,4 @@
-window.FB_JS_VER='v296';
+window.FB_JS_VER='v298';
 /* ═══════════ FIREBASE ═══════════ */
 const _fbConfig={
     apiKey:"AIzaSyDevHwoNCKXGm-G8GJc_Z5eZwcSPuQS9wI",
@@ -897,6 +897,27 @@ window._custBalBeforeInv=function(cust,invId){
     const beforeTs=(evt.ts||0)-1;   /* لحظة قبل الفاتورة */
     const bal=window._custBalUpToTs(cust,beforeTs);
     return bal?(bal['دينار']||0):0;
+};
+
+/* مصاريف شهر معيّن (مفتاح mk مثل '2026-08') — بالدينار والدولار منفصلين.
+   تُقرأ من أحداث EXPENSE الحيّة (غير المُلغاة) عبر طابعها الزمني. */
+window._monthExpenses=function(mk){
+    let dz=0, usd=0;
+    try{
+        const vE=_allEvents.filter(e=>e.type==='VOID');
+        const vT=new Set(vE.map(e=>e.data&&e.data.voids).filter(Boolean));
+        const dead=new Set(vE.filter(e=>!vT.has(e.id)).map(e=>e.data&&e.data.voids).filter(Boolean));
+        _allEvents.filter(e=>e.type==='EXPENSE'&&!dead.has(e.id)).forEach(e=>{
+            const ts=e.ts||(e.display&&e.display.op&&e.display.op._ts)||0;
+            if(!ts)return;
+            const dd=new Date(ts);
+            const k=dd.getFullYear()+'-'+String(dd.getMonth()+1).padStart(2,'0');
+            if(k!==mk)return;
+            const a=(e.data&&e.data.a)||0;
+            if((e.data&&e.data.cur)==='دولار')usd+=a; else dz+=a;
+        });
+    }catch(e){}
+    return {dz,usd};
 };
 
 window._custBalUpToTs=function(cust,uptoTs){

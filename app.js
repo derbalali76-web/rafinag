@@ -1,4 +1,4 @@
-window.APP_JS_VER='v296';
+window.APP_JS_VER='v298';
 /* ═══════════ STATE ═══════════ */
 let B={دينار:0,'ذهب 730':0,'ذهب 24':0,دولار:0,vg730:0,vg24:0};
 let ops=[],invoices=[],debts=[],loans=[],rafInvoices=[],dollInvoices=[],dubaiInvoices=[];
@@ -2514,6 +2514,8 @@ function renderDebts(){
         return`<span class="${v>0?'debt-pos':'debt-neg'}">${fmt(v,d)}</span>${unit?`<small style="font-size:.65rem;color:var(--t3);margin-right:.15rem"> ${unit}</small>`:''}`;
     };
     tb.innerHTML=Object.entries(cd)
+        /* أخفِ الزبائن الذين رصيدهم صفر في كل المعادن (لا دين ولا له) */
+        .filter(([n,v])=>Math.abs(v.di)>0.001||Math.abs(v.do)>0.001||Math.abs(v.g7)>0.001||Math.abs(v.g2)>0.001)
         .sort((a,b)=>{
             const ta=lastTx[a[0]]||0, tb2=lastTx[b[0]]||0;
             if(tb2!==ta) return tb2-ta;                          /* الأحدث معاملةً أولاً */
@@ -2525,6 +2527,10 @@ function renderDebts(){
             <td>${fD(v.g7,2,'غ (730)')}</td><td>${fD(v.g2,2,'غ (24)')}</td>
             <td><button class="btn-settle" onclick="openSettle('${n.replace(/'/g,"\\'")}')">✅ تصفية</button></td>
         </tr>`).join('');
+    /* إن أخفى الفلتر كل الزبائن (كلهم صفر) */
+    if(!tb.innerHTML.trim()){
+        tb.innerHTML='<tr><td colspan="6" style="padding:2rem;color:var(--t3)"><i class="fas fa-check-circle" style="color:var(--gr)"></i> لا توجد ديون قائمة</td></tr>';
+    }
 }
 
 function _logPdfOpts(c){
@@ -2615,6 +2621,8 @@ function renderDebts(){
         return`<span class="${v>0?'debt-pos':'debt-neg'}">${fmt(v,d)}</span>${unit?`<small style="font-size:.65rem;color:var(--t3);margin-right:.15rem"> ${unit}</small>`:''}`;
     };
     tb.innerHTML=Object.entries(cd)
+        /* أخفِ الزبائن الذين رصيدهم صفر في كل المعادن (لا دين ولا له) */
+        .filter(([n,v])=>Math.abs(v.di)>0.001||Math.abs(v.do)>0.001||Math.abs(v.g7)>0.001||Math.abs(v.g2)>0.001)
         .sort((a,b)=>{
             const ta=lastTx[a[0]]||0, tb2=lastTx[b[0]]||0;
             if(tb2!==ta) return tb2-ta;                          /* الأحدث معاملةً أولاً */
@@ -2670,6 +2678,16 @@ window.exportDebtsPdf=function(){
     const _AR_MONTHS=['جانفي','فيفري','مارس','أفريل','ماي','جوان','جويلية','أوت','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
     let _profitMonthLbl='هذا الشهر';
     try{ if(_profitMk){ const _mm=+_profitMk.split('-')[1]; if(_mm>=1&&_mm<=12)_profitMonthLbl='فائدة '+_AR_MONTHS[_mm-1]; } }catch(e){}
+    /* مصاريف الشهر تُخصم من الفائدة (مطابق لنافذة الإدخال الصوتي) */
+    let _pdfExpDz=0,_pdfExpUsd=0,_pdfExpTotal=0,_pdfGross=monthProfit;
+    try{
+        if(_profitMk && typeof window._monthExpenses==='function'){
+            const _e=window._monthExpenses(_profitMk); _pdfExpDz=_e.dz||0; _pdfExpUsd=_e.usd||0;
+            const _drNow=(typeof dollarRate!=='undefined'?dollarRate:0)||0;
+            _pdfExpTotal=_pdfExpDz+_pdfExpUsd*_drNow;
+            if(monthProfit!=null && _pdfExpTotal>0){ _pdfGross=monthProfit; monthProfit=monthProfit-_pdfExpTotal; }
+        }
+    }catch(e){}
     /* ذاكرة الأشهر السابقة — تُحسب بنفس طريقة الشهر الحالي والإدخال الصوتي:
        أجرة رافيناج + ربح التداول (_calcMonthProfit)، لا من لقطات الأصول.
        بهذا تتطابق أرقام الأشهر السابقة مع ما يعرضه الصوتي لكل شهر. */
@@ -2701,7 +2719,8 @@ window.exportDebtsPdf=function(){
         +bigCard('\ud83d\udcb2 \u0645\u062c\u0645\u0648\u0639 \u0627\u0644\u062f\u0648\u0644\u0627\u0631',fmt(_bk.raw_dol||0,2)+' $','\u0633\u0639\u0631 \u0627\u0644\u0635\u0631\u0641: '+fmt(_dr,0),'#7c3aed')
         +bigCard('\ud83d\udcb5 \u0645\u062c\u0645\u0648\u0639 \u0627\u0644\u062f\u064a\u0646\u0627\u0631',fmt(_bk.raw_din||0,0)+' \u062f\u062c','','#d97706')
         +'</div>'
-        +'<div style="background:'+mpCol+'12;border:1.5px solid '+mpCol+';border-radius:12px;padding:11px;text-align:center;margin-bottom:12px"><div style="font-size:11px;color:#555;font-weight:800;margin-bottom:4px">\ud83d\udcc8 '+_profitMonthLbl+' '+'(\u0623\u062c\u0631\u0629 \u0631\u0627\u0641\u064a\u0646\u0627\u062c + \u0631\u0628\u062d \u0627\u0644\u062a\u062f\u0627\u0648\u0644)'+'</div><div style="font-size:20px;font-weight:900;color:'+mpCol+'">'+(monthProfit==null?'\u2014':((monthProfit>=0?'+':'\u2212')+fmt(Math.abs(monthProfit),0)+' \u062f\u062c'))+'</div></div>'
+        +'<div style="background:'+mpCol+'12;border:1.5px solid '+mpCol+';border-radius:12px;padding:11px;text-align:center;margin-bottom:12px"><div style="font-size:11px;color:#555;font-weight:800;margin-bottom:4px">\ud83d\udcc8 '+_profitMonthLbl+' (\u0635\u0627\u0641\u064a\u0629)</div><div style="font-size:20px;font-weight:900;color:'+mpCol+'">'+(monthProfit==null?'\u2014':((monthProfit>=0?'+':'\u2212')+fmt(Math.abs(monthProfit),0)+' \u062f\u062c'))+'</div>'+(_pdfExpTotal>0?'<div style="font-size:10px;color:#888;font-weight:700;margin-top:3px">\u0627\u0644\u0641\u0627\u0626\u062f\u0629 '+fmt(_pdfGross,0)+' \u2212 \u0645\u0635\u0627\u0631\u064a\u0641 '+fmt(_pdfExpTotal,0)+'</div>':'')+'</div>'
+        +(_pdfExpTotal>0?'<div style="background:#dc262612;border:1.5px solid #dc2626;border-radius:12px;padding:11px;text-align:center;margin-bottom:12px"><div style="font-size:11px;color:#555;font-weight:800;margin-bottom:4px">\ud83d\udcb8 \u0645\u0635\u0627\u0631\u064a\u0641 \u0627\u0644\u0634\u0647\u0631</div><div style="font-size:18px;font-weight:900;color:#dc2626">\u2212 '+fmt(_pdfExpTotal,0)+' \u062f\u062c</div>'+(_pdfExpUsd>0?'<div style="font-size:10px;color:#888;margin-top:3px">\u062f\u064a\u0646\u0627\u0631 '+fmt(_pdfExpDz,0)+' + \u062f\u0648\u0644\u0627\u0631 '+fmt(_pdfExpUsd,0)+'$</div>':'')+'</div>':'')
         +(histRows?('<div style="margin-bottom:12px"><div style="font-size:11px;color:#666;font-weight:800;margin-bottom:5px;text-align:right">\ud83d\udcc5 \u0623\u0631\u0628\u0627\u062d \u0627\u0644\u0623\u0634\u0647\u0631 \u0627\u0644\u0633\u0627\u0628\u0642\u0629</div><table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="background:#f3f4f6"><th style="border:1px solid #ddd;padding:6px">\u0627\u0644\u0634\u0647\u0631</th><th style="border:1px solid #ddd;padding:6px">\u0627\u0644\u0631\u0628\u062d</th></tr></thead><tbody>'+histRows+'</tbody></table></div>'):'')
         +'<table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="background:#1a1a1a;color:#fff;text-align:center"><th style="padding:7px;border:1px solid #555">\u0627\u0644\u0632\u0628\u0648\u0646</th><th style="padding:7px;border:1px solid #555">\u062f\u064a\u0646\u0627\u0631</th><th style="padding:7px;border:1px solid #555">\u062f\u0648\u0644\u0627\u0631</th><th style="padding:7px;border:1px solid #555">\u0630\u0647\u0628 730</th><th style="padding:7px;border:1px solid #555">\u0630\u0647\u0628 24</th></tr></thead><tbody>'+rowsHtml
         +'<tr style="text-align:center;background:#fef3c7;font-weight:900"><td style="border:2px solid #b45309;padding:7px;text-align:right">\u0627\u0644\u0625\u062c\u0645\u0627\u0644\u064a</td><td style="border:2px solid #b45309;padding:7px">'+fV(tot.di,0)+'</td><td style="border:2px solid #b45309;padding:7px">'+fV(tot.do,2)+'</td><td style="border:2px solid #b45309;padding:7px">'+fV(tot.g7,2)+'</td><td style="border:2px solid #b45309;padding:7px">'+fV(tot.g2,2)+'</td></tr>'
@@ -4824,7 +4843,13 @@ window.openProfitModal=function(sel){
         trade=matchedW*(avgS-avgB);
     }
     const sells=sellDz,buys=buyDz,dubaiDz=0;   /* للتوافق مع الأسطر أدناه */
-    const total=rafFee+trade;
+    /* مصاريف الشهر (دينار + دولار محوّلاً) تُخصم من الفائدة */
+    let _expDz=0,_expUsd=0;
+    try{ if(typeof window._monthExpenses==='function'){ const _e=window._monthExpenses(mk); _expDz=_e.dz||0; _expUsd=_e.usd||0; } }catch(e){}
+    const _drNow=(typeof dollarRate!=='undefined'?dollarRate:0)||0;
+    const _expTotal=_expDz + _expUsd*_drNow;
+    const grossProfit=rafFee+trade;         /* الفائدة قبل المصاريف */
+    const total=grossProfit - _expTotal;    /* الصافي بعد خصم المصاريف */
     const F=v=>Math.round(v).toLocaleString('fr-FR');
     let m=document.getElementById('profitModal'); if(m)m.remove();
     m=document.createElement('div');m.id='profitModal';
@@ -4838,8 +4863,9 @@ window.openProfitModal=function(sel){
             </select>
         </div>
         <div style="background:linear-gradient(135deg,#1f2937,#111827);border-radius:12px;padding:.85rem;text-align:center;margin-bottom:.7rem">
-            <div style="font-size:.68rem;color:#9ca3af;font-weight:800">الفائدة الكلية — ${mk}</div>
+            <div style="font-size:.68rem;color:#9ca3af;font-weight:800">الفائدة الصافية — ${mk}</div>
             <div style="font-family:monospace;font-weight:900;font-size:1.5rem;color:${total>=0?'#34d399':'#f87171'};letter-spacing:.5px">${F(total)} دج</div>
+            ${_expTotal>0?`<div style="font-size:.62rem;color:#9ca3af;margin-top:.3rem">الفائدة ${F(grossProfit)} − المصاريف ${F(_expTotal)}</div>`:''}
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:.6rem">
             <div style="border:1.5px solid var(--border);border-radius:12px;padding:.7rem;text-align:center">
@@ -4852,6 +4878,11 @@ window.openProfitModal=function(sel){
                 <div style="font-family:monospace;font-weight:900;font-size:1.05rem;color:var(--g600)">${F(rafFee)} دج</div>
                 <div style="font-size:.6rem;color:var(--t3);margin-top:.25rem">مجموع الأجرة</div>
             </div>
+        </div>
+        <div style="border:1.5px solid ${_expTotal>0?'#dc2626':'var(--border)'};border-radius:12px;padding:.7rem;text-align:center;margin-top:.6rem">
+            <div style="font-size:.66rem;font-weight:800;color:var(--t3);margin-bottom:.3rem">💸 مصاريف الشهر (تُخصم)</div>
+            <div style="font-family:monospace;font-weight:900;font-size:1.05rem;color:#dc2626">${_expTotal>0?'− '+F(_expTotal)+' دج':'0 دج'}</div>
+            <div style="font-size:.6rem;color:var(--t3);margin-top:.25rem">${_expUsd>0?`دينار ${F(_expDz)} + دولار ${F(_expUsd)}$`:'بالدينار'}</div>
         </div>
         <button onclick="document.getElementById('profitModal').remove()"
             style="width:100%;margin-top:.8rem;padding:.6rem;border:1.5px solid var(--border);border-radius:10px;background:transparent;color:var(--t2);font-weight:800;font-family:Tajawal,sans-serif;cursor:pointer">إغلاق</button>
