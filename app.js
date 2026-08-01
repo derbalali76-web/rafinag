@@ -1,4 +1,4 @@
-window.APP_JS_VER='v294';
+window.APP_JS_VER='v296';
 /* ═══════════ STATE ═══════════ */
 let B={دينار:0,'ذهب 730':0,'ذهب 24':0,دولار:0,vg730:0,vg24:0};
 let ops=[],invoices=[],debts=[],loans=[],rafInvoices=[],dollInvoices=[],dubaiInvoices=[];
@@ -2650,17 +2650,40 @@ window.exportDebtsPdf=function(){
         saleAvg=sW>0?Math.round(sWP/sW):0;
     }catch(e){}
     const totalAssets=net();
-    let monthProfit=null;
-    try{ const _now=new Date(); const _mk=_now.getFullYear()+'-'+String(_now.getMonth()+1).padStart(2,'0'); monthProfit=_calcMonthProfit(_mk); }catch(e){}
+    let monthProfit=null, _profitMk=null;
+    try{
+        /* استعمل الشهر الحالي إن كانت فيه فواتير، وإلا آخر شهر فيه فواتير —
+           كي يطابق الرقمَ الذي يعرضه الإدخال الصوتي (openProfitModal) تماماً.
+           كان يستعمل الشهر الحالي حصراً، فيرجع صفراً في بداية شهر جديد. */
+        const _now=new Date();
+        const _curMk=_now.getFullYear()+'-'+String(_now.getMonth()+1).padStart(2,'0');
+        const _months=new Set();
+        (rafInvoices||[]).forEach(r=>{const k=_profitMonthKey(r.dt);if(k)_months.add(k);});
+        (invoices||[]).forEach(i=>{const k=_profitMonthKey(i.dt);if(k)_months.add(k);});
+        (dubaiInvoices||[]).forEach(x=>{const k=_profitMonthKey(x.dt);if(k)_months.add(k);});
+        const _list=[..._months].sort().reverse();
+        _profitMk = _months.has(_curMk) ? _curMk : (_list[0]||_curMk);
+        monthProfit=_calcMonthProfit(_profitMk);
+    }catch(e){}
     const _isFirstMonth=false;   /* الفائدة الشهرية = ربح التداول+الرافيناج (لا مفهوم الأصول) */
-    /* ذاكرة الأشهر السابقة: ربح كل شهر منقضٍ */
+    /* اسم الشهر المعروض (عربي) — كي يعرف المستخدم أي شهر يُحسب */
+    const _AR_MONTHS=['جانفي','فيفري','مارس','أفريل','ماي','جوان','جويلية','أوت','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
+    let _profitMonthLbl='هذا الشهر';
+    try{ if(_profitMk){ const _mm=+_profitMk.split('-')[1]; if(_mm>=1&&_mm<=12)_profitMonthLbl='فائدة '+_AR_MONTHS[_mm-1]; } }catch(e){}
+    /* ذاكرة الأشهر السابقة — تُحسب بنفس طريقة الشهر الحالي والإدخال الصوتي:
+       أجرة رافيناج + ربح التداول (_calcMonthProfit)، لا من لقطات الأصول.
+       بهذا تتطابق أرقام الأشهر السابقة مع ما يعرضه الصوتي لكل شهر. */
     let histRows='';
     try{
-        const hist=_getMonthlyHistory();
-        const keys=Object.keys(hist).sort().reverse();   /* الأحدث أولاً */
-        const _mName=k=>{ const p=k.split('-'); const nm=['يناير','فبراير','مارس','أبريل','ماي','جوان','جويلية','أوت','سبتمبر','أكتوبر','نوفمبر','ديسمبر']; return (nm[(+p[1])-1]||p[1])+' '+p[0]; };
+        const _mName=k=>{ const p=k.split('-'); const nm=['جانفي','فيفري','مارس','أفريل','ماي','جوان','جويلية','أوت','سبتمبر','أكتوبر','نوفمبر','ديسمبر']; return (nm[(+p[1])-1]||p[1])+' '+p[0]; };
+        /* كل الأشهر التي فيها فواتير، ما عدا الشهر المعروض حالياً في البطاقة أعلاه */
+        const _allM=new Set();
+        (rafInvoices||[]).forEach(r=>{const k=_profitMonthKey(r.dt);if(k)_allM.add(k);});
+        (invoices||[]).forEach(i=>{const k=_profitMonthKey(i.dt);if(k)_allM.add(k);});
+        (dubaiInvoices||[]).forEach(x=>{const k=_profitMonthKey(x.dt);if(k)_allM.add(k);});
+        const keys=[..._allM].filter(k=>k!==_profitMk).sort().reverse();
         histRows=keys.map(k=>{
-            const h=hist[k]; const pr=h.profit||0; const col=pr>=0?'#16a34a':'#dc2626';
+            const pr=_calcMonthProfit(k)||0; const col=pr>=0?'#16a34a':'#dc2626';
             return '<tr style="text-align:center"><td style="border:1px solid #ddd;padding:6px;font-weight:800;text-align:right">'+_mName(k)+'</td>'
                 +'<td style="border:1px solid #ddd;padding:6px;color:'+col+';font-weight:800">'+(pr>=0?'+':'\u2212')+fmt(Math.abs(pr),0)+' \u062f\u062c</td></tr>';
         }).join('');
@@ -2678,7 +2701,7 @@ window.exportDebtsPdf=function(){
         +bigCard('\ud83d\udcb2 \u0645\u062c\u0645\u0648\u0639 \u0627\u0644\u062f\u0648\u0644\u0627\u0631',fmt(_bk.raw_dol||0,2)+' $','\u0633\u0639\u0631 \u0627\u0644\u0635\u0631\u0641: '+fmt(_dr,0),'#7c3aed')
         +bigCard('\ud83d\udcb5 \u0645\u062c\u0645\u0648\u0639 \u0627\u0644\u062f\u064a\u0646\u0627\u0631',fmt(_bk.raw_din||0,0)+' \u062f\u062c','','#d97706')
         +'</div>'
-        +'<div style="background:'+mpCol+'12;border:1.5px solid '+mpCol+';border-radius:12px;padding:11px;text-align:center;margin-bottom:12px"><div style="font-size:11px;color:#555;font-weight:800;margin-bottom:4px">\ud83d\udcc8 \u0641\u0627\u0626\u062f\u0629 \u0647\u0630\u0627 \u0627\u0644\u0634\u0647\u0631 '+'(\u0623\u062c\u0631\u0629 \u0631\u0627\u0641\u064a\u0646\u0627\u062c + \u0631\u0628\u062d \u0627\u0644\u062a\u062f\u0627\u0648\u0644)'+'</div><div style="font-size:20px;font-weight:900;color:'+mpCol+'">'+(monthProfit==null?'\u2014':((monthProfit>=0?'+':'\u2212')+fmt(Math.abs(monthProfit),0)+' \u062f\u062c'))+'</div></div>'
+        +'<div style="background:'+mpCol+'12;border:1.5px solid '+mpCol+';border-radius:12px;padding:11px;text-align:center;margin-bottom:12px"><div style="font-size:11px;color:#555;font-weight:800;margin-bottom:4px">\ud83d\udcc8 '+_profitMonthLbl+' '+'(\u0623\u062c\u0631\u0629 \u0631\u0627\u0641\u064a\u0646\u0627\u062c + \u0631\u0628\u062d \u0627\u0644\u062a\u062f\u0627\u0648\u0644)'+'</div><div style="font-size:20px;font-weight:900;color:'+mpCol+'">'+(monthProfit==null?'\u2014':((monthProfit>=0?'+':'\u2212')+fmt(Math.abs(monthProfit),0)+' \u062f\u062c'))+'</div></div>'
         +(histRows?('<div style="margin-bottom:12px"><div style="font-size:11px;color:#666;font-weight:800;margin-bottom:5px;text-align:right">\ud83d\udcc5 \u0623\u0631\u0628\u0627\u062d \u0627\u0644\u0623\u0634\u0647\u0631 \u0627\u0644\u0633\u0627\u0628\u0642\u0629</div><table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="background:#f3f4f6"><th style="border:1px solid #ddd;padding:6px">\u0627\u0644\u0634\u0647\u0631</th><th style="border:1px solid #ddd;padding:6px">\u0627\u0644\u0631\u0628\u062d</th></tr></thead><tbody>'+histRows+'</tbody></table></div>'):'')
         +'<table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="background:#1a1a1a;color:#fff;text-align:center"><th style="padding:7px;border:1px solid #555">\u0627\u0644\u0632\u0628\u0648\u0646</th><th style="padding:7px;border:1px solid #555">\u062f\u064a\u0646\u0627\u0631</th><th style="padding:7px;border:1px solid #555">\u062f\u0648\u0644\u0627\u0631</th><th style="padding:7px;border:1px solid #555">\u0630\u0647\u0628 730</th><th style="padding:7px;border:1px solid #555">\u0630\u0647\u0628 24</th></tr></thead><tbody>'+rowsHtml
         +'<tr style="text-align:center;background:#fef3c7;font-weight:900"><td style="border:2px solid #b45309;padding:7px;text-align:right">\u0627\u0644\u0625\u062c\u0645\u0627\u0644\u064a</td><td style="border:2px solid #b45309;padding:7px">'+fV(tot.di,0)+'</td><td style="border:2px solid #b45309;padding:7px">'+fV(tot.do,2)+'</td><td style="border:2px solid #b45309;padding:7px">'+fV(tot.g7,2)+'</td><td style="border:2px solid #b45309;padding:7px">'+fV(tot.g2,2)+'</td></tr>'
