@@ -1,4 +1,4 @@
-window.FB_JS_VER='v298';
+window.FB_JS_VER='v302';
 /* ═══════════ FIREBASE ═══════════ */
 const _fbConfig={
     apiKey:"AIzaSyDevHwoNCKXGm-G8GJc_Z5eZwcSPuQS9wI",
@@ -171,6 +171,11 @@ setInterval(function(){
 /* عند عودة النت للنظام (حدث المتصفح) — أعد بناء القابس فوراً */
 window.addEventListener('online',function(){
     try{ if(_fbLoaded){ _db.goOffline(); setTimeout(()=>{try{_db.goOnline();}catch(e){}},500); } }catch(e){}
+    /* حدّث لافتة الاتصال في بوابة الزبون فوراً */
+    if(window._roleLock==='customer'&&typeof renderCustomerPortal==='function'){try{renderCustomerPortal();}catch(e){}}
+});
+window.addEventListener('offline',function(){
+    if(window._roleLock==='customer'&&typeof renderCustomerPortal==='function'){try{renderCustomerPortal();}catch(e){}}
 });
 
 /* حارس الجلسة: لحظة سقوطها (والتطبيق داخل) — أعد الدخول فوراً وادفع المعلق */
@@ -856,6 +861,8 @@ function _applyEvt(st,evt){
             /* رسوم التحويل الخاصة (بإشارة GoldPro: المُحوِّل ندين له = −، المستلِم يدين لنا = +) */
             if(d.feeFrom>0)stUpdDebt(d.from,'دينار',-d.feeFrom);
             if(d.feeTo>0)  stUpdDebt(d.to,  'دينار', d.feeTo);
+            /* أجرة التحويل النوعي 24→730 على نفس الزبون: يدين لنا (+) */
+            if(d.convFee>0)stUpdDebt(d.from,'دينار', d.convFee);
             /* سطر سجل للهدف (تحويل وارد) كي يظهر في كشف حسابه أيضاً.
                استثناء: التحويل النوعي داخل حساب الزبون نفسه (730 ⇄ 24) — سطر واحد يكفي
                لأنه يعرض الطرفين معاً، وإضافة سطر ثانٍ تبدو تكراراً في سجله. */

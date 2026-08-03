@@ -574,14 +574,19 @@ function _applyRoleUI(){
             });
         },400);
     }else if(role==='customer'){
-        /* الزبون: بوابته فقط (قراءة) */
-        setTimeout(()=>{
+        /* الزبون: بوابته فقط (قراءة). فعّلها فوراً بلا انتظار — البنية جاهزة،
+           والبيانات تُملأ لاحقاً. هكذا لا يرى هيكل الأدمين فارغاً عند غياب النت. */
+        const _showCp=()=>{
             document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
             const p=document.getElementById('page-customer');
             if(p)p.classList.add('active');
-            renderCustomerPortal();
+            try{renderCustomerPortal();}catch(e){}
+            /* ارفع الحجاب فوراً — بوابة الزبون ظاهرة الآن، لا داعي لانتظار 9 ثوانٍ */
+            try{document.documentElement.classList.add('gp-role-ready');}catch(e){}
             const _v1=document.getElementById('bootVeil'); if(_v1)_v1.style.display='none';
-        },400);
+        };
+        _showCp();                 /* فوراً */
+        setTimeout(_showCp,400);   /* وإعادة بعد جهوزية DOM كاملة (احتياط) */
     }
 }
 window._applyRoleUI=_applyRoleUI;
@@ -615,6 +620,20 @@ function renderCustomerPortal(){
     const nEl=document.getElementById('cpName'); if(nEl)nEl.textContent=name;
     const _n=s=>(s||'').trim().replace(/\s+/g,' ');
     const key=_n(name);
+
+    /* ── حالة الاتصال والبيانات ── */
+    const _online=(typeof navigator!=='undefined')?navigator.onLine:true;
+    const _hasData=(typeof _allEvents!=='undefined'&&_allEvents.length>0);
+    const _ob=document.getElementById('cpOfflineBanner');
+    const _obSub=document.getElementById('cpOfflineSub');
+    if(_ob){
+        if(!_online){
+            _ob.style.display='flex';
+            if(_obSub)_obSub.textContent=_hasData
+                ? 'تعرض بياناتك المحفوظة — قد لا تشمل آخر التحديثات'
+                : 'بياناتك ستظهر تلقائياً عند عودة الاتصال';
+        }else _ob.style.display='none';
+    }
 
     /* ── بطاقتا الرصيد الكبيرتان (دينار/ذهب) بمنظور الزبون ── */
     const bal=tp=>(typeof debts!=='undefined'?debts:[]).filter(d=>_n(d.c)===key&&d.type===tp).reduce((s,d)=>s+(d.a||0),0);

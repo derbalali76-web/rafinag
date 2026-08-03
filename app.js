@@ -1,4 +1,4 @@
-window.APP_JS_VER='v298';
+window.APP_JS_VER='v302';
 /* ═══════════ STATE ═══════════ */
 let B={دينار:0,'ذهب 730':0,'ذهب 24':0,دولار:0,vg730:0,vg24:0};
 let ops=[],invoices=[],debts=[],loans=[],rafInvoices=[],dollInvoices=[],dubaiInvoices=[];
@@ -2804,6 +2804,15 @@ const XFER_FEE_SENDERS = {
 function _xNorm(n){ return (n||'').trim().replace(/\s+/g,' '); }
 function xferFeeRule(name){ return XFER_FEE_SENDERS[_xNorm(name)]||null; }
 let _xferWithFee=false;
+let _xferConvFee=false;   /* أجرة التحويل النوعي 24→730 على نفس الزبون */
+window.setConvFee=function(v){
+    _xferConvFee=!!v;
+    const on=document.getElementById('convFeeOn'),off=document.getElementById('convFeeOff');
+    const base='flex:1;padding:.45rem;border:1.5px solid #0891b2;border-radius:8px;font-size:.76rem;font-weight:700;cursor:pointer;';
+    if(on)on.style.cssText=base+(_xferConvFee?'background:#0891b2;color:#fff':'background:transparent;color:#0891b2');
+    if(off)off.style.cssText=base+(!_xferConvFee?'background:#0891b2;color:#fff':'background:transparent;color:#0891b2');
+    _xferCalc();
+};
 window.setXferFee=(v)=>{
     _xferWithFee=!!v;
     const on=document.getElementById('xferFeeOn'), off=document.getElementById('xferFeeOff');
@@ -2817,7 +2826,9 @@ window.openXfer=(srcType)=>{
     const bal=debts.filter(x=>x.c===_settleCustomer&&x.type===srcType).reduce((s,x)=>s+(x.a||0),0);
     if(Math.abs(bal)<0.001){toast('لا يوجد رصيد لهذا النوع','info');return;}
     _xferSrcType=srcType; _xferSrcBal=bal; _xferMode='same';
+    _xferConvFee=false;   /* أعِد ضبط أجرة التحويل النوعي عند كل فتح */
     _ensureXferModal();
+    try{ setConvFee(false); }catch(e){}
     const isGold=srcType==='ذهب 730'||srcType==='ذهب 24';
     const unit=srcType==='دينار'?'دج':srcType==='دولار'?'$':'غ';
     const dec=srcType==='دينار'?0:srcType==='دولار'?2:3;
@@ -2878,6 +2889,18 @@ function _xferCalc(){
     const dec=dstType==='دينار'?0:dstType==='دولار'?2:3;
     const txt=isGold?`${fmt(wDst,dec)} غ ${dstType}`:`${fmt(wDst,dec)} ${dstType==='دينار'?'دج':'$'}`;
     const el=document.getElementById('xferPreview'); if(!el)return;
+    /* أجرة التحويل النوعي 24→730 على نفس الزبون: مكافئ 730 × 2000 */
+    const _tgt=(document.getElementById('xferTarget')?.value||'').trim();
+    /* الأجرة في الاتجاهين (24⇄730) لنفس الزبون، ودائماً على مكافئ 730 */
+    const _isSelfConv = isGold && _xferMode==='conv' && _tgt && _tgt===_settleCustomer;
+    const _eq730 = (_xferSrcType==='ذهب 24') ? wDst : W;   /* 24→730: الهدف مكافئ730 | 730→24: المصدر هو 730 */
+    const _cfRow=document.getElementById('convFeeRow');
+    if(_cfRow)_cfRow.style.display=_isSelfConv?'flex':'none';
+    let convFeeHtml='';
+    if(_isSelfConv && _xferConvFee){
+        const _convFee=Math.round(_eq730*2000);   /* دائماً مكافئ 730 × 2000 */
+        convFeeHtml=`<br><span style="font-size:.74rem;color:#0891b2;font-weight:800">أجرة: مكافئ730 ${fmt(_eq730,3)}غ × 2000 = ${fmt(_convFee,0)} دج (تُسجَّل ديناً عليه)</span>`;
+    }
     let feeHtml='';
     const _r=(typeof xferFeeRule==='function')?xferFeeRule(_settleCustomer):null;
     if(isGold && _xferWithFee && _r){
@@ -2891,7 +2914,7 @@ function _xferCalc(){
     }
     el.innerHTML=`يستلم الزبون الهدف: <strong style="color:#7c3aed">${txt}</strong>`
         +((isGold&&_xferMode==='conv')?`<br><span style="font-size:.7rem;color:var(--t3)">${_xferSrcType==='ذهب 730'?'المكافئ = الكمية × 730 ÷ 1000':'المكافئ = الكمية × 1000 ÷ 730'}</span>`:'')
-        +feeHtml;
+        +feeHtml+convFeeHtml;
 }
 window._xferCalc=_xferCalc;
 window.doXfer=async ()=>{
@@ -2931,10 +2954,17 @@ window.doXfer=async ()=>{
         if(_rule.sender)    feeFrom=Math.round(W*1000);
         if(_rule.recipient) feeTo  =Math.round((W/0.705)*2000);
     }
+    /* أجرة التحويل النوعي 24→730 على نفس الزبون: مكافئ 730 × 2000، تُسجَّل ديناً عليه (يدين لنا) */
+    let convFee=0;
+    if(_selfConv && isGold && _xferMode==='conv' && _xferConvFee){
+        /* دائماً على مكافئ 730: من 24 الهدف wDst، ومن 730 المصدر W */
+        const _eq730=(_xferSrcType==='ذهب 24')?wDst:W;
+        convFee=Math.round(_eq730*2000);
+    }
     emitEvent('XFER',
-        {from:_settleCustomer,to,srcType:_xferSrcType,dstType,srcDelta:sign*W,dstDelta:sign*wDst,w:W,wDst,feeFrom,feeTo},
+        {from:_settleCustomer,to,srcType:_xferSrcType,dstType,srcDelta:sign*W,dstDelta:sign*wDst,w:W,wDst,feeFrom,feeTo,convFee},
         {op:{c:_settleCustomer,t:'تحويل لزبون',m:_xferSrcType,a:W,_ts:Date.now(),dt:nowStr,
-             xferTo:to,xferDstType:dstType,xferWDst:wDst,xferSign:sign,xferFeeFrom:feeFrom,xferFeeTo:feeTo}}
+             xferTo:to,xferDstType:dstType,xferWDst:wDst,xferSign:sign,xferFeeFrom:feeFrom,xferFeeTo:feeTo,xferConvFee:convFee}}
     );
     closeModal('xferModal');closeModal('settleModal');
     if(typeof _sendCustomerPush==='function'&&!_selfConv)_sendCustomerPush(_settleCustomer,'تسوية حساب','سُجّلت حركة تسوية على حسابك — افتح حسابك للاطلاع');
@@ -2958,7 +2988,7 @@ function _ensureXferModal(){
             </div>
             <div>
                 <label style="font-size:.78rem;color:var(--t2);display:block;margin-bottom:.3rem">الزبون الهدف</label>
-                <input id="xferTarget" type="text" placeholder="اسم الزبون" autocomplete="off"
+                <input id="xferTarget" type="text" placeholder="اسم الزبون" autocomplete="off" oninput="_xferCalc()"
                     style="width:100%;padding:.65rem;border:1.5px solid var(--border);border-radius:8px;font-size:1rem;font-family:inherit;box-sizing:border-box" />
             </div>
             <div>
@@ -2978,6 +3008,13 @@ function _ensureXferModal(){
                     <button id="xferFeeOff" onclick="setXferFee(false)">بدون</button>
                 </div>
                 <div id="xferFeeHint" style="font-size:.68rem;color:var(--t3);text-align:center"></div>
+            </div>
+            <div id="convFeeRow" style="display:none;flex-direction:column;gap:.35rem;background:rgba(8,145,178,.06);border-radius:8px;padding:.55rem">
+                <label style="font-size:.76rem;color:#0891b2;font-weight:800">أجرة التحويل (مكافئ 730 × 2000) — تُسجَّل ديناً على الزبون</label>
+                <div style="display:flex;gap:.5rem">
+                    <button id="convFeeOn" onclick="setConvFee(true)">بأجرة</button>
+                    <button id="convFeeOff" onclick="setConvFee(false)">بدون</button>
+                </div>
             </div>
             <div id="xferPreview" style="background:rgba(124,58,237,.07);border-radius:8px;padding:.6rem;text-align:center;font-size:.85rem;line-height:1.6"></div>
             <div style="font-size:.72rem;color:var(--t3);text-align:center;line-height:1.5">يُخصم من حساب المصدر ويُضاف لحساب الهدف — دون أي تأثير على المخزون</div>
@@ -4614,7 +4651,8 @@ window.openCashAudit=function(){
     let m=document.getElementById('cashAuditModal'); if(m)m.remove();
     m=document.createElement('div');m.id='cashAuditModal';
     m.style.cssText='position:fixed;inset:0;z-index:2147483100;background:rgba(0,0,0,.72);display:flex;align-items:center;justify-content:center;padding:1rem';
-    const rowsH=r.rows.map(x=>`
+    /* الأحدث أولاً: نعكس نسخة للعرض فقط (الرصيد التراكمي bal مُحتسب مسبقاً لكل صف) */
+    const rowsH=r.rows.slice().reverse().map(x=>`
         <tr style="border-bottom:1px solid var(--border)">
             <td style="padding:.3rem .45rem;font-size:.68rem;color:var(--t3);white-space:nowrap">${x.dt}</td>
             <td style="padding:.3rem .45rem;font-size:.72rem;font-weight:800">${x.t}${x.c?(' — '+x.c):''}</td>
@@ -4916,7 +4954,7 @@ window.showG24Audit=function(){
     let m=document.getElementById('g24AuditModal'); if(m)m.remove();
     m=document.createElement('div');m.id='g24AuditModal';
     m.style.cssText='position:fixed;inset:0;z-index:2147483100;background:rgba(0,0,0,.75);display:flex;flex-direction:column;padding:0';
-    const rowsH=r.rows.map(x=>`
+    const rowsH=r.rows.slice().reverse().map(x=>`
         <div style="display:flex;justify-content:space-between;gap:.5rem;padding:.5rem .7rem;border-bottom:1px solid var(--border);font-size:.76rem">
             <span style="color:var(--t2);min-width:0;flex:1"><b>${x.t}</b> ${x.c?('· '+x.c):''}<br><small style="color:var(--t3)">${x.dt}</small></span>
             <span style="font-family:monospace;font-weight:900;color:${x.delta>=0?'var(--gr)':'var(--rd)'};white-space:nowrap">${x.delta>=0?'+':''}${fmt(x.delta,2)}</span>
