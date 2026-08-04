@@ -90,7 +90,7 @@ function renderInvModal(){
             </div>
             <div class="bar-actions">
                 ${invType==='730'
-                    ?`<button class="bsm sell" onclick="sellBarsToInvoice(['${b.id}'])" title="إدراجها في فاتورة بيع">بيع</button>`
+                    ?`<button class="bsm sell${window._invSel&&window._invSel.has(b.id)?' on':''}" onclick="toggleBarSell('${b.id}')" title="أضِفها للتحديد ثم اضغط «بيع المحدد»">${window._invSel&&window._invSel.has(b.id)?'✓ محددة':'بيع'}</button>`
                     :`<button class="bsm sell" onclick="startSell('${invType}','${b.id}')">بيع</button>`}
                 <button class="bsm loan" onclick="startLoan('${invType}','${b.id}')">سلف</button>
                 ${invType==='730'?(_rafSentIds.has(b.id)?`<button class="bsm" disabled style="border-color:#6b7280;color:#6b7280;background:rgba(107,114,128,.08);opacity:.5;cursor:not-allowed" title="أُضيفت للرافيناج">✅ أُضيفت</button>`:`<button class="bsm" onclick="sendBarToRaf('730','${b.id}')" style="border-color:#ea580c;color:#ea580c;background:rgba(234,88,12,.08)" title="تحويل للرافيناج">🔥 رافيناج</button>`):''}

@@ -248,6 +248,16 @@ window.onInvTypeChange=function(){
 };
 
 /* بيع سبيكة/سبائك 730: تفتح فاتورة الشراء محوَّلة إلى «بيع» والسطور معبّأة ومربوطة بالسبائك */
+/* بيع سبيكة من المخزون: تبديل التحديد فقط (لا انتقال لصفحة البيع)،
+   كي يختار المستخدم عدة سبائك ثم يضغط «بيع المحدد». */
+window.toggleBarSell=function(id){
+    if(!window._invSel)window._invSel=new Set();
+    if(window._invSel.has(id))window._invSel.delete(id);
+    else window._invSel.add(id);
+    if(typeof renderInvModal==='function')renderInvModal();   /* أعِد رسم القائمة لتحديث الزر والعدّاد */
+    if(typeof wsUpdSel==='function')wsUpdSel();
+};
+
 window.sellBarsToInvoice=function(ids){
     ids=(ids||[]).filter(Boolean);
     if(!ids.length)return toast('لا سبائك للبيع','error');
@@ -338,12 +348,17 @@ window.saveInvoice=()=>{
         if(_old&&_old.t==='sell')(_old.items||[]).forEach(it=>{ if(it.is1000)_restore24+=(+it.w||0); else _restore730+=(+it.w||0); });
     }
     if(t==='sell'){
-        const need24=newItems.filter(i=>i.is1000&&!i.sbid).reduce((s,i)=>s+i.w,0);
-        const need730=newItems.filter(i=>!i.is1000&&!i.sbid).reduce((s,i)=>s+i.w,0);
-        const avail24=g24.reduce((s,b)=>s+(b.w||0),0)+_restore24;
-        const avail730=g730.reduce((s,b)=>s+(b.w||0),0)+_restore730;
-        if(need24>avail24+0.001)return toast(`⚠️ مخزون سبائك 24 غير كافٍ (متاح: ${fmt(avail24,2)} غ)`,'error');
-        if(need730>avail730+0.001)return toast(`⚠️ مخزون 730 غير كافٍ (متاح: ${fmt(avail730,2)} غ)`,'error');
+        /* البيع اليدوي (بلا sbid): يتطلّب سبيكة مطابقة تماماً (وزن + عيار) لكل بند.
+           نحاكي على نسخة كي لا نحسب سبيكة واحدة لبندين. */
+        const _chk730=g730.map(b=>({...b}));
+        const _chk24=g24.map(b=>({...b}));
+        for(const it of newItems){
+            if(it.sbid)continue;                        /* المختارة من الكوفر تُفحص أدناه */
+            const arr=it.is1000?_chk24:_chk730;
+            const ix=arr.findIndex(b=>Math.abs((b.w||0)-it.w)<0.001 && Math.abs((b.k||730)-it.k)<0.001);
+            if(ix<0) return toast(`🚫 لا توجد سبيكة مطابقة في المخزون: ${fmt(it.w,2)}غ عيار ${it.k}. البيع اليدوي يتطلّب سبيكة موجودة بنفس الوزن والعيار.`,'error');
+            arr.splice(ix,1);
+        }
         /* فحص السبائك المحدّدة (المختارة من الكوفر): يجب أن تكون موجودة فعلاً */
         const _oldSbids=new Set();
         if(_isEdit){ const _o=invoices.find(x=>x.id===_editingInvId); if(_o&&_o.t==='sell')(_o.items||[]).forEach(it=>{ if(it.sbid)_oldSbids.add(it.sbid); }); }
@@ -386,18 +401,17 @@ window.saveInvoice=()=>{
         /* محاكاة إزالة المخزون على نسخة مستنسخة لتفادي التكرار */
         let g730Clone=g730.map(b=>({...b}));
         let g24Clone=g24.map(b=>({...b}));
-        function pickAndRemove(pool,w){
+        /* البيع اليدوي: يخرج سبيكة مطابقة تماماً (نفس الوزن ونفس العيار).
+           لا يُجمَّع من عدة سبائك ولا يُخصم من عيار مختلف. */
+        function pickExact(pool,w,k){
             const bars=pool==='24'?g24Clone:g730Clone;
-            let rem=w;
-            for(let i=bars.length-1;i>=0&&rem>0.001;i--){
-                if(bars[i].w<=rem+0.001){
-                    barsRemove.push(bars[i].id);rem-=bars[i].w;bars.splice(i,1);
-                }else{
-                    barUpdates.push({id:bars[i].id,pool,newW:parseFloat((bars[i].w-rem).toFixed(4))});
-                    bars[i].w-=rem;rem=0;
-                }
-            }
+            const idx=bars.findIndex(b=>Math.abs((b.w||0)-w)<0.001 && Math.abs((b.k||730)-k)<0.001);
+            if(idx<0)return false;                 /* لا سبيكة مطابقة */
+            barsRemove.push(bars[idx].id);
+            bars.splice(idx,1);
+            return true;
         }
+        const _noMatch=[];
         newItems.forEach(item=>{
             if(item.sbid){
                 const pool=item.sbt||'730';
@@ -408,9 +422,15 @@ window.saveInvoice=()=>{
                     else{barUpdates.push({id:ex.id,pool,newW:parseFloat((ex.w-item.w).toFixed(4))});ex.w-=item.w;}
                 }
             }else{
-                pickAndRemove(item.is1000?'24':'730',item.w);
+                /* بيع يدوي: يجب أن توجد سبيكة مطابقة تماماً (وزن + عيار) */
+                const pool=item.is1000?'24':'730';
+                if(!pickExact(pool,item.w,item.k)) _noMatch.push(item);
             }
         });
+        if(_noMatch.length){
+            const it=_noMatch[0];
+            return toast(`🚫 لا توجد في المخزون سبيكة مطابقة: ${fmt(it.w,2)}غ عيار ${it.k}. البيع اليدوي يتطلّب سبيكة موجودة بنفس الوزن والعيار تماماً.`,'error');
+        }
     }
 
     const _inv={id:iid,c,t,ps,dt,items:JSON.parse(JSON.stringify(newItems)),tp,akhd,prevBal};

@@ -542,6 +542,7 @@
         }
         .bsm:hover{opacity:.88;transform:scale(.97)}
         .bsm.sell{background:var(--rd)}.bsm.loan{background:var(--or)}
+        .bsm.sell.on{background:#16a34a;box-shadow:0 0 0 2px rgba(22,163,74,.35)}
 
         /* ─── Log ─── */
         .log-item{
