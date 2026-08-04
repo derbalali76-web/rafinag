@@ -1,4 +1,4 @@
-window.FB_JS_VER='v306';
+window.FB_JS_VER='v307';
 /* ═══════════ FIREBASE ═══════════ */
 const _fbConfig={
     apiKey:"AIzaSyDevHwoNCKXGm-G8GJc_Z5eZwcSPuQS9wI",
@@ -556,7 +556,7 @@ function _applyEvt(st,evt){
         }
 
         case 'INVOICE_SELL':{
-            applyBars();
+            applyBars();   /* يخصم out24 تلقائياً لعيار 1000 (بيع يدوي) */
             st.B.دينار+=d.akhd;
             const remS=d.tp-d.akhd;
             if(remS>0.001)stUpdDebt(d.c,'دينار',remS);

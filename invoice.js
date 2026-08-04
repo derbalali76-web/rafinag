@@ -348,17 +348,22 @@ window.saveInvoice=()=>{
         if(_old&&_old.t==='sell')(_old.items||[]).forEach(it=>{ if(it.is1000)_restore24+=(+it.w||0); else _restore730+=(+it.w||0); });
     }
     if(t==='sell'){
-        /* البيع اليدوي (بلا sbid): يتطلّب سبيكة مطابقة تماماً (وزن + عيار) لكل بند.
-           نحاكي على نسخة كي لا نحسب سبيكة واحدة لبندين. */
+        /* البيع اليدوي (بلا sbid):
+           • مخزون 730: تطابق تام (سبيكة بنفس الوزن والعيار) — لأنه سبائك مفردة.
+           • مخزون 24 (عيار 1000): نموذج تجميعي سائل — يُخصم من المجموع الكلي،
+             فيكفي أن يكون المجموع المتاح كافياً (لا تطابق سبيكة مفردة). */
         const _chk730=g730.map(b=>({...b}));
-        const _chk24=g24.map(b=>({...b}));
+        /* 730: تطابق تام لكل بند */
         for(const it of newItems){
-            if(it.sbid)continue;                        /* المختارة من الكوفر تُفحص أدناه */
-            const arr=it.is1000?_chk24:_chk730;
-            const ix=arr.findIndex(b=>Math.abs((b.w||0)-it.w)<0.001 && Math.abs((b.k||730)-it.k)<0.001);
-            if(ix<0) return toast(`🚫 لا توجد سبيكة مطابقة في المخزون: ${fmt(it.w,2)}غ عيار ${it.k}. البيع اليدوي يتطلّب سبيكة موجودة بنفس الوزن والعيار.`,'error');
-            arr.splice(ix,1);
+            if(it.sbid||it.is1000)continue;
+            const ix=_chk730.findIndex(b=>Math.abs((b.w||0)-it.w)<0.001 && Math.abs((b.k||730)-it.k)<0.001);
+            if(ix<0) return toast(`🚫 لا توجد سبيكة مطابقة في مخزون 730: ${fmt(it.w,2)}غ عيار ${it.k}. البيع اليدوي من 730 يتطلّب سبيكة بنفس الوزن والعيار.`,'error');
+            _chk730.splice(ix,1);
         }
+        /* 24 (عيار 1000): المجموع الكلي يجب أن يكفي */
+        const _need24=newItems.filter(i=>i.is1000&&!i.sbid).reduce((s,i)=>s+(+i.w||0),0);
+        const _avail24=g24.reduce((s,b)=>s+(b.w||0),0)+_restore24;
+        if(_need24>_avail24+0.001) return toast(`⚠️ مخزون 24 غير كافٍ. المطلوب: ${fmt(_need24,2)}غ · المتاح: ${fmt(_avail24,2)}غ`,'error');
         /* فحص السبائك المحدّدة (المختارة من الكوفر): يجب أن تكون موجودة فعلاً */
         const _oldSbids=new Set();
         if(_isEdit){ const _o=invoices.find(x=>x.id===_editingInvId); if(_o&&_o.t==='sell')(_o.items||[]).forEach(it=>{ if(it.sbid)_oldSbids.add(it.sbid); }); }
@@ -412,6 +417,7 @@ window.saveInvoice=()=>{
             return true;
         }
         const _noMatch=[];
+        let _sellOut24=0;   /* مجموع عيار 1000 المُباع يدوياً — يُخصم من مخزون 24 السائل */
         newItems.forEach(item=>{
             if(item.sbid){
                 const pool=item.sbt||'730';
@@ -421,24 +427,29 @@ window.saveInvoice=()=>{
                     if(item.w>=ex.w-0.001){barsRemove.push(ex.id);bars.splice(bars.indexOf(ex),1);}
                     else{barUpdates.push({id:ex.id,pool,newW:parseFloat((ex.w-item.w).toFixed(4))});ex.w-=item.w;}
                 }
+            }else if(item.is1000){
+                /* عيار 1000: خصم سائل من مجموع مخزون 24 (لا سبيكة مفردة) */
+                _sellOut24+=(+item.w||0);
             }else{
-                /* بيع يدوي: يجب أن توجد سبيكة مطابقة تماماً (وزن + عيار) */
-                const pool=item.is1000?'24':'730';
-                if(!pickExact(pool,item.w,item.k)) _noMatch.push(item);
+                /* 730 يدوي: يجب أن توجد سبيكة مطابقة تماماً (وزن + عيار) */
+                if(!pickExact('730',item.w,item.k)) _noMatch.push(item);
             }
         });
         if(_noMatch.length){
             const it=_noMatch[0];
-            return toast(`🚫 لا توجد في المخزون سبيكة مطابقة: ${fmt(it.w,2)}غ عيار ${it.k}. البيع اليدوي يتطلّب سبيكة موجودة بنفس الوزن والعيار تماماً.`,'error');
+            return toast(`🚫 لا توجد في مخزون 730 سبيكة مطابقة: ${fmt(it.w,2)}غ عيار ${it.k}. البيع اليدوي من 730 يتطلّب سبيكة بنفس الوزن والعيار.`,'error');
         }
+        window.__sellOut24=_sellOut24;   /* يُمرَّر للحدث أدناه */
     }
 
     const _inv={id:iid,c,t,ps,dt,items:JSON.parse(JSON.stringify(newItems)),tp,akhd,prevBal};
     /* حفظ صور سبائك الشراء (إن وُجدت) — عقدة منفصلة، مضغوطة */
     try{ if(typeof _invSavePhotos==='function')_invSavePhotos(iid); }catch(e){}
     const evType=t==='buy'?'INVOICE_BUY':'INVOICE_SELL';
+    const _out24=(t==='sell'&&window.__sellOut24>0)?window.__sellOut24:undefined;
+    window.__sellOut24=0;
     emitEvent(evType,
-        {c,iid,tp,akhd,prevBal,barsAdd,barsRemove,barUpdates},
+        {c,iid,tp,akhd,prevBal,barsAdd,barsRemove,barUpdates,out24:_out24},
         {
             invoice:_inv,
             bars:Object.keys(dispBars).length?dispBars:undefined,
