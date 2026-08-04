@@ -1,4 +1,4 @@
-window.RAF_JS_VER='v304';
+window.RAF_JS_VER='v305';
 /* ═══════════ RAFFINAGE ═══════════ */
 let rafRows=4;
 const _rafSentIds=new Set();
@@ -168,6 +168,18 @@ window.calcRaf=()=>{
     const totalDinar=totalW*feeRate;
     document.getElementById('rafDinarTotal').textContent=fmt(totalDinar,0);
     document.getElementById('rafPureTotal').textContent=fmt(totalPure,2)+' غ';
+    /* بطاقة تحويل المكافئ الحيّة (للاطّلاع فقط — لا تدخل أي حساب) */
+    try{
+        const _card=document.getElementById('rafEqConvCard');
+        if(_card){
+            if(totalPure>0.001){
+                _card.style.display='block';
+                const e730=document.getElementById('rafEq730'), e705=document.getElementById('rafEq705');
+                if(e730)e730.textContent=fmt(totalPure*1000/730,3)+' غ';
+                if(e705)e705.textContent=fmt(totalPure*1000/705,3)+' غ';
+            }else _card.style.display='none';
+        }
+    }catch(e){}
     const gEl=document.getElementById('rafFinalGold');
     const dEl=document.getElementById('rafFinalDinar');
 
