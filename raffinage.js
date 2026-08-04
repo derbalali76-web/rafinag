@@ -1,4 +1,4 @@
-window.RAF_JS_VER='v303';
+window.RAF_JS_VER='v304';
 /* ═══════════ RAFFINAGE ═══════════ */
 let rafRows=4;
 const _rafSentIds=new Set();
@@ -582,6 +582,14 @@ function buildRafHtml(r){
             </div>
             <div style="display:flex;justify-content:space-between;font-weight:900">
                 <span style="font-size:${tot}px;align-self:center">النهائي ذهب 24:</span><span style="font-size:${fin}px">${fmt(r.finalGold,3)} غ</span>
+            </div>
+        </div>
+        <div style="margin-top:${pd+4}px;background:#eff6ff;border:1px dashed #3b82f6;border-radius:8px;padding:${pd+3}px ${pd+6}px;font-size:${tot-1}px">
+            <div style="text-align:center;color:#1d4ed8;font-weight:800;margin-bottom:4px">🔄 تحويل مكافئ الصافي (خارج الحساب — للاطّلاع فقط)</div>
+            <div style="display:flex;justify-content:space-around;gap:8px;text-align:center">
+                <div><div style="color:#555;font-size:${tot-3}px">مكافئ 730</div><div style="font-weight:900;color:#1d4ed8;font-size:${tot+2}px">${fmt((r.eq24||0)*1000/730,3)} غ</div></div>
+                <div style="border-inline-start:1px solid #93c5fd"></div>
+                <div><div style="color:#555;font-size:${tot-3}px">مكافئ 705</div><div style="font-weight:900;color:#1d4ed8;font-size:${tot+2}px">${fmt((r.eq24||0)*1000/705,3)} غ</div></div>
             </div>
         </div>
         <div style="text-align:center;margin-top:${pd+4}px;font-size:11px;color:#666">توقيع: _______________</div>

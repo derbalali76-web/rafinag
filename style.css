@@ -264,6 +264,8 @@
         /* ─── Table ─── */
         .tbl{background:var(--card);border-radius:var(--rl);border:1px solid var(--border);overflow:hidden;width:100%;box-shadow:var(--sh)}
         .tbl-scroll{max-height:40vh;overflow-y:auto}
+        /* سجل الزبون: يأخذ كامل الشاشة (كان مقصوصاً على 40vh) */
+        html.gp-role-customer #cpBody .tbl-scroll{max-height:none;overflow-y:visible}
         #page-debts.active{height:100%;padding-bottom:0}
         #page-debts.active .tbl{flex:1;display:flex;flex-direction:column;overflow:hidden}
         #page-debts.active .tbl-scroll{flex:1;max-height:none;overflow-y:auto}
