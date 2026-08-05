@@ -1,4 +1,4 @@
-window.FB_JS_VER='v307';
+window.FB_JS_VER='v314';
 /* ═══════════ FIREBASE ═══════════ */
 const _fbConfig={
     apiKey:"AIzaSyDevHwoNCKXGm-G8GJc_Z5eZwcSPuQS9wI",
@@ -263,6 +263,26 @@ let _allEvents=[];
 let _fbListening=false;
 
 function _getEvLsKey(){return 'gp_ev_'+(_currentUser||'');}
+
+/* تخزين صورة محلياً بأمان: يحدّ العدد ويحذف الأقدم عند الامتلاء،
+   ولا يمسّ مفاتيح الأحداث (gp_ev_) أبداً. يحمي من QuotaExceeded. */
+window._cachePhotoSafe=function(key,imgs){
+    try{
+        localStorage.setItem(key,JSON.stringify(imgs));
+    }catch(e){
+        /* امتلأ التخزين — احذف أقدم صور مخزّنة (gp_ph_) حتى ينجح */
+        try{
+            const phKeys=[];
+            for(let i=0;i<localStorage.length;i++){
+                const k=localStorage.key(i);
+                if(k&&k.indexOf('gp_ph_')===0)phKeys.push(k);
+            }
+            /* احذف نصفها (الأقدم إدراجاً غالباً في المقدمة) */
+            phKeys.slice(0,Math.ceil(phKeys.length/2)).forEach(k=>{try{localStorage.removeItem(k);}catch(_){}});
+            localStorage.setItem(key,JSON.stringify(imgs));
+        }catch(e2){ /* تعذّر — نتجاهل، الصورة ستُحمّل من Firebase لاحقاً */ }
+    }
+};
 
 let _lsSaveWarned=false;
 function _lsSaveEvents(){
@@ -542,6 +562,13 @@ function _applyEvt(st,evt){
             applyBars();
             stUpdDebt(d.o,'دولار',d.usd);
             if(disp.dubaiInvoice)st.dubaiInvoices.unshift(disp.dubaiInvoice);
+            break;
+        }
+
+        case 'DUBAI_RATE':{
+            /* سعر دولار يدوي لفاتورة دبي (عرض/حساب فقط، لا يمسّ الأرصدة) */
+            const inv=st.dubaiInvoices.find(x=>x.id===d.id);
+            if(inv){ if(d.usdRate>0)inv.usdRate=d.usdRate; else delete inv.usdRate; }
             break;
         }
 
@@ -1233,26 +1260,62 @@ function _fbInitialLoad(){
             _reproject();
         }
 
-    /* تحميل الأحداث من Firebase */
-    _baseRef.child('events').once('value',snap=>{
+    /* تحميل الأحداث من Firebase.
+       الزبون (قراءة فقط) يستعمل تحميلاً تزايدياً: يجلب فقط ما هو أحدث من
+       آخر حدث محفوظ محلياً — توفير هائل في خطة Blaze (بدل سحب كل الأحداث كل مرة).
+       الأدمين/العامل (يحذف ويصحّح) يبقى على التحميل الكامل لضمان التطابق. */
+    const _isCustomer=(window._roleLock==='customer');
+    let _lastLocalTs=0;
+    if(_allEvents.length>0){
+        _allEvents.forEach(e=>{ if((e.ts||0)>_lastLocalTs)_lastLocalTs=e.ts||0; });
+    }
+    /* التحميل التزايدي لكل الأدوار (توفير هائل، خاصة الأدمين على عدة أجهزة).
+       التصحيح في النظام يتم بحدث VOID جديد (لا حذف فعلي)، فالتزايدي يلتقطه.
+       تحميل كامل دوري كضمان: الزبون كل 24س، الأدمين/العامل كل 6س (يصحّحون أكثر). */
+    const _fullEveryMs = _isCustomer ? 24*3600*1000 : 6*3600*1000;
+    let _fullReload=true;
+    try{
+        const _lastFull=+(localStorage.getItem('gp_fullsync_'+(_currentUser||''))||0);
+        if(_lastLocalTs>0 && (Date.now()-_lastFull)<_fullEveryMs)_fullReload=false;
+    }catch(e){}
+    const _incremental=(_lastLocalTs>0 && !_fullReload);
+    /* هامش أمان ساعة: يلتقط أحداث الأجهزة الأخرى التي سُجّلت بـts أقدم قليلاً
+       (فروق ساعات الأجهزة، أو تسجيل متزامن أوفلاين). التكرار يُزال بالـid. */
+    const _SYNC_MARGIN=3600*1000;
+    const _evQuery=_incremental
+        ? _baseRef.child('events').orderByChild('ts').startAt(_lastLocalTs-_SYNC_MARGIN)
+        : _baseRef.child('events');                                            /* الكل */
+    if(_fullReload){ try{localStorage.setItem('gp_fullsync_'+(_currentUser||''),String(Date.now()));}catch(e){} }
+    _evQuery.once('value',snap=>{
         const evData=snap.val();
         if(evData){
             const remoteEvents=Object.values(evData).filter(Boolean);
             const localIds=new Set(_allEvents.map(e=>e.id));
+            let _added=0;
             remoteEvents.forEach(e=>{
-                if(e&&e.id&&!localIds.has(e.id)){_allEvents.push(e);localIds.add(e.id);}
+                if(e&&e.id&&!localIds.has(e.id)){_allEvents.push(e);localIds.add(e.id);_added++;}
             });
-            const remoteIds=new Set(remoteEvents.map(e=>e?.id).filter(Boolean));
-            _allEvents.forEach(e=>{
-                if(e&&e.id&&!remoteIds.has(e.id))_fbSetEvent(e);
-            });
+            /* المزامنة العكسية (رفع المحلي الناقص) للأدمين/العامل فقط —
+               الزبون لا يرفع ولا يحذف، والتحميل التزايدي لا يرى كل البعيد. */
+            /* المزامنة العكسية والحذف: فقط في التحميل الكامل (لا التزايدي) */
+            if(!_incremental){
+                const remoteIds=new Set(remoteEvents.map(e=>e?.id).filter(Boolean));
+                if(!_isCustomer){
+                    _allEvents.forEach(e=>{
+                        if(e&&e.id&&!remoteIds.has(e.id))_fbSetEvent(e);
+                    });
+                }else{
+                    /* الزبون في تحميل كامل: احذف محلياً ما لم يعد في السحابة (تصحيحات) */
+                    _allEvents=_allEvents.filter(e=>!e.id||remoteIds.has(e.id));
+                }
+            }
             _lsSaveEvents();
             _reproject();
-            toast('☁️ تمت المزامنة مع السحابة','info');
-        }else if(_allEvents.length>0){
-            /* لا توجد أحداث في Firebase — ارفع المحلية */
+            if(_added>0||!_isCustomer)toast('☁️ تمت المزامنة مع السحابة','info');
+        }else if(_allEvents.length>0 && !_isCustomer){
+            /* لا توجد أحداث في Firebase — ارفع المحلية (الأدمين/العامل فقط) */
             _allEvents.forEach(e=>_fbSetEvent(e));
-        }else{
+        }else if(_allEvents.length===0){
             /* لا توجد بيانات إطلاقاً — جرّب الترحيل من الصيغة القديمة */
             _migrateToEvents();
         }
@@ -1301,7 +1364,14 @@ try{
 function _startFbSync(){
     if(_fbListening)return;
     _fbListening=true;
-    _baseRef.child('events').on('child_added',snap=>{
+    const _isCust=(window._roleLock==='customer');
+    /* كل الأدوار: استمع فقط للأحداث الأحدث من آخر ما عندنا — كي لا يُطلق child_added
+       لكل الأحداث القديمة عند الاتصال (يُبطل توفير التحميل التزايدي).
+       هذا يوفّر كثيراً للأدمين على عدة أجهزة أيضاً. */
+    let _addedRef=_baseRef.child('events');
+    let _maxTs=0; _allEvents.forEach(e=>{ if((e.ts||0)>_maxTs)_maxTs=e.ts||0; });
+    if(_maxTs>0)_addedRef=_baseRef.child('events').orderByChild('ts').startAt(_maxTs-3600*1000);
+    _addedRef.on('child_added',snap=>{
         if(_importing)return;
         const evt=snap.val();
         if(!evt||!evt.id)return;
@@ -1309,13 +1379,17 @@ function _startFbSync(){
         _allEvents.push(evt);
         _debouncedReproject();
     },_fbErr);
-    _baseRef.child('events').on('child_removed',snap=>{
-        if(_importing)return;
-        const evt=snap.val();
-        if(!evt||!evt.id)return;
-        _allEvents=_allEvents.filter(e=>e.id!==evt.id);
-        _debouncedReproject();
-    },_fbErr);
+    /* child_removed: يلتقط الحذف الفعلي (استعادة نسخة احتياطية). الأدمين/العامل فقط.
+       التصحيح اليومي يتم بحدث VOID (إضافة)، فلا يحتاج هذا المستمع. */
+    if(!_isCust){
+        _baseRef.child('events').on('child_removed',snap=>{
+            if(_importing)return;
+            const evt=snap.val();
+            if(!evt||!evt.id)return;
+            _allEvents=_allEvents.filter(e=>e.id!==evt.id);
+            _debouncedReproject();
+        },_fbErr);
+    }
 }
 
 function _startSettingsSync(){

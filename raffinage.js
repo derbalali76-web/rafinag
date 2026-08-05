@@ -1,4 +1,4 @@
-window.RAF_JS_VER='v307';
+window.RAF_JS_VER='v314';
 /* ═══════════ RAFFINAGE ═══════════ */
 let rafRows=4;
 const _rafSentIds=new Set();
@@ -717,8 +717,16 @@ function _rafSavePhotos(rid){
 /* جلب صور فاتورة للعرض/الطباعة */
 window._rafLoadPhotos=function(rid){
     return new Promise(res=>{
+        /* تخزين محلي دائم: الصورة تُحمّل من Firebase مرة واحدة فقط، ثم تُخزَّن.
+           يوفّر تكلفة إعادة تحميلها في كل زيارة (توفير كبير في خطة Blaze). */
+        const _ck='gp_ph_raf_'+rid;
+        try{ const c=localStorage.getItem(_ck); if(c){ const p=JSON.parse(c); if(p&&p.length){ res(p); return; } } }catch(e){}
         const t=setTimeout(()=>res([]),5000);
-        try{_db.ref('goldpro/_photos/'+rid).once('value',s=>{clearTimeout(t);const v=s.val();res(v&&v.imgs?v.imgs:[]);},()=>{clearTimeout(t);res([]);});}
+        try{_db.ref('goldpro/_photos/'+rid).once('value',s=>{
+            clearTimeout(t);const v=s.val();const imgs=(v&&v.imgs)?v.imgs:[];
+            if(imgs.length){ try{if(window._cachePhotoSafe)window._cachePhotoSafe(_ck,imgs);}catch(e){} }
+            res(imgs);
+        },()=>{clearTimeout(t);res([]);});}
         catch(e){clearTimeout(t);res([]);}
     });
 };

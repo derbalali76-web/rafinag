@@ -576,8 +576,15 @@ function _invSavePhotos(iid){
 }
 window._invLoadPhotos=function(iid){
     return new Promise(res=>{
+        /* تخزين محلي دائم — تُحمّل مرة، ثم من الجهاز (توفير تكلفة Firebase) */
+        const _ck='gp_ph_inv_'+iid;
+        try{ const c=localStorage.getItem(_ck); if(c){ const p=JSON.parse(c); if(p&&p.length){ res(p); return; } } }catch(e){}
         const t=setTimeout(()=>res([]),4000);
-        try{_db.ref('goldpro/_photos/'+iid).once('value',s=>{clearTimeout(t);const v=s.val();res(v&&v.imgs?v.imgs:[]);},()=>{clearTimeout(t);res([]);});}
+        try{_db.ref('goldpro/_photos/'+iid).once('value',s=>{
+            clearTimeout(t);const v=s.val();const imgs=(v&&v.imgs)?v.imgs:[];
+            if(imgs.length){ try{if(window._cachePhotoSafe)window._cachePhotoSafe(_ck,imgs);}catch(e){} }
+            res(imgs);
+        },()=>{clearTimeout(t);res([]);});}
         catch(e){clearTimeout(t);res([]);}
     });
 };

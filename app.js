@@ -1,4 +1,4 @@
-window.APP_JS_VER='v307';
+window.APP_JS_VER='v314';
 /* ═══════════ STATE ═══════════ */
 let B={دينار:0,'ذهب 730':0,'ذهب 24':0,دولار:0,vg730:0,vg24:0};
 let ops=[],invoices=[],debts=[],loans=[],rafInvoices=[],dollInvoices=[],dubaiInvoices=[];
@@ -3270,7 +3270,7 @@ window._confirm730With24=function(){
     const remaining=parseFloat((Math.abs(net)-partial).toFixed(4));
     const nowStr=new Date().toLocaleDateString('fr-FR',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
     emitEvent('SETTLE_730_24',
-        {c:_settleCustomer,partial,net,equiv24,remaining,barsRemove,barUpdates},
+        {c:_settleCustomer,partial,net,equiv24,remaining,barsRemove,barUpdates,out24},
         {op:{c:_settleCustomer,t:'تصفية',m:'ذهب 730',a:net>0?partial:-partial,_ts:Date.now(),dt:nowStr,crossKarat:true,paid24:equiv24,partial:remaining>0.001}}
     );
     closeModal('s730cModal');
@@ -3521,6 +3521,26 @@ function _renderArchiveChips(){
 }
 /* آخر سعر بيع دولار فعلي (من فواتير الدولار) — لتقييم دولار دبي بالدينار.
    يُفضّل على سعر الإعدادات لأنه السعر الذي ستبيع به دولارك فعلاً. */
+/* تعديل سعر الدولار يدوياً لفاتورة دبي — يُحفظ في الفاتورة (d.usdRate)
+   ويُعاد حساب القيمة بالدينار به. النقر على السعر يفتح إدخالاً. */
+window.editDubUsdRate=function(id){
+    const d=dubaiInvoices.find(x=>x.id===id); if(!d)return;
+    const _dts=(()=>{const m=String(d.dt||'').match(/(\d{2})\/(\d{2})\/(\d{4})/);return m?new Date(+m[3],+m[2]-1,+m[1]).getTime():0;})();
+    const cur=(+d.usdRate>0)?d.usdRate:(_lastDollarSellRate(_dts)||(+d.rate||0)||dollarRate||0);
+    const inp=prompt('سعر بيع الدولar لهذه الفاتورة (دج لكل 100$):\n(اتركه فارغاً للعودة للسعر التلقائي = آخر بيع دولار)', cur?fmt(cur,0):'');
+    if(inp===null)return;   /* ألغى */
+    const val=parseFloat(String(inp).replace(/\s/g,'').replace(',','.'))||0;
+    /* احفظ عبر حدث خفيف لا يمسّ الفاتورة الأصلية */
+    emitEvent('DUBAI_RATE',
+        {id, usdRate: val>0?val:null},
+        {op:{c:d.c,t:'تعديل سعر دولار (دبي)',m:'دولار',a:0,_ts:Date.now(),dt:new Date().toLocaleDateString('fr-FR',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})}}
+    );
+    /* حدّث محلياً فوراً */
+    d.usdRate = val>0?val:undefined;
+    if(typeof updAll==='function')updAll();
+    toast(val>0?`✅ سعر الدولار: ${fmt(val,0)} — أُعيد حساب القيمة بالدينار`:'✅ عاد للسعر التلقائي (آخر بيع دولار)');
+};
+
 window._lastDollarSellRate=function(beforeTs){
     try{
         const sells=(dollInvoices||[]).filter(d=>d && d.isBuy===false && (+d.r>0));
@@ -3688,7 +3708,7 @@ function renderArchive(){
             /* متوسط سعر الغرام بالدينار (نفس صيغة الفاتورة: شحن + ÷100 + خصم التكرير) */
             if(d.usd>0&&d.w>0){
                 const _dts=(()=>{const m=String(d.dt||'').match(/(\d{2})\/(\d{2})\/(\d{4})/);return m?new Date(+m[3],+m[2]-1,+m[1]).getTime():0;})();
-                const rt=_lastDollarSellRate(_dts)||(d.rate||0)||dollarRate||0;
+                const rt=(+d.usdRate>0?d.usdRate:0)||_lastDollarSellRate(_dts)||(d.rate||0)||dollarRate||0;
                 if(rt>0){
                     const eq730=Math.round((d.w/0.730)*10)/10;
                     const gpr=(d.usd-d.w*_shp)*rt/eq730/100;
@@ -3706,12 +3726,12 @@ function renderArchive(){
                 <strong>${d.c}</strong>
                 <span style="color:#0f766e;font-weight:800;margin-right:.25rem">🏙️ دبي</span>
                 <span style="color:var(--g600);font-weight:900">${fmt(d.usd||0,2)} $</span>
-                <small style="color:var(--t3);display:block;font-size:.66rem">💵 سعر بيع الدولار: ${fmt((()=>{const m=String(d.dt||'').match(/(\d{2})\/(\d{2})\/(\d{4})/);const ts=m?new Date(+m[3],+m[2]-1,+m[1]).getTime():0;return _lastDollarSellRate(ts)||(d.rate||0)||dollarRate||0;})(),0)} · ${fmt((d.w||0)>0?(d.usd/d.w):0,2)} $/غ</small>
+                <small style="color:var(--t3);display:block;font-size:.66rem">💵 سعر بيع الدولار: <span onclick="editDubUsdRate('${d.id}')" style="cursor:pointer;border-bottom:1px dashed #0ea5e9;color:#0284c7;font-weight:800" title="اضغط لتعديل السعر يدوياً">${fmt((()=>{const m=String(d.dt||'').match(/(\d{2})\/(\d{2})\/(\d{4})/);const ts=m?new Date(+m[3],+m[2]-1,+m[1]).getTime():0;return (+d.usdRate>0?d.usdRate:0)||_lastDollarSellRate(ts)||(d.rate||0)||dollarRate||0;})(),0)}${(+d.usdRate>0)?' ✏️':''}</span> · ${fmt((d.w||0)>0?(d.usd/d.w):0,2)} $/غ</small>
                 <small style="color:var(--t2);display:block">${d.dt} · ${fmt(d.w||0,2)} غ · شاشة ${fmt(d.sp||0,2)}${d.disc?' · خصم '+fmt(d.disc,2):''}${(()=>{
                     if(!(d.usd>0&&d.w>0))return'';
                     /* سعر الدولار: آخر بيع دولار وقت الفاتورة (لا سعر الإعدادات) */
                     const _dts=(()=>{const m=String(d.dt||'').match(/(\d{2})\/(\d{2})\/(\d{4})/);return m?new Date(+m[3],+m[2]-1,+m[1]).getTime():0;})();
-                    const rt=_lastDollarSellRate(_dts)||(d.rate||0)||dollarRate||0;
+                    const rt=(+d.usdRate>0?d.usdRate:0)||_lastDollarSellRate(_dts)||(d.rate||0)||dollarRate||0;
                     if(!(rt>0))return'';
                     /* الشحن ($/غ): آخر فاتورة شحن ← وإلا حقل الإعدادات */
                     const shp=((ops.find(o=>o&&o.t==='شحن'&&(o.su||0)>0)||{}).su)

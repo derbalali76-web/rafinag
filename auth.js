@@ -748,6 +748,23 @@ function renderCustomerPortal(){
 }
 window.renderCustomerPortal=renderCustomerPortal;
 
+/* عرض صور الفاتورة عند الطلب (بضغط الزر) — لا تُحمّل تلقائياً لتوفير التكلفة */
+window._cpShowPhotos=function(){
+    const _lp=window._cpPendingPhotos;
+    if(!_lp)return;
+    const wrap=document.getElementById('cpPhotoBtnWrap');
+    if(wrap)wrap.innerHTML='<div style="color:#9ca3af;font-size:11px;padding:6px">📷 جارٍ تحميل الصور…</div>';
+    const _isInv=String(_lp).startsWith('INV:');
+    const _pid=_isInv?_lp.slice(4):_lp;
+    const _loader=_isInv?(typeof _invLoadPhotos==='function'?_invLoadPhotos:null):(typeof _rafLoadPhotos==='function'?_rafLoadPhotos:null);
+    if(_loader)_loader(_pid).then(ph=>{
+        const slot=document.getElementById('cpPhotoBtnWrap');
+        if(!slot)return;
+        slot.outerHTML=(ph&&ph.length&&typeof _rafPhotosHtml==='function')?_rafPhotosHtml(ph):'<div style="text-align:center;color:#9ca3af;font-size:11px;padding:6px">لا صور لهذه الفاتورة</div>';
+        if(typeof _cpViewRescale==='function')try{_cpViewRescale();}catch(e){}
+    }).catch(()=>{const s=document.getElementById('cpPhotoBtnWrap');if(s)s.innerHTML='<div style="color:#dc2626;font-size:11px;padding:6px">تعذّر تحميل الصور</div>';});
+};
+
 /* ═══════════════ حسابات الزبائن (رقم هاتف → اسم) — للمسؤول ═══════════════ */
 let _custAccCache={};
 async function addCustomerAccount(){
@@ -1071,7 +1088,7 @@ window.cpViewInvoice=async function(kind,id){
         if(kind==='raf'){
             const r=(typeof rafInvoices!=='undefined'?rafInvoices:[]).find(x=>x.id===id);
             if(!r)return toast('الفاتورة غير موجودة','error');
-            html=buildRafHtml(r)+'<div id="cpLazyPhotos" style="text-align:center;color:#9ca3af;font-size:11px;padding:6px">📷 جارٍ تحميل الصور…</div>';
+            html=buildRafHtml(r)+'<div id="cpPhotoBtnWrap" style="text-align:center;padding:8px"><button onclick="_cpShowPhotos()" style="background:#0ea5e9;color:#fff;border:none;border-radius:8px;padding:.5rem 1.2rem;font-weight:800;font-family:Tajawal,sans-serif;font-size:.82rem;cursor:pointer">📷 عرض الصور</button></div>';
             _lazyPhotos=id;
         }else{
             if(kind==='doll'){
@@ -1085,7 +1102,7 @@ window.cpViewInvoice=async function(kind,id){
             }else{
                 const inv=(typeof invoices!=='undefined'?invoices:[]).find(x=>x.id===id);
                 if(!inv)return toast('الفاتورة غير موجودة','error');
-                html=buildInvHtml(inv)+'<div id="cpLazyPhotos" style="text-align:center;color:#9ca3af;font-size:11px;padding:6px">📷 جارٍ تحميل الصور…</div>';
+                html=buildInvHtml(inv)+'<div id="cpPhotoBtnWrap" style="text-align:center;padding:8px"><button onclick="_cpShowPhotos()" style="background:#0ea5e9;color:#fff;border:none;border-radius:8px;padding:.5rem 1.2rem;font-weight:800;font-family:Tajawal,sans-serif;font-size:.82rem;cursor:pointer">📷 عرض الصور</button></div>';
                 _lazyPhotos='INV:'+id;
             }
         }
@@ -1105,17 +1122,9 @@ window.cpViewInvoice=async function(kind,id){
     document.getElementById('cpViewBody').innerHTML='<div style="text-align:center;padding:2rem;color:#9ca3af;font-family:Tajawal,sans-serif;font-weight:800">⏳ جارٍ التحضير…</div>';
     await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
     document.getElementById('cpViewBody').innerHTML=html;
-    if(_lazyPhotos){
-        const _isInv=String(_lazyPhotos).startsWith('INV:');
-        const _pid=_isInv?_lazyPhotos.slice(4):_lazyPhotos;
-        const _loader=_isInv?(typeof _invLoadPhotos==='function'?_invLoadPhotos:null):(typeof _rafLoadPhotos==='function'?_rafLoadPhotos:null);
-        if(_loader)_loader(_pid).then(ph=>{
-            const slot=document.getElementById('cpLazyPhotos');
-            if(!slot)return;
-            slot.outerHTML=(ph&&ph.length&&typeof _rafPhotosHtml==='function')?_rafPhotosHtml(ph):'';
-            if(typeof _cpViewRescale==='function')try{_cpViewRescale();}catch(e){}
-        }).catch(()=>{const s=document.getElementById('cpLazyPhotos');if(s)s.remove();});
-    }
+    /* الصور لم تعد تُحمّل تلقائياً — تُحمّل فقط عند ضغط زر «عرض الصور»
+       (توفير كبير في تكلفة Firebase). المعرّف محفوظ لاستدعائه بالزر. */
+    window._cpPendingPhotos=_lazyPhotos||null;
     m.style.display='block';
     /* تحجيم الفاتورة لتملأ الشاشة كاملة بلا أي تمرير */
     const _fit=()=>{
