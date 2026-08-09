@@ -1,4 +1,4 @@
-window.FB_JS_VER='v320';
+window.FB_JS_VER='v322';
 /* ═══════════ FIREBASE ═══════════ */
 const _fbConfig={
     apiKey:"AIzaSyDevHwoNCKXGm-G8GJc_Z5eZwcSPuQS9wI",
@@ -442,11 +442,14 @@ function _applyEvt(st,evt){
     switch(evt.type){
 
         case 'INV_FIX':{
-            /* تصحيح مخزون: يكتب في حالة الإسقاط st مباشرة — دون المساس بأي زبون/دين */
+            /* تصحيح مخزون: يكتب في st مباشرة — دون المساس بأي زبون/دين.
+               موجب = إضافة سبيكة؛ سالب (لمخزون 24 السائل فقط) = خصم من المجموع. */
             if(d.w>0){
                 const bar={id:'FIX-'+evt.id,w:d.w,k:d.k||(d.pool==='24'?1000:730),
                     desc:'تصحيح مخزون',dt:(disp&&disp.op&&disp.op.dt)||'',src:'تصحيح',_ts:evt.ts};
                 if(d.pool==='24')st.g24.push(bar);else st.g730.push(bar);
+            }else if(d.w<0 && d.pool==='24'){
+                _drain24(Math.abs(d.w));   /* خصم سائل من باقي لانقو */
             }
             break;
         }

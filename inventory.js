@@ -253,17 +253,26 @@ document.getElementById('sellPrice').addEventListener('input',function(){
 /* ═══════════ إدخال تصحيحي للمخزون (لا يمسّ الزبائن ولا الديون) ═══════════ */
 window.invFixAdd=function(){
     const pool=invType==='24'?'24':'730';
-    const w=parseFloat(String(prompt(`🩹 إدخال تصحيحي لمخزون ${pool}\nأدخل الوزن (غ) — لن يُمسّ أي زبون أو دين:`)||'').replace(',','.'));
-    if(!w||w<=0)return;
+    const _hint=pool==='24'?'\n(موجب = إضافة · سالب = خصم من المجموع)':'';
+    const w=parseFloat(String(prompt(`🩹 إدخال تصحيحي لمخزون ${pool}\nأدخل الوزن (غ) — لن يُمسّ أي زبون أو دين:${_hint}`)||'').replace(',','.'));
+    if(!w||Math.abs(w)<0.0001)return;
+    /* السالب مسموح لمخزون 24 فقط (سائل: يُخصم من المجموع).
+       مخزون 730 سبائك مفردة — السالب لا معنى له (لا سبيكة بوزن سالب). */
+    if(w<0 && pool!=='24'){ toast('⚠️ السالب غير مسموح لمخزون 730 (سبائك مفردة). للخصم استعمل البيع أو الرافيناج.','error'); return; }
+    if(w<0){
+        const avail=g24.reduce((s,b)=>s+(b.w||0),0);
+        if(Math.abs(w)>avail+0.001){ toast(`⚠️ الخصم (${fmt(Math.abs(w),2)}غ) أكبر من باقي لانقو المتاح (${fmt(avail,2)}غ)`,'error'); return; }
+    }
     let k=pool==='24'?1000:730;
     if(pool==='730'){
         const kk=parseFloat(String(prompt('العيار؟ (افتراضي 730)')||'730').replace(',','.'));
         if(kk>0)k=kk;
     }
-    if(!confirm(`إدخال سبيكة تصحيح: ${fmt(w,2)} غ × عيار ${k} إلى مخزون ${pool}؟`))return;
+    const _verb=w<0?'خصم':'إدخال';
+    if(!confirm(`${_verb} تصحيحي: ${fmt(Math.abs(w),2)} غ ${w<0?'من':'إلى'} مخزون ${pool}؟`))return;
     const nowStr=new Date().toLocaleDateString('fr-FR',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
     emitEvent('INV_FIX',{pool,w,k},
-        {op:{c:'النظام',t:'تصحيح مخزون',m:pool==='24'?'ذهب 24':'ذهب 730',a:w,_ts:Date.now(),dt:nowStr,note:'إدخال تصحيحي — بلا أثر على الديون'}});
+        {op:{c:'النظام',t:'تصحيح مخزون',m:pool==='24'?'ذهب 24':'ذهب 730',a:w,_ts:Date.now(),dt:nowStr,note:'تصحيح مخزون — بلا أثر على الديون'}});
     renderInvModal();
-    toast(`🩹 أُدخلت سبيكة تصحيح ${fmt(w,2)} غ لمخزون ${pool}`,'success');
+    toast(`🩹 ${_verb} تصحيحي ${fmt(Math.abs(w),2)} غ ${w<0?'من':'لـ'}مخزون ${pool}`,'success');
 };

@@ -55,7 +55,7 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-messaging-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.2.0/crypto-js.min.js"></script>
-    <link rel="stylesheet" href="style.css?v=320">
+    <link rel="stylesheet" href="style.css?v=322">
     <script>
     /* منع وميض نافذة الدخول: إن كانت الجلسة محفوظة، نخفيها قبل أول رسم */
     (function(){try{
@@ -87,10 +87,10 @@
     /* حجاب الدور: يمنع ظهور واجهة الأدمين لغير الأدمين.
        للزبون/العامل: الواجهة الرئيسية مخفية حتى تُبنى واجهته (gp-role-ready).
        وحتى لو رُفع الحجاب، أصناف الدور تُبقي عناصر الأدمين مخفية دائماً. */
-    html.gp-has-session:not(.gp-role-ready) body > .page,
-    html.gp-has-session:not(.gp-role-ready) body > .bnav,
-    html.gp-has-session:not(.gp-role-ready) body > .hdr,
-    html.gp-has-session:not(.gp-role-ready) #vaMicWrap{ visibility:hidden!important; }
+    html.gp-has-session:not(.gp-role-ready):not(.gp-role-admin) body > .page,
+    html.gp-has-session:not(.gp-role-ready):not(.gp-role-admin) body > .bnav,
+    html.gp-has-session:not(.gp-role-ready):not(.gp-role-admin) body > .hdr,
+    html.gp-has-session:not(.gp-role-ready):not(.gp-role-admin) #vaMicWrap{ visibility:hidden!important; }
     html.gp-has-session:not(.gp-role-ready)::after{
         content:"";position:fixed;inset:0;z-index:2147482000;background:var(--bg,#f1f5f9);
     }
@@ -1248,14 +1248,14 @@
 
 
 <!-- ═══ ملفات JS ═══ -->
-<script src="firebase.js?v=320"></script>
-<script src="app.js?v=320"></script>
-<script src="assistant.js?v=320"></script>
-<script src="inventory.js?v=320"></script>
-<script src="invoice.js?v=320"></script>
-<script src="raffinage.js?v=320"></script>
-<script src="workshops.js?v=320"></script>
-<script src="auth.js?v=320"></script>
+<script src="firebase.js?v=322"></script>
+<script src="app.js?v=322"></script>
+<script src="assistant.js?v=322"></script>
+<script src="inventory.js?v=322"></script>
+<script src="invoice.js?v=322"></script>
+<script src="raffinage.js?v=322"></script>
+<script src="workshops.js?v=322"></script>
+<script src="auth.js?v=322"></script>
 
 
 
