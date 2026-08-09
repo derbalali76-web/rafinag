@@ -377,6 +377,20 @@ window.saveInvoice=()=>{
             if(ex&&it.w>ex.w+0.001&&!willRestore) return toast(`🚫 وزن هذه السبيكة في الكوفر ${fmt(ex.w,2)} غ فقط — لا يكفي`,'error');
         }
     }
+    /* حارس السيولة (الشراء): المبلغ المدفوع نقداً لا يتجاوز رصيد الدينار المتاح.
+       في التعديل نضيف مدفوع الفاتورة القديمة (يُستعاد عند الإبطال). يقع قبل الإبطال
+       كي لا تُبطَل الفاتورة ثم يُرفض الحفظ فتفسد الحالة. */
+    {
+        const _tpG=newItems.reduce((s,b)=>s+(b.total||0),0);
+        let _akhdG=parseInvNum(document.getElementById('invAkhd')?.value);
+        if(ps==='full') _akhdG=_tpG;
+        if(t==='buy' && _akhdG>0.001){
+            let _availDinar=B.دينار;
+            if(_isEdit){ const _o=invoices.find(x=>x.id===_editingInvId); if(_o&&_o.t==='buy')_availDinar+=(+_o.akhd||0); }
+            if(_akhdG>_availDinar+0.001)
+                return toast(`⚠️ السيولة (الدينار) غير كافية للدفع. المطلوب دفعه: ${fmt(_akhdG,0)} · المتاح: ${fmt(_availDinar,0)}`,'error');
+        }
+    }
     /* نجحت كل الفحوص → أبطِل القديمة الآن (تُستعاد الحسابات/المخزون) ثم تُبنى الجديدة */
     if(_isEdit){ _voidByInvId('invoice',_editingInvId); _editingInvId=null; if(typeof _hideEditBanner==='function')_hideEditBanner(); }
     const tp=newItems.reduce((s,b)=>s+(b.total||0),0);

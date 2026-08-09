@@ -201,14 +201,14 @@
         .bgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:.6rem}
         .bcard{
             background:var(--card);border-radius:var(--rl);
-            padding:1rem .75rem;border:1px solid var(--border);
+            padding:1rem .75rem;border:1.5px solid var(--border);
             display:flex;flex-direction:column;align-items:center;text-align:center;
             position:relative;box-shadow:var(--sh);transition:all .2s;overflow:hidden;
         }
         .bcard.clickable{cursor:pointer}
         .bcard.clickable:hover{box-shadow:var(--sh2);border-color:var(--g400);transform:translateY(-2px)}
         .bcard.clickable:active{transform:scale(.97)}
-        .bcard-accent{position:absolute;top:0;left:0;right:0;height:2px;border-radius:0}
+        .bcard-accent{position:absolute;top:0;left:0;right:0;height:4px;border-radius:0}
         .dark .bcard-din {background:rgba(59,130,246,.07);border-color:rgba(59,130,246,.22)}
         .dark .bcard-g730{background:rgba(245,158,11,.07);border-color:rgba(245,158,11,.22)}
         .dark .bcard-g24 {background:rgba(167,139,250,.07);border-color:rgba(167,139,250,.22)}

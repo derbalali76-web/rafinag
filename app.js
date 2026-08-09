@@ -1,4 +1,4 @@
-window.APP_JS_VER='v319';
+window.APP_JS_VER='v320';
 /* ═══════════ STATE ═══════════ */
 let B={دينار:0,'ذهب 730':0,'ذهب 24':0,دولار:0,vg730:0,vg24:0};
 let ops=[],invoices=[],debts=[],loans=[],rafInvoices=[],dollInvoices=[],dubaiInvoices=[];
@@ -3570,20 +3570,22 @@ function renderArchive(){
     const _dateOK=(inv)=>{
         if(!_day&&!_month)return true;
         const t=inv._ts||inv.ts||0;
+        /* استخرج يوم/شهر/سنة من نص dt (يدعم dd/mm/yyyy و dd-mm-yyyy وبوجود وقت بعده) */
+        const _parseDt=s=>{ const m=String(s||'').match(/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/); return m?{d:+m[1],mo:+m[2],y:+m[3]}:null; };
         if(_day){
-            const p=_day.split('-').map(Number);
-            const start=new Date(p[0],p[1]-1,p[2],0,0,0,0).getTime(), end=start+86400000;
-            if(t)return t>=start&&t<end;
-            /* احتياط للفواتير القديمة بلا _ts: طابق يوم/شهر نصياً (dd/mm/yyyy أو dd-mm) */
+            const p=_day.split('-').map(Number);   /* [yyyy,mm,dd] */
+            if(t){ const start=new Date(p[0],p[1]-1,p[2],0,0,0,0).getTime(), end=start+86400000; return t>=start&&t<end; }
+            /* فواتير بلا _ts: قارن اليوم والشهر والسنة عددياً (أدقّ من includes) */
+            const pd=_parseDt(inv.dt); if(pd)return pd.d===p[2]&&pd.mo===p[1]&&pd.y===p[0];
             const dd=String(p[2]).padStart(2,'0'),mm=String(p[1]).padStart(2,'0'),s=String(inv.dt||'');
-            return s.includes(dd+'/'+mm)||s.startsWith(dd+'/')||s.startsWith(dd+'-'+mm)||s.startsWith(dd+' ');
+            return s.includes(dd+'/'+mm)||s.startsWith(dd+'/')||s.startsWith(dd+'-'+mm);
         }
         if(_month){
-            const p=_month.split('-').map(Number);
-            const start=new Date(p[0],p[1]-1,1,0,0,0,0).getTime(), end=new Date(p[0],p[1],1,0,0,0,0).getTime();
-            if(t)return t>=start&&t<end;
+            const p=_month.split('-').map(Number);   /* [yyyy,mm] */
+            if(t){ const start=new Date(p[0],p[1]-1,1,0,0,0,0).getTime(), end=new Date(p[0],p[1],1,0,0,0,0).getTime(); return t>=start&&t<end; }
+            const pd=_parseDt(inv.dt); if(pd)return pd.mo===p[1]&&pd.y===p[0];
             const mm=String(p[1]).padStart(2,'0'),yy=String(p[0]),s=String(inv.dt||'');
-            return s.includes('/'+mm+'/'+yy)||s.includes('-'+mm+'-'+yy)||s.includes('/'+mm+'/')||s.includes(mm+'/'+yy);
+            return s.includes('/'+mm+'/'+yy)||s.includes('-'+mm+'-'+yy);
         }
         return true;
     };
