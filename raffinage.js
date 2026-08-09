@@ -1,4 +1,4 @@
-window.RAF_JS_VER='v314';
+window.RAF_JS_VER='v319';
 /* ═══════════ RAFFINAGE ═══════════ */
 let rafRows=4;
 const _rafSentIds=new Set();
@@ -252,14 +252,23 @@ window.saveSimpleRaf=()=>{
         const dEq=totalSentEq24-(o.eq24||0);
         const newFee=totalSentW*feeRate;
         const dFee=newFee-(o.fee||0);
-        /* فروقات السبائك سطراً بسطر: نقصان/حذف = ترجع سبيكته {وزنه،عياره} حرفياً؛ زيادة/إضافة = تُستهلك من 730 */
+        /* فروقات السبائك بالمحتوى (لا بالترتيب — يتحمّل حذف صف أوسط):
+           السبائك التي كانت في الأصل وليست في الجديد = تعود {وزنها،عيارها}؛
+           والتي في الجديد وليست في الأصل = تُستهلك من 730.
+           نطابق بالوزن+العيار مع إزالة المتطابقات أولاً. */
         const rets=[],consW=[];
-        const n=Math.max(rows.length,oRows.length);
-        for(let i=0;i<n;i++){
-            const nw=rows[i]?rows[i].w:0, nk=rows[i]?rows[i].k:0;
-            const ow=oRows[i]?oRows[i].w:0, ok=oRows[i]?oRows[i].k:730;
-            if(ow>nw+0.0001)rets.push({w:parseFloat((ow-nw).toFixed(4)),k:ok});
-            else if(nw>ow+0.0001)consW.push(parseFloat((nw-ow).toFixed(4)));
+        {
+            const _o=oRows.map(r=>({w:+r.w||0,k:+r.k||730}));
+            const _n=rows.map(r=>({w:+r.w||0,k:+r.k||730}));
+            /* أزِل المتطابق تماماً (لم يتغيّر) من الجانبين */
+            for(let i=_o.length-1;i>=0;i--){
+                const j=_n.findIndex(x=>Math.abs(x.w-_o[i].w)<0.001 && Math.abs(x.k-_o[i].k)<0.001);
+                if(j>=0){ _n.splice(j,1); _o.splice(i,1); }
+            }
+            /* المتبقّي في الأصل = سبائك حُذفت → تعود بوزنها وعيارها */
+            _o.forEach(x=>rets.push({w:x.w,k:x.k}));
+            /* المتبقّي في الجديد = سبائك أُضيفت → تُستهلك من 730 (بالوزن) */
+            _n.forEach(x=>consW.push(x.w));
         }
         const addW=consW.reduce((s,x)=>s+x,0);
         if(addW>0.001){
@@ -303,16 +312,32 @@ window.saveSimpleRaf=()=>{
        فلا تُمسّ أي سبيكة لم تخترها. وإن لم تكفِ المختارة الوزنَ المرسل يُؤخذ الباقي من غيرها احتياطاً. */
     const barsRemove730=[], barUpdates730=[];
     {
+        const _used=new Set();
         let rem=totalSentW;
-        const _consume=list=>{
-            for(let i=0;i<list.length && rem>0.001;i++){
-                const bar=list[i];
-                if(bar.w<=rem+0.001){ barsRemove730.push(bar.id); rem-=bar.w; }
+        /* ١) المختارة بالزر — بمعرّفاتها (تخرج بعينها) */
+        for(const bar of g730.filter(b=>_rafSentIds.has(b.id))){
+            if(rem<=0.001)break;
+            if(bar.w<=rem+0.001){ barsRemove730.push(bar.id); _used.add(bar.id); rem-=bar.w; }
+            else { barUpdates730.push({id:bar.id,pool:'730',prevW:bar.w,newW:parseFloat((bar.w-rem).toFixed(4))}); rem=0; }
+        }
+        /* ٢) الإدخال اليدوي: طابِق كل صف بسبيكة بعينها (وزن + عيار) فتخرج بعينها
+           كما لو ضُغط زر الرافيناج. يُطبَّق للجميع (يحسّن الدقة بلا ضرر). */
+        if(rem>0.001){
+            for(const row of rows){
+                if(rem<=0.001)break;
+                const idx=g730.findIndex(b=>!_used.has(b.id) && !_rafSentIds.has(b.id)
+                    && Math.abs((b.w||0)-row.w)<0.001 && Math.abs((b.k||730)-row.k)<0.001);
+                if(idx>=0){ const bar=g730[idx]; barsRemove730.push(bar.id); _used.add(bar.id); rem-=bar.w; }
+            }
+        }
+        /* ٣) احتياط بالوزن (ملاذ أخير) لأي نقص متبقٍّ */
+        if(rem>0.001){
+            for(const bar of g730.filter(b=>!_used.has(b.id))){
+                if(rem<=0.001)break;
+                if(bar.w<=rem+0.001){ barsRemove730.push(bar.id); _used.add(bar.id); rem-=bar.w; }
                 else { barUpdates730.push({id:bar.id,pool:'730',prevW:bar.w,newW:parseFloat((bar.w-rem).toFixed(4))}); rem=0; }
             }
-        };
-        _consume(g730.filter(b=>_rafSentIds.has(b.id)));            /* المختارة أولاً */
-        if(rem>0.001) _consume(g730.filter(b=>!_rafSentIds.has(b.id))); /* احتياط عند النقص فقط */
+        }
     }
     const barsAdd24=[];
     const dispBars={};
@@ -737,7 +762,7 @@ window._rafLoadPhotos=function(rid){
 
 /* ═══ تعديل الفاتورة: سبب بأزرار + فروقات موقَّعة (منطق rafinag) ═══ */
 window._rafEditMeta=null;
-const RAF_EDIT_REASONS=['خطأ في الميزان','خطأ في العيار','خطأ في الأجرة'];
+const RAF_EDIT_REASONS=['خطأ في الميزان','خطأ في العيار','خطأ في الأجرة','إرجاع سبيكة'];
 function _askEditReason(cb){
     let m=document.getElementById('rafReasonModal');
     if(!m){
