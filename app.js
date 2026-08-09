@@ -1,4 +1,4 @@
-window.APP_JS_VER='v322';
+window.APP_JS_VER='v323';
 /* ═══════════ STATE ═══════════ */
 let B={دينار:0,'ذهب 730':0,'ذهب 24':0,دولار:0,vg730:0,vg24:0};
 let ops=[],invoices=[],debts=[],loans=[],rafInvoices=[],dollInvoices=[],dubaiInvoices=[];
@@ -1036,8 +1036,8 @@ window.saveGT=()=>{
     let barsAdd=[],barsRemove=[],barUpdates=[];
     let _v24Out=0; window._out24Tmp=0;
     if(gtType==='give'){
-        /* الحارس يشمل الافتراضي: الفيزيائي + vg24 (للـ24) */
-        const avail = isG24 ? ((g24.reduce((s,b)=>s+(b.w||0),0))+(B.vg24||0)) : (B[m]||0);
+        /* المتاح للبيع = السبائك الفيزيائية الفعلية فقط (بلا الرصيد الافتراضي) */
+        const avail = isG24 ? (g24.reduce((s,b)=>s+(b.w||0),0)) : (B[m]||0);
         if(avail<finalAmount-0.001)return toast('⚠️ رصيد غير كافٍ','error');
         if(isG730){
             /* تسليم 730: لا يُعامل المخزون كسائل — يجب أن يطابق الوزن سبيكة/سبائك موجودة كاملة */
@@ -3286,7 +3286,7 @@ window.settle24FromInv=function(){
     const net=debts.filter(x=>x.c===_settleCustomer&&x.type==='ذهب 24').reduce((s,x)=>s+(x.a||0),0);
     if(Math.abs(net)<0.001){toast('لا يوجد دين ذهب 24','info');return;}
     const w=Math.abs(net);
-    const avail24=g24.reduce((s,b)=>s+(b.w||0),0)+((B&&B.vg24)||0);
+    const avail24=g24.reduce((s,b)=>s+(b.w||0),0);   /* الفيزيائي الفعلي فقط */
     const isGiving=net<0;
     _ensure24InvModal();
     document.getElementById('i24cName').textContent=_settleCustomer;
@@ -3339,9 +3339,9 @@ window._confirm24FromInv=function(){
     if(partial>Math.abs(net)+0.011){toast(`⚠️ الكمية أكبر من الدين (${fmt(Math.abs(net),2)} غ)`,'error');return;}
     if(partial>Math.abs(net))partial=Math.abs(net);
     const physSum=g24.reduce((s,b)=>s+(b.w||0),0);
-    const virt=(B&&B.vg24)||0;
+    const virt=0;   /* المتاح = السبائك الفيزيائية الفعلية فقط (بلا رصيد افتراضي) */
     const isGiving=net<0;
-    if(isGiving&&physSum+virt<partial-0.001){toast(`⚠️ رصيد الـ24 غير كافٍ — متاح: ${fmt(physSum+virt,2)} غ (سبائك ${fmt(physSum,2)} + بيع ${fmt(virt,2)})`,'error');return;}
+    if(isGiving&&physSum<partial-0.001){toast(`⚠️ رصيد الـ24 غير كافٍ — متاح: ${fmt(physSum,2)} غ`,'error');return;}
     let barsRemove=[],barUpdates=[],barsAdd=[],v24Out=0,_settleOut24=0;
     const dt=new Date().toLocaleDateString('fr-FR');
     const dispBars={};
