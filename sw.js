@@ -5,12 +5,12 @@ const NS = (() => { try {
   return String(seg).toLowerCase().replace(/[^a-z0-9_-]/g,'');
 } catch(e){ return 'root'; } })();
 const CACHE_PREFIX = 'goldpro@' + NS + '-';
-const CACHE = CACHE_PREFIX + 'v327';
+const CACHE = CACHE_PREFIX + 'v328';
 const ASSETS = [
   './','./index.html',
-  './firebase.js?v=327','./app.js?v=327','./assistant.js?v=327',
-  './inventory.js?v=327','./invoice.js?v=327','./raffinage.js?v=327',
-  './workshops.js?v=327','./auth.js?v=327',
+  './firebase.js?v=328','./app.js?v=328','./assistant.js?v=328',
+  './inventory.js?v=328','./invoice.js?v=328','./raffinage.js?v=328',
+  './workshops.js?v=328','./auth.js?v=328',
   './manifest.json','./icon-192.png','./icon-512.png',
   './icon-512-maskable.png','./icon-180.png',
 ];
@@ -32,7 +32,8 @@ self.addEventListener('fetch', e => {
   if (url.origin !== self.location.origin) return;
   /* لا تعترض ملفات/نطاق الإشعارات — يجب أن تصل طازجة دائماً */
   if (url.pathname.includes('firebase-messaging-sw') ||
-      url.pathname.includes('firebase-cloud-messaging-push-scope')) return;
+      url.pathname.includes('firebase-cloud-messaging-push-scope') ||
+      url.pathname.endsWith('/sw.js') || url.pathname.endsWith('sw.js')) return;
   e.respondWith(
     fetch(e.request).then(res => {
       if (res && res.ok) { const copy = res.clone(); caches.open(CACHE).then(c => c.put(e.request, copy)); }

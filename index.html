@@ -55,7 +55,7 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-messaging-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.2.0/crypto-js.min.js"></script>
-    <link rel="stylesheet" href="style.css?v=327">
+    <link rel="stylesheet" href="style.css?v=328">
     <script>
     /* منع وميض نافذة الدخول: إن كانت الجلسة محفوظة، نخفيها قبل أول رسم */
     (function(){try{
@@ -1248,14 +1248,14 @@
 
 
 <!-- ═══ ملفات JS ═══ -->
-<script src="firebase.js?v=327"></script>
-<script src="app.js?v=327"></script>
-<script src="assistant.js?v=327"></script>
-<script src="inventory.js?v=327"></script>
-<script src="invoice.js?v=327"></script>
-<script src="raffinage.js?v=327"></script>
-<script src="workshops.js?v=327"></script>
-<script src="auth.js?v=327"></script>
+<script src="firebase.js?v=328"></script>
+<script src="app.js?v=328"></script>
+<script src="assistant.js?v=328"></script>
+<script src="inventory.js?v=328"></script>
+<script src="invoice.js?v=328"></script>
+<script src="raffinage.js?v=328"></script>
+<script src="workshops.js?v=328"></script>
+<script src="auth.js?v=328"></script>
 
 
 
@@ -1711,7 +1711,7 @@ window.panicExit=panicExit;
 })();
 </script>
 <script>
-(function(){
+window._gpCheckUpdate=function(){
     fetch('./sw.js?_='+Date.now(),{cache:'no-store'}).then(r=>r.text()).then(t=>{
         const m=t.match(/goldpro-v(\d+)/);
         const srv=m?('v'+m[1]):'؟';                                  /* آخر ما على الخادم */
@@ -1742,7 +1742,14 @@ window.panicExit=panicExit;
         const c=document.getElementById('appVerBrand'); if(c)c.textContent='النسخة '+(run!=='؟'?run:srv)+(stale?' ⚠︎':'');
         const b=document.getElementById('loginVer'); if(b)b.textContent='النسخة '+v;
     }).catch(()=>{});
-})();
+};
+/* افحص عند التحميل */
+window._gpCheckUpdate();
+/* افحص عند عودة التطبيق للواجهة (الزبون يتركه بالخلفية ثم يعود، لا يغلقه) */
+document.addEventListener('visibilitychange',function(){
+    if(document.visibilityState==='visible'){ try{window._gpCheckUpdate();}catch(e){} }
+});
+window.addEventListener('focus',function(){ try{window._gpCheckUpdate();}catch(e){} });
 </script>
 
 <script>
