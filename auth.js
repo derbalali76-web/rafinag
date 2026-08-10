@@ -206,6 +206,8 @@ async function doLogin(){
 function _finishLogin(uname,pw,role,ws,custName){
     _sessionRole=role;_sessionWs=ws||null;_sessionCustName=custName||'';
     window._roleLock=role==='admin'?null:role;
+    /* الزبون قارئ خالص: امسح أي صندوق صادر عالق (يمنع شارة «غير محفوظ» الكاذبة) */
+    if(window._roleLock==='customer'){ try{localStorage.removeItem('gp_outbox');}catch(e){} }
     window._sessionRole=role;                       /* لحارس النسخة الاحتياطية */
     window._wsLock=role==='worker'?ws:null;
     _encKey=pw;
@@ -432,6 +434,7 @@ async function _checkAuth(){
         _sessionWs=localStorage.getItem('gp12_ws')||null;
         _sessionCustName=localStorage.getItem('gp12_cname')||'';
         window._roleLock=_sessionRole==='admin'?null:_sessionRole;
+        if(window._roleLock==='customer'){ try{localStorage.removeItem('gp_outbox');}catch(e){} }
         window._sessionRole=_sessionRole;
         window._wsLock=_sessionRole==='worker'?_sessionWs:null;
         _currentUser=savedUser;

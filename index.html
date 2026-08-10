@@ -55,7 +55,7 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-messaging-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.2.0/crypto-js.min.js"></script>
-    <link rel="stylesheet" href="style.css?v=328">
+    <link rel="stylesheet" href="style.css?v=331">
     <script>
     /* منع وميض نافذة الدخول: إن كانت الجلسة محفوظة، نخفيها قبل أول رسم */
     (function(){try{
@@ -1248,14 +1248,14 @@
 
 
 <!-- ═══ ملفات JS ═══ -->
-<script src="firebase.js?v=328"></script>
-<script src="app.js?v=328"></script>
-<script src="assistant.js?v=328"></script>
-<script src="inventory.js?v=328"></script>
-<script src="invoice.js?v=328"></script>
-<script src="raffinage.js?v=328"></script>
-<script src="workshops.js?v=328"></script>
-<script src="auth.js?v=328"></script>
+<script src="firebase.js?v=331"></script>
+<script src="app.js?v=331"></script>
+<script src="assistant.js?v=331"></script>
+<script src="inventory.js?v=331"></script>
+<script src="invoice.js?v=331"></script>
+<script src="raffinage.js?v=331"></script>
+<script src="workshops.js?v=331"></script>
+<script src="auth.js?v=331"></script>
 
 
 
@@ -1316,16 +1316,46 @@ window.addEventListener('appinstalled', () => {
   const btn = document.getElementById('pwaInstallBtn');
   if(btn) btn.style.display = 'none';
   _pwaPrompt = null;
+  try{localStorage.setItem('gp_pwa_installed','1');}catch(e){}
 });
 window._installPWA = async () => {
-  if(!_pwaPrompt) return;
-  _pwaPrompt.prompt();
-  const { outcome } = await _pwaPrompt.userChoice;
-  if(outcome === 'accepted') {
-    document.getElementById('pwaInstallBtn').style.display = 'none';
-    _pwaPrompt = null;
+  /* المسار الطبيعي: نافذة التثبيت الرسمية */
+  if(_pwaPrompt){
+    _pwaPrompt.prompt();
+    const { outcome } = await _pwaPrompt.userChoice;
+    if(outcome === 'accepted') {
+      const b=document.getElementById('pwaInstallBtn'); if(b)b.style.display = 'none';
+      _pwaPrompt = null;
+    }
+    return;
   }
+  /* احتياط: إن لم يُطلق beforeinstallprompt، اعرض تعليمات التثبيت اليدوي حسب المتصفح */
+  const ua=navigator.userAgent||'';
+  const isIOS=/iPhone|iPad|iPod/i.test(ua);
+  const isAndroid=/Android/i.test(ua);
+  let msg;
+  if(isIOS){
+    msg='لتثبيت التطبيق على iPhone/iPad:\n\n1. اضغط زر المشاركة ⬆️ (أسفل الشاشة في Safari)\n2. اختر «إضافة إلى الشاشة الرئيسية»\n3. اضغط «إضافة»';
+  }else if(isAndroid){
+    msg='لتثبيت التطبيق على Android:\n\n1. اضغط قائمة المتصفح ⋮ (أعلى اليمين)\n2. اختر «تثبيت التطبيق» أو «إضافة إلى الشاشة الرئيسية»\n3. أكّد التثبيت';
+  }else{
+    msg='لتثبيت التطبيق:\n\n• Chrome/Edge: اضغط أيقونة التثبيت ⊕ في شريط العنوان، أو قائمة ⋮ ← «تثبيت»\n• أو أضِف الصفحة للشاشة الرئيسية من قائمة المتصفح';
+  }
+  alert(msg);
 };
+/* أظهر الزر دائماً (إن لم يكن مثبّتاً) — كي يجد المستخدم طريقة التثبيت
+   حتى لو لم يُطلق beforeinstallprompt (شائع على iOS وبعض المتصفحات). */
+window.addEventListener('load',function(){
+  setTimeout(function(){
+    try{
+      const installed = window.matchMedia('(display-mode: standalone)').matches
+        || window.navigator.standalone===true
+        || localStorage.getItem('gp_pwa_installed')==='1';
+      const btn=document.getElementById('pwaInstallBtn');
+      if(btn && !installed && btn.style.display==='none'){ btn.style.display='flex'; }
+    }catch(e){}
+  },3000);
+});
 </script>
 
 <!-- زر تثبيت التطبيق -->

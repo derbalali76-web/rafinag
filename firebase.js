@@ -1,4 +1,4 @@
-window.FB_JS_VER='v328';
+window.FB_JS_VER='v331';
 /* ═══════════ FIREBASE ═══════════ */
 const _fbConfig={
     apiKey:"AIzaSyDevHwoNCKXGm-G8GJc_Z5eZwcSPuQS9wI",
@@ -96,6 +96,7 @@ function _updSyncIndicator(){
     }
 }
 function _pushUnsyncedToFb(){
+    if(window._roleLock==='customer'){ try{_unsyncedIds.clear();}catch(e){} return; }
     if(!_baseRef||!_unsyncedIds.size)return;
     const pending=[..._unsyncedIds];
     pending.forEach(eid=>{
@@ -1089,6 +1090,7 @@ function _outboxWrite(arr){
     try{ localStorage.setItem(_OUTBOX,JSON.stringify(arr||[])); }catch(e){}
 }
 function _outboxAdd(evt){
+    if(window._roleLock==='customer')return;   /* الزبون قارئ فقط — لا صندوق صادر */
     try{
         const a=_outboxRead();
         if(a.some(e=>e&&e.id===evt.id))return;
@@ -1102,6 +1104,7 @@ function _outboxDrop(id){
 }
 /* يُستدعى عند عودة الاتصال ومع كل محاولة رفع */
 function _outboxFlush(){
+    if(window._roleLock==='customer'){ try{localStorage.removeItem(_OUTBOX);_unsyncedIds.clear();}catch(e){} return; }
     if(!_baseRef)return;
     const a=_outboxRead();
     if(!a.length)return;
@@ -1290,9 +1293,10 @@ function _fbInitialLoad(){
         if(_lastLocalTs>0 && (Date.now()-_lastFull)<_fullEveryMs)_fullReload=false;
     }catch(e){}
     let _incremental=(_lastLocalTs>0 && !_fullReload);
-    /* أمان إضافي للزبون: إن كانت بياناته المحلية قليلة جداً (أقل من متوقّع)،
-       افرض تحميلاً كاملاً كي يرى حسابه كاملاً — التزايدي قد يفوت أحداثاً قديمة. */
-    if(_isCustomer && _allEvents.length<3)_incremental=false;
+    /* الزبون يحمّل كل بياناته دائماً (لا تزايدي): بياناته قليلة جداً (~4 أحداث)
+       فالتكلفة ضئيلة، والتزايدي كان يفوّت أحداثاً فيظهر سجل ناقص (معاملة واحدة).
+       التوفير الأهم في الأدمين (آلاف الأحداث)، لا الزبون. */
+    if(_isCustomer)_incremental=false;
     /* هامش أمان ساعة: يلتقط أحداث الأجهزة الأخرى التي سُجّلت بـts أقدم قليلاً
        (فروق ساعات الأجهزة، أو تسجيل متزامن أوفلاين). التكرار يُزال بالـid. */
     const _SYNC_MARGIN=3600*1000;
