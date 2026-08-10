@@ -55,7 +55,7 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-messaging-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.2.0/crypto-js.min.js"></script>
-    <link rel="stylesheet" href="style.css?v=323">
+    <link rel="stylesheet" href="style.css?v=327">
     <script>
     /* منع وميض نافذة الدخول: إن كانت الجلسة محفوظة، نخفيها قبل أول رسم */
     (function(){try{
@@ -1248,14 +1248,14 @@
 
 
 <!-- ═══ ملفات JS ═══ -->
-<script src="firebase.js?v=323"></script>
-<script src="app.js?v=323"></script>
-<script src="assistant.js?v=323"></script>
-<script src="inventory.js?v=323"></script>
-<script src="invoice.js?v=323"></script>
-<script src="raffinage.js?v=323"></script>
-<script src="workshops.js?v=323"></script>
-<script src="auth.js?v=323"></script>
+<script src="firebase.js?v=327"></script>
+<script src="app.js?v=327"></script>
+<script src="assistant.js?v=327"></script>
+<script src="inventory.js?v=327"></script>
+<script src="invoice.js?v=327"></script>
+<script src="raffinage.js?v=327"></script>
+<script src="workshops.js?v=327"></script>
+<script src="auth.js?v=327"></script>
 
 
 
@@ -1718,6 +1718,24 @@ window.panicExit=panicExit;
         const run=window.APP_JS_VER||'؟';                            /* الكود العامل فعلاً */
         const parts=[window.APP_JS_VER,window.FB_JS_VER,window.RAF_JS_VER];
         const stale=(run!=='؟'&&srv!=='؟'&&run!==srv)||parts.some(p=>p&&p!==run);
+        /* تحديث ذاتي: إن كان الكود أقدم من الخادم، امسح الكاش وأعد التحميل تلقائياً
+           مرة واحدة (بلا أي تدخّل من المستخدم). حارس ضد التكرار اللانهائي. */
+        if(stale && run!=='؟' && srv!=='؟'){
+            try{
+                const _k='gp_autoref_'+srv;
+                const _last=+(sessionStorage.getItem(_k)||0);
+                if(Date.now()-_last>60000){   /* لم نحدّث لهذا الإصدار في آخر دقيقة */
+                    sessionStorage.setItem(_k,String(Date.now()));
+                    /* امسح كل كاشات التطبيق ثم أعد التحميل من الشبكة */
+                    (async()=>{
+                        try{ if('caches' in window){ const ks=await caches.keys(); await Promise.all(ks.filter(k=>k.indexOf('goldpro')===0).map(k=>caches.delete(k))); } }catch(e){}
+                        try{ if(navigator.serviceWorker){ const rs=await navigator.serviceWorker.getRegistrations(); await Promise.all(rs.map(r=>r.update())); } }catch(e){}
+                        location.reload(true);
+                    })();
+                    return;   /* لا تكمل — سنعيد التحميل */
+                }
+            }catch(e){}
+        }
         const v=stale?(run+' ⚠︎ (الخادم '+srv+')'):run!=='؟'?run:srv;
         const a=document.getElementById('appVerTxt');
         if(a){a.textContent=v; if(stale){a.style.color='#ef4444'; a.title='الكود العامل أقدم من الخادم — أغلق التطبيق وافتحه مرتين';}}

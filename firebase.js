@@ -1,4 +1,4 @@
-window.FB_JS_VER='v323';
+window.FB_JS_VER='v327';
 /* ═══════════ FIREBASE ═══════════ */
 const _fbConfig={
     apiKey:"AIzaSyDevHwoNCKXGm-G8GJc_Z5eZwcSPuQS9wI",
@@ -65,7 +65,12 @@ window._syncDiag=function(){
 };
 function _updSyncIndicator(){
     let txt,clr;
-    if(!_fbOnline){txt='🔴 أوفلاين';clr='var(--rd)';}
+    /* الزبون قارئ فقط: لا «غير محفوظ» أبداً — نظّف أي عوالق ونعرض الحالة الحقيقية */
+    if(window._roleLock==='customer'){
+        try{ _unsyncedIds.clear(); if(typeof _outboxClear==='function')_outboxClear(); else{ try{localStorage.removeItem('gp_outbox');}catch(e){} } }catch(e){}
+        txt=_fbOnline?'🟢 متصل':'🔴 أوفلاين'; clr=_fbOnline?'var(--gr)':'var(--rd)';
+    }
+    else if(!_fbOnline){txt='🔴 أوفلاين';clr='var(--rd)';}
     else if(_unsyncedIds.size>0||(typeof _outboxCount==='function'&&_outboxCount()>0)){
         const _n=Math.max(_unsyncedIds.size,(typeof _outboxCount==='function'?_outboxCount():0));
         txt=`🟡 غير محفوظ (${_n})`;clr='#e6a817';
@@ -1116,6 +1121,9 @@ function emitEvent(type,data,display){
     const evt={id:uid(),ts:Date.now(),type,data:data||{},display:display||null};
     _allEvents.push(evt);
     _lsSaveEvents();
+    /* الزبون قارئ فقط: لا يرفع أحداثاً ولا يُعلَّم «غير محفوظ» (ممنوع من الكتابة
+       بالقواعد، فالرفع يفشل ويتراكم فتظهر شارة خاطئة دائمة). */
+    if(window._roleLock==='customer'){ _reproject(); return; }
     /* الصندوق المشترك أولاً: يضمن الرفع حتى لو خرج المستخدم قبل عودة النت */
     _outboxAdd(evt);
     if(_baseRef&&_fbLoaded)_fbSetEvent(evt);
@@ -1281,7 +1289,10 @@ function _fbInitialLoad(){
         const _lastFull=+(localStorage.getItem('gp_fullsync_'+(_currentUser||''))||0);
         if(_lastLocalTs>0 && (Date.now()-_lastFull)<_fullEveryMs)_fullReload=false;
     }catch(e){}
-    const _incremental=(_lastLocalTs>0 && !_fullReload);
+    let _incremental=(_lastLocalTs>0 && !_fullReload);
+    /* أمان إضافي للزبون: إن كانت بياناته المحلية قليلة جداً (أقل من متوقّع)،
+       افرض تحميلاً كاملاً كي يرى حسابه كاملاً — التزايدي قد يفوت أحداثاً قديمة. */
+    if(_isCustomer && _allEvents.length<3)_incremental=false;
     /* هامش أمان ساعة: يلتقط أحداث الأجهزة الأخرى التي سُجّلت بـts أقدم قليلاً
        (فروق ساعات الأجهزة، أو تسجيل متزامن أوفلاين). التكرار يُزال بالـid. */
     const _SYNC_MARGIN=3600*1000;
@@ -1326,6 +1337,24 @@ function _fbInitialLoad(){
         _startFbSync();
         _startSettingsSync();
     }).catch(e=>{
+        /* فشل الاستعلام — إن كان تزايدياً (orderByChild ts بلا فهرس منشور)،
+           تراجَع للتحميل الكامل كي لا يبقى الزبون بلا بيانات. */
+        if(_incremental){
+            try{
+                _baseRef.child('events').once('value',snap2=>{
+                    const ev2=snap2.val();
+                    if(ev2){
+                        const rem=Object.values(ev2).filter(Boolean);
+                        const ids=new Set(_allEvents.map(x=>x.id));
+                        rem.forEach(x=>{ if(x&&x.id&&!ids.has(x.id)){_allEvents.push(x);ids.add(x.id);} });
+                        if(_isCustomer){ const rIds=new Set(rem.map(x=>x&&x.id).filter(Boolean)); _allEvents=_allEvents.filter(x=>!x.id||rIds.has(x.id)); }
+                        _lsSaveEvents(); _reproject();
+                    }
+                    _fbLoaded=true; _startFbSync(); _startSettingsSync();
+                },e2=>{ _fbErr(e2); _fbLoaded=true; _startFbSync(); _startSettingsSync(); });
+                return;
+            }catch(e3){}
+        }
         _fbErr(e);
         _fbLoaded=true;
         _startFbSync();
