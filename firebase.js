@@ -1,4 +1,4 @@
-window.FB_JS_VER='v331';
+window.FB_JS_VER='v333';
 /* ═══════════ FIREBASE ═══════════ */
 const _fbConfig={
     apiKey:"AIzaSyDevHwoNCKXGm-G8GJc_Z5eZwcSPuQS9wI",
@@ -1123,17 +1123,17 @@ window._outboxCount=()=>_outboxRead().length;
 function emitEvent(type,data,display){
     const evt={id:uid(),ts:Date.now(),type,data:data||{},display:display||null};
     _allEvents.push(evt);
-    _lsSaveEvents();
-    /* الزبون قارئ فقط: لا يرفع أحداثاً ولا يُعلَّم «غير محفوظ» (ممنوع من الكتابة
-       بالقواعد، فالرفع يفشل ويتراكم فتظهر شارة خاطئة دائمة). */
-    if(window._roleLock==='customer'){ _reproject(); return; }
-    /* الصندوق المشترك أولاً: يضمن الرفع حتى لو خرج المستخدم قبل عودة النت */
+    /* الزبون قارئ فقط: لا يرفع أحداثاً ولا يُعلَّم «غير محفوظ» */
+    if(window._roleLock==='customer'){ _lsSaveEvents(); _reproject(); return; }
+    /* الرفع السحابي فوري (خفيف). الثقيل (تشفير الحفظ المحلي + إعادة البناء الكامل)
+       يُؤجَّل قليلاً كي تتنفّس الواجهة ولا تتجمّد عند الحفظ. */
     _outboxAdd(evt);
     if(_baseRef&&_fbLoaded)_fbSetEvent(evt);
     else{
         try{ _unsyncedIds.add(evt.id); _updSyncIndicator(); }catch(e){}
     }
-    _reproject();
+    /* إعادة البناء مؤجّلة (debounced) — إن حُفظت عدة أحداث متتالية، بناء واحد يكفي */
+    _debouncedReproject();
 }
 
 /* ═══════════ إعادة رفع تلقائية: ما فشل رفعه يُعاد كل 25 ثانية وعند عودة الاتصال ═══════════ */
@@ -1377,7 +1377,12 @@ function _flushLsSave(){ clearTimeout(_lsSaveTimer); _lsSaveTimer=null; _lsSaveE
 function _scheduleLsSave(){ clearTimeout(_lsSaveTimer); _lsSaveTimer=setTimeout(_flushLsSave,2500); }
 function _debouncedReproject(){
     clearTimeout(_reprojectTimer);
-    _reprojectTimer=setTimeout(()=>{ _reproject(); _scheduleLsSave(); },100);
+    /* تأخير قصير جداً (إطار واحد ~16ms): يتنفّس المتصفح فلا يتجمّد، ويبقى فورياً للحسّ.
+       إن حُفظت عدة أحداث خلال الإطار، بناء واحد يخدمها كلها. */
+    _reprojectTimer=setTimeout(()=>{
+        if(typeof requestAnimationFrame==='function')requestAnimationFrame(()=>{ _reproject(); _scheduleLsSave(); });
+        else{ _reproject(); _scheduleLsSave(); }
+    },16);
 }
 /* ضمان عدم فقدان الكاش: احفظ فوراً عند تصغير/إغلاق التطبيق */
 try{
@@ -1407,11 +1412,15 @@ function _startFbSync(){
     let _addedRef=_baseRef.child('events');
     let _maxTs=0; _allEvents.forEach(e=>{ if((e.ts||0)>_maxTs)_maxTs=e.ts||0; });
     if(_maxTs>0)_addedRef=_baseRef.child('events').orderByChild('ts').startAt(_maxTs-3600*1000);
+    /* مجموعة معرّفات للفحص السريع O(1) بدل البحث الخطّي O(n) في كل حدث وارد
+       (كان يسبّب تجميداً عند الدخول الأول مع آلاف الأحداث). */
+    const _seenIds=new Set(_allEvents.map(e=>e&&e.id).filter(Boolean));
     _addedRef.on('child_added',snap=>{
         if(_importing)return;
         const evt=snap.val();
         if(!evt||!evt.id)return;
-        if(_allEvents.find(e=>e.id===evt.id))return;
+        if(_seenIds.has(evt.id))return;
+        _seenIds.add(evt.id);
         _allEvents.push(evt);
         _debouncedReproject();
     },_fbErr);

@@ -55,7 +55,7 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-messaging-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.2.0/crypto-js.min.js"></script>
-    <link rel="stylesheet" href="style.css?v=331">
+    <link rel="stylesheet" href="style.css?v=333">
     <script>
     /* منع وميض نافذة الدخول: إن كانت الجلسة محفوظة، نخفيها قبل أول رسم */
     (function(){try{
@@ -1248,14 +1248,14 @@
 
 
 <!-- ═══ ملفات JS ═══ -->
-<script src="firebase.js?v=331"></script>
-<script src="app.js?v=331"></script>
-<script src="assistant.js?v=331"></script>
-<script src="inventory.js?v=331"></script>
-<script src="invoice.js?v=331"></script>
-<script src="raffinage.js?v=331"></script>
-<script src="workshops.js?v=331"></script>
-<script src="auth.js?v=331"></script>
+<script src="firebase.js?v=333"></script>
+<script src="app.js?v=333"></script>
+<script src="assistant.js?v=333"></script>
+<script src="inventory.js?v=333"></script>
+<script src="invoice.js?v=333"></script>
+<script src="raffinage.js?v=333"></script>
+<script src="workshops.js?v=333"></script>
+<script src="auth.js?v=333"></script>
 
 
 
@@ -1306,20 +1306,44 @@ if('serviceWorker' in navigator){
 
 /* ─── زر تثبيت PWA ─── */
 let _pwaPrompt = null;
+/* يفحص إن كان التطبيق مثبّتاً فعلاً (عدة طرق موثوقة) */
+async function _isPwaInstalled(){
+  try{ if(window.matchMedia('(display-mode: standalone)').matches) return true; }catch(e){}
+  try{ if(window.navigator.standalone===true) return true; }catch(e){}   /* iOS */
+  /* الأدقّ: getInstalledRelatedApps — يكشف التثبيت حتى لو فُتح من المتصفح */
+  try{
+    if(navigator.getInstalledRelatedApps){
+      const apps=await navigator.getInstalledRelatedApps();
+      if(apps && apps.length>0) return true;
+    }
+  }catch(e){}
+  return false;
+}
+/* يُظهر أو يُخفي الزر حسب حالة التثبيت الفعلية */
+async function _refreshInstallBtn(){
+  const btn=document.getElementById('pwaInstallBtn');
+  if(!btn) return;
+  const installed = await _isPwaInstalled();
+  if(installed){ btn.style.display='none'; return; }        /* مثبّت → اختفاء تام */
+  /* غير مثبّت: أظهر الزر فقط إن كان التثبيت ممكناً (prompt جاهز) أو على iOS
+     (لا prompt لكن التثبيت اليدوي متاح عبر Safari). */
+  const ua=navigator.userAgent||'';
+  const isIOS=/iPhone|iPad|iPod/i.test(ua);
+  if(_pwaPrompt || isIOS){ btn.style.display='flex'; }
+  else{ btn.style.display='none'; }                          /* لا تثبيت متاح → لا زر */
+}
 window.addEventListener('beforeinstallprompt', e => {
   e.preventDefault();
   _pwaPrompt = e;
-  const btn = document.getElementById('pwaInstallBtn');
-  if(btn) btn.style.display = 'flex';
+  _refreshInstallBtn();
 });
 window.addEventListener('appinstalled', () => {
   const btn = document.getElementById('pwaInstallBtn');
   if(btn) btn.style.display = 'none';
   _pwaPrompt = null;
-  try{localStorage.setItem('gp_pwa_installed','1');}catch(e){}
 });
 window._installPWA = async () => {
-  /* المسار الطبيعي: نافذة التثبيت الرسمية */
+  /* المسار الطبيعي: نافذة التثبيت الرسمية (Android/Chrome/Edge) */
   if(_pwaPrompt){
     _pwaPrompt.prompt();
     const { outcome } = await _pwaPrompt.userChoice;
@@ -1329,33 +1353,15 @@ window._installPWA = async () => {
     }
     return;
   }
-  /* احتياط: إن لم يُطلق beforeinstallprompt، اعرض تعليمات التثبيت اليدوي حسب المتصفح */
+  /* iOS فقط: لا يوجد تثبيت تلقائي — تعليمات Safari (الزر لا يظهر لغير iOS بلا prompt) */
   const ua=navigator.userAgent||'';
-  const isIOS=/iPhone|iPad|iPod/i.test(ua);
-  const isAndroid=/Android/i.test(ua);
-  let msg;
-  if(isIOS){
-    msg='لتثبيت التطبيق على iPhone/iPad:\n\n1. اضغط زر المشاركة ⬆️ (أسفل الشاشة في Safari)\n2. اختر «إضافة إلى الشاشة الرئيسية»\n3. اضغط «إضافة»';
-  }else if(isAndroid){
-    msg='لتثبيت التطبيق على Android:\n\n1. اضغط قائمة المتصفح ⋮ (أعلى اليمين)\n2. اختر «تثبيت التطبيق» أو «إضافة إلى الشاشة الرئيسية»\n3. أكّد التثبيت';
-  }else{
-    msg='لتثبيت التطبيق:\n\n• Chrome/Edge: اضغط أيقونة التثبيت ⊕ في شريط العنوان، أو قائمة ⋮ ← «تثبيت»\n• أو أضِف الصفحة للشاشة الرئيسية من قائمة المتصفح';
+  if(/iPhone|iPad|iPod/i.test(ua)){
+    alert('لتثبيت التطبيق على iPhone/iPad:\n\n1. اضغط زر المشاركة ⬆️ (أسفل الشاشة في Safari)\n2. اختر «إضافة إلى الشاشة الرئيسية»\n3. اضغط «إضافة»');
   }
-  alert(msg);
 };
-/* أظهر الزر دائماً (إن لم يكن مثبّتاً) — كي يجد المستخدم طريقة التثبيت
-   حتى لو لم يُطلق beforeinstallprompt (شائع على iOS وبعض المتصفحات). */
-window.addEventListener('load',function(){
-  setTimeout(function(){
-    try{
-      const installed = window.matchMedia('(display-mode: standalone)').matches
-        || window.navigator.standalone===true
-        || localStorage.getItem('gp_pwa_installed')==='1';
-      const btn=document.getElementById('pwaInstallBtn');
-      if(btn && !installed && btn.style.display==='none'){ btn.style.display='flex'; }
-    }catch(e){}
-  },3000);
-});
+/* افحص حالة التثبيت عند التحميل وعند العودة للتطبيق */
+window.addEventListener('load',function(){ setTimeout(_refreshInstallBtn,2000); });
+document.addEventListener('visibilitychange',function(){ if(document.visibilityState==='visible')_refreshInstallBtn(); });
 </script>
 
 <!-- زر تثبيت التطبيق -->
