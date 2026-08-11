@@ -1,4 +1,4 @@
-window.FB_JS_VER='v333';
+window.FB_JS_VER='v334';
 /* ═══════════ FIREBASE ═══════════ */
 const _fbConfig={
     apiKey:"AIzaSyDevHwoNCKXGm-G8GJc_Z5eZwcSPuQS9wI",
@@ -266,6 +266,9 @@ function _withOwner(obj){
 
 /* ═══════════ EVENT STORE — المصدر الوحيد للحقيقة ═══════════ */
 let _allEvents=[];
+/* مجموعة معرّفات كل الأحداث المعروفة — للفحص السريع O(1) ومنع التكرار
+   بين emitEvent (محلي) و child_added (وارد من Firebase). عامة كي يتشاركها الاثنان. */
+let _seenIds=new Set();
 let _fbListening=false;
 
 function _getEvLsKey(){return 'gp_ev_'+(_currentUser||'');}
@@ -990,7 +993,11 @@ function _reproject(){
     const _vE=_allEvents.filter(e=>e.type==='VOID');
     const _vT=new Set(_vE.map(e=>e.data?.voids).filter(Boolean));
     const voidedIds=new Set(_vE.filter(e=>!_vT.has(e.id)).map(e=>e.data?.voids).filter(Boolean));
-    const live=_allEvents
+    /* إزالة التكرار بالـid (أمان نهائي): إن تسرّب حدث مكرّر من أي مسار
+       (رفع + عودة عبر child_added)، لا يُحسب مرتين. */
+    const _dedup=[], _seen=new Set();
+    for(const e of _allEvents){ if(e&&e.id){ if(_seen.has(e.id))continue; _seen.add(e.id); } _dedup.push(e); }
+    const live=_dedup
         .filter(e=>e.type!=='VOID'&&!voidedIds.has(e.id))
         .sort((a,b)=>((a.ts||0)-(b.ts||0))||String(a.id).localeCompare(String(b.id)));
 
@@ -1123,6 +1130,7 @@ window._outboxCount=()=>_outboxRead().length;
 function emitEvent(type,data,display){
     const evt={id:uid(),ts:Date.now(),type,data:data||{},display:display||null};
     _allEvents.push(evt);
+    try{ _seenIds.add(evt.id); }catch(e){}   /* سجّله كمعروف: لا يعود مكرّراً عبر child_added */
     /* الزبون قارئ فقط: لا يرفع أحداثاً ولا يُعلَّم «غير محفوظ» */
     if(window._roleLock==='customer'){ _lsSaveEvents(); _reproject(); return; }
     /* الرفع السحابي فوري (خفيف). الثقيل (تشفير الحفظ المحلي + إعادة البناء الكامل)
@@ -1414,7 +1422,8 @@ function _startFbSync(){
     if(_maxTs>0)_addedRef=_baseRef.child('events').orderByChild('ts').startAt(_maxTs-3600*1000);
     /* مجموعة معرّفات للفحص السريع O(1) بدل البحث الخطّي O(n) في كل حدث وارد
        (كان يسبّب تجميداً عند الدخول الأول مع آلاف الأحداث). */
-    const _seenIds=new Set(_allEvents.map(e=>e&&e.id).filter(Boolean));
+    /* املأ مجموعة المعرّفات العامة بما لدينا (للفحص السريع O(1) ومنع التكرار). */
+    _seenIds=new Set(_allEvents.map(e=>e&&e.id).filter(Boolean));
     _addedRef.on('child_added',snap=>{
         if(_importing)return;
         const evt=snap.val();
