@@ -1,4 +1,4 @@
-window.APP_JS_VER='v334';
+window.APP_JS_VER='v335';
 /* ═══════════ STATE ═══════════ */
 let B={دينار:0,'ذهب 730':0,'ذهب 24':0,دولار:0,vg730:0,vg24:0};
 let ops=[],invoices=[],debts=[],loans=[],rafInvoices=[],dollInvoices=[],dubaiInvoices=[];
@@ -2522,7 +2522,7 @@ function renderDebts(){
             return Math.abs(b[1].di)-Math.abs(a[1].di);          /* عند التساوي: حسب الدين */
         })
         .map(([n,v])=>`<tr>
-            <td><strong>${n}</strong></td>
+            <td><strong class="debt-cust-link" onclick="showCustomerLog('${n.replace(/'/g,"\\'")}')" style="cursor:pointer;color:var(--g600);text-decoration:underline;text-underline-offset:3px" title="عرض سجل ${n}">${n}</strong></td>
             <td>${fD(v.di,0,'Da')}</td><td>${fD(v.do,2,'$')}</td>
             <td>${fD(v.g7,2,'غ (730)')}</td><td>${fD(v.g2,2,'غ (24)')}</td>
             <td><button class="btn-settle" onclick="openSettle('${n.replace(/'/g,"\\'")}')">✅ تصفية</button></td>
@@ -2629,7 +2629,7 @@ function renderDebts(){
             return Math.abs(b[1].di)-Math.abs(a[1].di);          /* عند التساوي: حسب الدين */
         })
         .map(([n,v])=>`<tr>
-            <td><strong>${n}</strong></td>
+            <td><strong class="debt-cust-link" onclick="showCustomerLog('${n.replace(/'/g,"\\'")}')" style="cursor:pointer;color:var(--g600);text-decoration:underline;text-underline-offset:3px" title="عرض سجل ${n}">${n}</strong></td>
             <td>${fD(v.di,0,'Da')}</td><td>${fD(v.do,2,'$')}</td>
             <td>${fD(v.g7,2,'غ (730)')}</td><td>${fD(v.g2,2,'غ (24)')}</td>
             <td><button class="btn-settle" onclick="openSettle('${n.replace(/'/g,"\\'")}')">✅ تصفية</button></td>
