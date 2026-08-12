@@ -55,7 +55,7 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-messaging-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.2.0/crypto-js.min.js"></script>
-    <link rel="stylesheet" href="style.css?v=337">
+    <link rel="stylesheet" href="style.css?v=338">
     <script>
     /* منع وميض نافذة الدخول: إن كانت الجلسة محفوظة، نخفيها قبل أول رسم */
     (function(){try{
@@ -1248,14 +1248,14 @@
 
 
 <!-- ═══ ملفات JS ═══ -->
-<script src="firebase.js?v=337"></script>
-<script src="app.js?v=337"></script>
-<script src="assistant.js?v=337"></script>
-<script src="inventory.js?v=337"></script>
-<script src="invoice.js?v=337"></script>
-<script src="raffinage.js?v=337"></script>
-<script src="workshops.js?v=337"></script>
-<script src="auth.js?v=337"></script>
+<script src="firebase.js?v=338"></script>
+<script src="app.js?v=338"></script>
+<script src="assistant.js?v=338"></script>
+<script src="inventory.js?v=338"></script>
+<script src="invoice.js?v=338"></script>
+<script src="raffinage.js?v=338"></script>
+<script src="workshops.js?v=338"></script>
+<script src="auth.js?v=338"></script>
 
 
 
@@ -1306,42 +1306,39 @@ if('serviceWorker' in navigator){
 
 /* ─── زر تثبيت PWA ─── */
 let _pwaPrompt = null;
-/* يفحص إن كان التطبيق مثبّتاً — فقط الطرق المتزامنة الموثوقة (لا async قد يفشل) */
+let _pwaPromptFired = false;   /* هل أُطلق beforeinstallprompt؟ (أدقّ مؤشّر: لا يُطلق للمثبّت) */
+/* كشف «مثبّت» بالطرق المتزامنة المباشرة */
 function _isPwaInstalledSync(){
   try{ if(window.matchMedia('(display-mode: standalone)').matches) return true; }catch(e){}
   try{ if(window.navigator.standalone===true) return true; }catch(e){}   /* iOS */
   return false;
 }
-/* يُظهر أو يُخفي الزر حسب حالة التثبيت */
+/* المنطق: الزر يظهر فقط إن كان التثبيت ممكناً فعلاً.
+   - beforeinstallprompt أُطلق → غير مثبّت وقابل للتثبيت → أظهر (يثبّت مباشرة).
+   - لم يُطلق → إمّا مثبّت أو غير قابل → أخفِ (لا نُظهر تعليمات مزعجة).
+   - iOS استثناء: لا يُطلق beforeinstallprompt أبداً، لكن التثبيت اليدوي متاح،
+     فنُظهر الزر فقط إن لم يكن مثبّتاً (standalone=false). */
 function _refreshInstallBtn(){
   const btn=document.getElementById('pwaInstallBtn');
   if(!btn) return;
-  /* مثبّت (يُفتح من الأيقونة) → اختفاء تام */
-  if(_isPwaInstalledSync()){ btn.style.display='none'; return; }
-  /* غير مثبّت: أظهر الزر على كل الهواتف دائماً (Android + iOS).
-     التثبيت اليدوي متاح دائماً على الجوال، وbeforeinstallprompt قد لا يُطلق. */
+  if(_isPwaInstalledSync()){ btn.style.display='none'; return; }   /* مثبّت (من الأيقونة) → إخفاء */
   const ua=navigator.userAgent||'';
-  const isMobile=/Android|iPhone|iPad|iPod|Mobile/i.test(ua);
-  if(_pwaPrompt || isMobile){ btn.style.display='flex'; return; }
-  btn.style.display='none';   /* سطح المكتب بلا prompt → لا زر */
-  /* فحص إضافي غير متزامن (getInstalledRelatedApps): إن ثبت أنه مثبّت، أخفِه */
-  try{
-    if(navigator.getInstalledRelatedApps){
-      navigator.getInstalledRelatedApps().then(apps=>{
-        if(apps && apps.length>0){ const b=document.getElementById('pwaInstallBtn'); if(b)b.style.display='none'; }
-      }).catch(()=>{});
-    }
-  }catch(e){}
+  const isIOS=/iPhone|iPad|iPod/i.test(ua);
+  if(_pwaPromptFired){ btn.style.display='flex'; return; }   /* قابل للتثبيت المباشر */
+  if(isIOS){ btn.style.display='flex'; return; }             /* iOS: تثبيت يدوي فقط */
+  btn.style.display='none';   /* Android/سطح مكتب بلا prompt = مثبّت غالباً → إخفاء */
 }
 window.addEventListener('beforeinstallprompt', e => {
   e.preventDefault();
   _pwaPrompt = e;
+  _pwaPromptFired = true;
   _refreshInstallBtn();
 });
 window.addEventListener('appinstalled', () => {
   const btn = document.getElementById('pwaInstallBtn');
   if(btn) btn.style.display = 'none';
   _pwaPrompt = null;
+  _pwaPromptFired = false;
 });
 window._installPWA = async () => {
   /* المسار الطبيعي: نافذة التثبيت الرسمية (Android/Chrome/Edge) */
