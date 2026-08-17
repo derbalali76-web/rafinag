@@ -1,4 +1,4 @@
-window.FB_JS_VER='v342';
+window.FB_JS_VER='v343';
 /* ═══════════ FIREBASE ═══════════ */
 const _fbConfig={
     apiKey:"AIzaSyDevHwoNCKXGm-G8GJc_Z5eZwcSPuQS9wI",
@@ -1234,10 +1234,11 @@ function load(){
 /* ═══════════ SAVE — يحفظ الإعدادات فقط ═══════════ */
 function save(){
     const _dc=(typeof _dubaiCalcVals!=='undefined')?_dubaiCalcVals:null;
-    const _tb=JSON.stringify((typeof _tarbahList!=='undefined'&&_tarbahList)?_tarbahList:[]);
+    /* ترباح لم تعد تُحفظ في settings: مصدرها الوحيد أحداث TARBAH_ADD/DEL.
+       كان حفظها هنا يسبّب تعارضاً — إعدادات قديمة من جهاز آخر تمسح قيوداً جديدة. */
     try{localStorage.setItem('gp_settings_'+(_currentUser||''),JSON.stringify({goldPrice,dollarRate,darkMode}));}catch(e){}
     if(!_baseRef||!_fbLoaded)return;
-    try{_baseRef.child('settings').set(_withOwner({goldPrice,dollarRate,darkMode,dubaiCalc:_dc,tarbah:_tb,_ts:firebase.database.ServerValue.TIMESTAMP})).catch(_fbErr);}catch(e){}
+    try{_baseRef.child('settings').set(_withOwner({goldPrice,dollarRate,darkMode,dubaiCalc:_dc,_ts:firebase.database.ServerValue.TIMESTAMP})).catch(_fbErr);}catch(e){}
 }
 
 let _saveTimer=null;
@@ -1255,7 +1256,7 @@ function _fbInitialLoad(){
             if(typeof cfg.darkMode==='boolean'){darkMode=cfg.darkMode;if(darkMode)applyDark();}
             try{localStorage.setItem('gp_settings_'+(_currentUser||''),JSON.stringify({goldPrice,dollarRate,darkMode}));}catch(e){}
             if(cfg.dubaiCalc&&typeof _applyDubaiCalcSettings==='function')_applyDubaiCalcSettings(cfg.dubaiCalc);
-            if(typeof cfg.tarbah==='string'&&typeof _applyTarbah==='function')_applyTarbah(cfg.tarbah);
+            /* ترباح تأتي من الأحداث لا من الإعدادات (تُجنّب تعارض الأجهزة) */
         }
     });
 
@@ -1456,7 +1457,7 @@ function _startSettingsSync(){
         if(typeof s.darkMode==='boolean'){darkMode=s.darkMode;if(darkMode)applyDark();}
         try{localStorage.setItem('gp_settings_'+(_currentUser||''),JSON.stringify({goldPrice,dollarRate,darkMode}));}catch(e){}
         if(s.dubaiCalc&&typeof _applyDubaiCalcSettings==='function')_applyDubaiCalcSettings(s.dubaiCalc);
-        if(typeof s.tarbah==='string'&&typeof _applyTarbah==='function')_applyTarbah(s.tarbah);
+        /* لا نطبّق ترباح من settings — الأحداث (TARBAH_ADD/DEL) هي المصدر الوحيد */
         if(typeof updAll==='function')updAll();
     },_fbErr);
 }
