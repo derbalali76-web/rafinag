@@ -1,4 +1,4 @@
-window.RAF_JS_VER='v338';
+window.RAF_JS_VER='v340';
 /* ═══════════ RAFFINAGE ═══════════ */
 let rafRows=4;
 const _rafSentIds=new Set();
@@ -7,11 +7,19 @@ const _rafSentIds=new Set();
 let _rafMode='customer';  /* الافتراضي: تصفية زبون (زرا خالص/غير خالص ظاهران) — كتابة «عثمان» تقلبه تلقائياً */
 let _rafSettled=true;     /* فرع الزبون فقط: خالصة (true) أم على الحساب/دين (false) */
 window.setRafMode=function(m){ _rafMode=(m==='customer'?'customer':'refiner'); applyRafModeUI(); calcRaf(); };
-/* اختيار تلقائي: الاسم فيه «عثمان» = مصفٍّ، غيره = تصفية زبون */
+/* اختيار تلقائي: الاسم «عثمان» بذاته = مصفٍّ، أي اسم آخر = تصفية زبون.
+   مطابقة دقيقة بالكلمة الكاملة: «عثمان» أو «عثمان X» تُطابق، أمّا «عثماني»
+   أو «رؤوف عثماني» فلا (كانت includes تلتقطها خطأً فتعكس اتجاه السبائك). */
+window.isOthmanName=function(n){
+    const s=String(n||'').trim().replace(/\s+/g,' ');
+    if(!s)return false;
+    /* قسّم لكلمات وقارن كلمة كاملة (يتحمّل «سي عثمان» أو «عثمان» وحده) */
+    return s.split(' ').some(w=>w==='عثمان');
+};
 window.autoRafMode=function(){
     const n=(document.getElementById('rafCustomer')?.value||'').trim().replace(/\s+/g,' ');
     if(n){
-        const m=n.includes('عثمان')?'refiner':'customer';
+        const m=window.isOthmanName(n)?'refiner':'customer';
         if(m!==_rafMode)setRafMode(m);
     }
     calcRaf();   /* الرصيد السابق يتحدّث مع كل حرف من الاسم */
