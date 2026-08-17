@@ -1,4 +1,4 @@
-window.RAF_JS_VER='v341';
+window.RAF_JS_VER='v342';
 /* ═══════════ RAFFINAGE ═══════════ */
 let rafRows=4;
 const _rafSentIds=new Set();
@@ -380,6 +380,16 @@ window.saveSimpleRaf=()=>{
 };
 /* ═══ موزّع الحفظ: يوجّه حسب الوضع المختار ═══ */
 window.saveRaf=function(){
+    /* حارس حاسم: تحقّق من الاسم مباشرة عند الحفظ، لا من _rafMode وحده.
+       لو لم يُحدَّث الوضع في الواجهة (لصق الاسم، ملء تلقائي، حدث لم يُطلق)،
+       كان الحفظ يذهب للفرع الخطأ فتدخل سبائك عثمان بدل أن تخرج. */
+    try{
+        const _n=(document.getElementById('rafCustomer')?.value||'').trim();
+        if(_n && typeof window.isOthmanName==='function'){
+            const _want=window.isOthmanName(_n)?'refiner':'customer';
+            if(_want!==_rafMode) setRafMode(_want);
+        }
+    }catch(e){}
     return _rafMode==='customer' ? saveCustomerRaf() : saveSimpleRaf();
 };
 

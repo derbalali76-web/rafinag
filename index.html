@@ -55,7 +55,7 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-messaging-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.2.0/crypto-js.min.js"></script>
-    <link rel="stylesheet" href="style.css?v=341">
+    <link rel="stylesheet" href="style.css?v=342">
     <script>
     /* منع وميض نافذة الدخول: إن كانت الجلسة محفوظة، نخفيها قبل أول رسم */
     (function(){try{
@@ -334,10 +334,11 @@
             <div class="inv-receipt-header">
                 <div class="inv-top-row">
                     <div class="inv-no-badge">🔥 رافيناج</div>
-                    <input type="text" id="rafCustomer" oninput="if(window.autoRafMode)autoRafMode()" onblur="if(window.autoRafMode)autoRafMode()"
+                    <input type="text" id="rafCustomer" onblur="if(window.autoRafMode)autoRafMode()"
                         placeholder="👤 الزبون / المصفى..."
                         style="flex:1;padding:.28rem .5rem;border-radius:6px;border:1.5px solid var(--border);background:var(--card);color:var(--t);font-family:Tajawal,sans-serif;font-size:.72rem;font-weight:800"
-                        oninput="calcRaf()"
+                        oninput="if(window.autoRafMode)autoRafMode(); else calcRaf();"
+                        onchange="if(window.autoRafMode)autoRafMode()"
                         onkeydown="if(event.key==='Enter')document.getElementById('rafW_1')?.focus()">
                     <input type="text" id="rafMusallim" placeholder="✍️ المسلِّم"
                         title="من سلّم البضاعة (اختياري)"
@@ -1248,14 +1249,14 @@
 
 
 <!-- ═══ ملفات JS ═══ -->
-<script src="firebase.js?v=341"></script>
-<script src="app.js?v=341"></script>
-<script src="assistant.js?v=341"></script>
-<script src="inventory.js?v=341"></script>
-<script src="invoice.js?v=341"></script>
-<script src="raffinage.js?v=341"></script>
-<script src="workshops.js?v=341"></script>
-<script src="auth.js?v=341"></script>
+<script src="firebase.js?v=342"></script>
+<script src="app.js?v=342"></script>
+<script src="assistant.js?v=342"></script>
+<script src="inventory.js?v=342"></script>
+<script src="invoice.js?v=342"></script>
+<script src="raffinage.js?v=342"></script>
+<script src="workshops.js?v=342"></script>
+<script src="auth.js?v=342"></script>
 
 
 
