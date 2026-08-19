@@ -1,4 +1,4 @@
-window.APP_JS_VER='v343';
+window.APP_JS_VER='v344';
 /* ═══════════ STATE ═══════════ */
 let B={دينار:0,'ذهب 730':0,'ذهب 24':0,دولار:0,vg730:0,vg24:0};
 let ops=[],invoices=[],debts=[],loans=[],rafInvoices=[],dollInvoices=[],dubaiInvoices=[];
@@ -2905,7 +2905,9 @@ function _xferCalc(){
     let convFeeHtml='';
     if(_isSelfConv && _xferConvFee){
         const _convFee=Math.round(_eq730*2000);   /* دائماً مكافئ 730 × 2000 */
-        convFeeHtml=`<br><span style="font-size:.74rem;color:#0891b2;font-weight:800">أجرة: مكافئ730 ${fmt(_eq730,3)}غ × 2000 = ${fmt(_convFee,0)} دج (تُسجَّل ديناً عليه)</span>`;
+        /* الاتجاه: 730→24 الأجرة عليه · 24→730 الأجرة له (تُضاف لرصيده) */
+        const _feeOnHim=(_xferSrcType!=='ذهب 24');
+        convFeeHtml=`<br><span style="font-size:.74rem;color:${_feeOnHim?'#0891b2':'#16a34a'};font-weight:800">أجرة: مكافئ730 ${fmt(_eq730,3)}غ × 2000 = ${fmt(_convFee,0)} دج ${_feeOnHim?'(تُسجَّل ديناً <b>عليه</b>)':'(تُضاف <b>لرصيده</b> — له)'}</span>`;
     }
     let feeHtml='';
     const _r=(typeof xferFeeRule==='function')?xferFeeRule(_settleCustomer):null;
