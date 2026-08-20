@@ -1,4 +1,4 @@
-window.APP_JS_VER='v344';
+window.APP_JS_VER='v347';
 /* ═══════════ STATE ═══════════ */
 let B={دينار:0,'ذهب 730':0,'ذهب 24':0,دولار:0,vg730:0,vg24:0};
 let ops=[],invoices=[],debts=[],loans=[],rafInvoices=[],dollInvoices=[],dubaiInvoices=[];
@@ -2195,7 +2195,7 @@ function renderLog(){
             <span style="color:${o.t==='تصحيح فاتورة'?'var(--g600)':(out?'var(--rd)':'var(--gr)')};font-weight:900;font-size:clamp(.86rem,1.8vw,1.05rem);white-space:nowrap;margin-top:.1rem;font-family:'Tajawal',monospace,sans-serif">
                 ${o.t==='تصحيح فاتورة'
                     ?(o.diffG?`${o.diffG>0?'+':'−'}${fmt(Math.abs(o.diffG),2)} g`:(o.diffD?`${fmt(Math.abs(o.diffD),0)} DZD`:'✏️ تصحيح'))
-                    :`${out?'−':'+'}${fmt(o.a||0,2)} ${unit}`}
+                    :`${out?'−':'+'}${fmt(o.a||0, o.m==='دينار'?0:2)} ${unit}`}
             </span>
             <button class="btn-pdf" onclick="showCustomerLog('${(o.c||'').replace(/'/g,"\\'")}')" style="background:rgba(14,165,233,.12);color:#0ea5e9;margin-top:.1rem" title="سجل الزبون"><i class="fas fa-eye"></i></button>
             <button class="btndel" onclick="delOp('${o.id}')" style="margin-top:.1rem"><i class="fas fa-trash-alt"></i></button>

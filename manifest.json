@@ -1,10 +1,10 @@
 {
-  "name": "GoldPro — نظام إدارة الذهب",
-  "short_name": "GoldPro",
-  "description": "نظام إدارة الذهب المتكامل — فواتير، رافيناج، زبائن، مخزون",
+  "name": "Calculator",
+  "short_name": "Calculator",
+  "description": "Calculator",
   "start_url": "./",
   "scope": "./",
-  "display": "fullscreen",
+  "display": "standalone",
   "background_color": "#0a0800",
   "theme_color": "#f59e0b",
   "orientation": "portrait-primary",
@@ -56,5 +56,9 @@
       "type": "image/png",
       "purpose": "any"
     }
+  ],
+  "display_override": [
+    "standalone",
+    "minimal-ui"
   ]
 }
