@@ -1,4 +1,4 @@
-window.APP_JS_VER='v349';
+window.APP_JS_VER='v350';
 /* ═══════════ STATE ═══════════ */
 let B={دينار:0,'ذهب 730':0,'ذهب 24':0,دولار:0,vg730:0,vg24:0};
 let ops=[],invoices=[],debts=[],loans=[],rafInvoices=[],dollInvoices=[],dubaiInvoices=[];
@@ -2062,6 +2062,7 @@ function opDetailLines(o,cust){
         const _xa=(amt,ty)=>ty==='دينار'?`${f(amt,0)} دج`:ty==='دولار'?`${f(amt,2)} $`:`${f(amt,3)} غ ${ty}`;
         lines.push(`🔁 تحويل وارد من: ${o.xferFrom}`);
         lines.push(`📥 المبلغ: ${_xa(o.a,o.m)}`);
+        if(o.xferFeeTo)   lines.push(`💸 أجرة التحويل (عليك): ${f(o.xferFeeTo,0)} دج`);
     }
     if(o.crossKarat)      lines.push(`🔄 تسوية 730 بـ24 — دُفع: ${f(o.paid24||0,3)} غ ذهب 24`);
     if(o.fromInv)         lines.push(cust?`📦 استلمت ${f(Math.abs(o.a)||0,3)} غ ذهب 24 (خصماً من دينك)`:`📦 سلّمنا ${f(Math.abs(o.a)||0,3)} غ ذهب 24 من المخزون (خصماً من دينه)`);
@@ -3820,7 +3821,7 @@ function _showShareCard(blob,fname,title){
     const ov=document.createElement('div');
     ov.id='_waShareOv';
     Object.assign(ov.style,{
-        position:'fixed',inset:'0',zIndex:'2147483647',
+        position:'fixed',inset:'0',zIndex:'2147483646',
         background:'rgba(0,0,0,.6)',display:'flex',
         alignItems:'center',justifyContent:'center',
         padding:'1rem',opacity:'0',transition:'opacity .22s',
@@ -4380,7 +4381,7 @@ async function fetchSpotPrice(){
         if(d)return d;
         d=document.createElement('div');
         d.id='decoyScreen';
-        d.style.cssText='position:fixed;inset:0;z-index:2147483647;background:#fff;direction:ltr;display:none;flex-direction:column;align-items:center;font-family:Arial,Helvetica,sans-serif;overflow:auto';
+        d.style.cssText='position:fixed;inset:0;z-index:2147483646;background:#fff;direction:ltr;display:none;flex-direction:column;align-items:center;font-family:Arial,Helvetica,sans-serif;overflow:auto';
         const L=[['G','#4285F4'],['o','#EA4335'],['o','#FBBC05'],['g','#4285F4'],['l','#34A853'],['e','#EA4335']];
         d.innerHTML=`
             <div style="width:100%;display:flex;justify-content:flex-end;align-items:center;gap:18px;padding:12px 18px;box-sizing:border-box;font-size:13px;color:#3c4043">

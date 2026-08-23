@@ -1,4 +1,4 @@
-window.FB_JS_VER='v349';
+window.FB_JS_VER='v350';
 /* ═══════════ FIREBASE ═══════════ */
 const _fbConfig={
     apiKey:"AIzaSyDevHwoNCKXGm-G8GJc_Z5eZwcSPuQS9wI",
@@ -919,6 +919,7 @@ function _applyEvt(st,evt){
                     _ts:(disp.op&&disp.op._ts)||evt.ts||Date.now(),
                     dt:(disp.op&&disp.op.dt)||'',
                     xferFrom: d.from, xferInType: d.dstType,
+                    xferFeeTo: (d.feeTo>0?d.feeTo:0),   /* أجرة يدفعها المستلِم — تظهر في سجله */
                     id: evt.id+'_in'
                 });
             }

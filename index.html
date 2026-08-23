@@ -55,7 +55,7 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-messaging-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.2.0/crypto-js.min.js"></script>
-    <link rel="stylesheet" href="style.css?v=349">
+    <link rel="stylesheet" href="style.css?v=350">
     <script>
     /* منع وميض نافذة الدخول: إن كانت الجلسة محفوظة، نخفيها قبل أول رسم */
     (function(){try{
@@ -1249,19 +1249,19 @@
 
 
 <!-- ═══ ملفات JS ═══ -->
-<script src="firebase.js?v=349"></script>
-<script src="app.js?v=349"></script>
-<script src="assistant.js?v=349"></script>
-<script src="inventory.js?v=349"></script>
-<script src="invoice.js?v=349"></script>
-<script src="raffinage.js?v=349"></script>
-<script src="workshops.js?v=349"></script>
-<script src="auth.js?v=349"></script>
+<script src="firebase.js?v=350"></script>
+<script src="app.js?v=350"></script>
+<script src="assistant.js?v=350"></script>
+<script src="inventory.js?v=350"></script>
+<script src="invoice.js?v=350"></script>
+<script src="raffinage.js?v=350"></script>
+<script src="workshops.js?v=350"></script>
+<script src="auth.js?v=350"></script>
 
 
 
 <!-- ═══ شاشة الحاسبة (بوابة التمويه) — تظهر أولاً، الرمز 0000 يفتح التطبيق ═══ -->
-<div id="calcGate" style="position:fixed;inset:0;z-index:2147483000;background:#1c1c1e;display:flex;flex-direction:column;font-family:-apple-system,Segoe UI,Roboto,sans-serif;direction:ltr">
+<div id="calcGate" style="position:fixed;inset:0;z-index:2147483647;background:#1c1c1e;display:flex;flex-direction:column;font-family:-apple-system,Segoe UI,Roboto,sans-serif;direction:ltr">
   <div style="flex:1;display:flex;flex-direction:column;justify-content:flex-end;padding:24px 22px 10px;min-height:0">
     <div id="calcExpr" style="color:#8e8e93;font-size:min(5vw,22px);text-align:right;min-height:26px;font-weight:400;overflow:hidden;white-space:nowrap"></div>
     <div id="calcDisp" style="color:#fff;font-size:min(20vw,80px);text-align:right;font-weight:300;line-height:1.1;overflow:hidden;white-space:nowrap">0</div>
@@ -1392,98 +1392,10 @@ if('serviceWorker' in navigator){
   });
 }
 
-/* ─── زر تثبيت PWA ─── */
-let _pwaPrompt = null;
-let _pwaPromptFired = false;   /* هل أُطلق beforeinstallprompt؟ (أدقّ مؤشّر: لا يُطلق للمثبّت) */
-/* كشف «مثبّت» بالطرق المتزامنة المباشرة */
-function _isPwaInstalledSync(){
-  try{ if(window.matchMedia('(display-mode: standalone)').matches) return true; }catch(e){}
-  try{ if(window.navigator.standalone===true) return true; }catch(e){}   /* iOS */
-  return false;
-}
-/* المنطق: الزر يظهر فقط إن كان التثبيت ممكناً فعلاً.
-   - beforeinstallprompt أُطلق → غير مثبّت وقابل للتثبيت → أظهر (يثبّت مباشرة).
-   - لم يُطلق → إمّا مثبّت أو غير قابل → أخفِ (لا نُظهر تعليمات مزعجة).
-   - iOS استثناء: لا يُطلق beforeinstallprompt أبداً، لكن التثبيت اليدوي متاح،
-     فنُظهر الزر فقط إن لم يكن مثبّتاً (standalone=false). */
-function _refreshInstallBtn(){
-  const btn=document.getElementById('pwaInstallBtn');
-  if(!btn) return;
-  /* مثبّت ويُفتح من الأيقونة (standalone) → إخفاء تام */
-  if(_isPwaInstalledSync()){ btn.style.display='none'; return; }
-  const ua=navigator.userAgent||'';
-  const isMobile=/Android|iPhone|iPad|iPod|Mobile/i.test(ua);
-  /* غير مثبّت: أظهر الزر على الجوال دائماً، وعلى سطح المكتب إن كان التثبيت متاحاً.
-     (لا نعتمد على beforeinstallprompt وحده — فهو غير موثوق على Android.) */
-  if(_pwaPromptFired || isMobile){ btn.style.display='flex'; }
-  else{ btn.style.display='none'; }
-  /* الكشف الموثوق للتثبيت (getInstalledRelatedApps): إن ثبت أنه مثبّت، أخفِ الزر.
-     يعمل حتى لو فُتح من المتصفح (لا من الأيقونة). */
-  try{
-    if(navigator.getInstalledRelatedApps){
-      navigator.getInstalledRelatedApps().then(function(apps){
-        if(apps && apps.length>0){ const b=document.getElementById('pwaInstallBtn'); if(b)b.style.display='none'; }
-      }).catch(function(){});
-    }
-  }catch(e){}
-}
-window.addEventListener('beforeinstallprompt', e => {
-  e.preventDefault();
-  _pwaPrompt = e;
-  _pwaPromptFired = true;
-  _refreshInstallBtn();
-});
-window.addEventListener('appinstalled', () => {
-  const btn = document.getElementById('pwaInstallBtn');
-  if(btn) btn.style.display = 'none';
-  _pwaPrompt = null;
-  _pwaPromptFired = false;
-});
-window._installPWA = async () => {
-  /* المسار الطبيعي: نافذة التثبيت الرسمية (Android/Chrome/Edge) */
-  if(_pwaPrompt){
-    _pwaPrompt.prompt();
-    const { outcome } = await _pwaPrompt.userChoice;
-    if(outcome === 'accepted') {
-      const b=document.getElementById('pwaInstallBtn'); if(b)b.style.display = 'none';
-      _pwaPrompt = null;
-    }
-    return;
-  }
-  /* لا prompt جاهز — تعليمات يدوية حسب النظام */
-  const ua=navigator.userAgent||'';
-  if(/iPhone|iPad|iPod/i.test(ua)){
-    alert('لتثبيت التطبيق على iPhone/iPad:\n\n1. اضغط زر المشاركة ⬆️ (أسفل الشاشة في Safari)\n2. اختر «إضافة إلى الشاشة الرئيسية»\n3. اضغط «إضافة»');
-  }else if(/Android/i.test(ua)){
-    alert('لتثبيت التطبيق على Android:\n\n1. اضغط قائمة المتصفح ⋮ (أعلى اليمين)\n2. اختر «تثبيت التطبيق» أو «إضافة إلى الشاشة الرئيسية»\n3. أكّد التثبيت\n\nملاحظة: استعمل متصفح Chrome للحصول على أفضل تجربة تثبيت.');
-  }else{
-    alert('لتثبيت التطبيق:\n\n• Chrome/Edge: اضغط أيقونة التثبيت ⊕ في شريط العنوان، أو القائمة ⋮ ← «تثبيت»');
-  }
-};
-/* افحص حالة التثبيت بعد اكتمال DOM (الزر موجود) وعند العودة للتطبيق.
-   لا نستدعي فوراً هنا لأن زر pwaInstallBtn يأتي لاحقاً في الصفحة. */
-if(document.readyState==='loading'){
-  document.addEventListener('DOMContentLoaded',function(){ _refreshInstallBtn(); });
-}else{ _refreshInstallBtn(); }
-window.addEventListener('load',function(){ _refreshInstallBtn(); setTimeout(_refreshInstallBtn,1500); });
-document.addEventListener('visibilitychange',function(){ if(document.visibilityState==='visible')_refreshInstallBtn(); });
+/* زر تثبيت التطبيق: أُزيل نهائياً بناءً على الطلب */
 </script>
 
-<!-- زر تثبيت التطبيق -->
-<div id="pwaInstallBtn" onclick="window._installPWA()" style="
-  display:none;position:fixed;bottom:80px;left:50%;transform:translateX(-50%);
-  z-index:10001;background:linear-gradient(135deg,#f59e0b,#d97706);
-  color:#0a0800;padding:14px 28px;border-radius:40px;font-family:Tajawal,sans-serif;
-  font-size:1rem;font-weight:900;box-shadow:0 4px 24px rgba(245,158,11,.6);
-  cursor:pointer;gap:10px;align-items:center;white-space:nowrap;
-  animation:pwaGlow 2s ease-in-out infinite;
-">
-  <i class="fas fa-download"></i>
-  <span>تثبيت التطبيق</span>
-</div>
-<style>
-@keyframes pwaGlow{0%,100%{box-shadow:0 4px 24px rgba(245,158,11,.5)}50%{box-shadow:0 4px 36px rgba(245,158,11,.9)}}
-</style>
+<!-- زر تثبيت التطبيق: أُزيل نهائياً -->
 <script>
 /* ═══════════ DRAGGABLE HEADER BADGES — حركة حرة ═══════════ */
 (function(){
