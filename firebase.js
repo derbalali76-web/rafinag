@@ -1,4 +1,4 @@
-window.FB_JS_VER='v354';
+window.FB_JS_VER='v355';
 /* ═══════════ FIREBASE ═══════════ */
 const _fbConfig={
     apiKey:"AIzaSyDevHwoNCKXGm-G8GJc_Z5eZwcSPuQS9wI",
@@ -119,7 +119,12 @@ function _fbSetEvent(evt){
         /* معقّم شامل: أي حقل undefined يُسقَط (Firebase يرفض الحمولة كلها بسببه) */
         const _clean=JSON.parse(JSON.stringify(_withOwner(evt)));
         _baseRef.child('events/'+evt.id).set(_clean)
-            .then(()=>{_unsyncedIds.delete(evt.id);_outboxDrop(evt.id);_updSyncIndicator();})
+            .then(()=>{
+                _unsyncedIds.delete(evt.id);_outboxDrop(evt.id);_updSyncIndicator();
+                /* مؤشّر خفيف: آخر ts معروف. الزبون يقرأه (بايتات قليلة) ليعرف
+                   إن كان هناك جديد قبل جلب أي أحداث — توفير هائل عند الفتح المتكرّر. */
+                try{ if(evt.ts) _baseRef.child('_meta/lastTs').set(Math.max(evt.ts,Date.now())); }catch(e){}
+            })
             .catch(e=>{_fbErr(e);});
     }catch(e){_fbErr(e);}
 }
@@ -1331,6 +1336,28 @@ function _fbInitialLoad(){
         ? _baseRef.child('events').orderByChild('ts').startAt(_lastLocalTs-_SYNC_MARGIN)
         : _baseRef.child('events');                                            /* الكل */
     if(_fullReload){ try{localStorage.setItem('gp_fullsync_'+(_currentUser||''),String(Date.now()));}catch(e){} }
+
+    /* ═══ فحص المؤشّر الخفيف قبل جلب أي أحداث ═══
+       نقرأ قيمة واحدة (_meta/lastTs, بضعة بايتات) لا كل الأحداث. إن كان التحميل
+       تزايدياً ولا جديد (المؤشّر ≤ آخر ts محلي)، نتوقّف فوراً بلا جلب — أرخص ما يمكن.
+       هذا جوهر التوفير: الزبون يفتح التطبيق عشرات المرات بلا تكلفة تُذكر. */
+    if(_incremental){
+        _baseRef.child('_meta/lastTs').once('value', function(ms){
+            const _remoteTs = +(ms.val()||0);
+            if(_remoteTs>0 && _remoteTs<=_lastLocalTs){
+                /* لا جديد — اعتمد المحلي كلياً، لا تجلب شيئاً */
+                _fbLoaded=true; _startFbSync(); _startSettingsSync();
+                try{ _reproject(); }catch(e){}
+                return;
+            }
+            /* يوجد جديد (أو لا مؤشّر بعد) — تابع الاستعلام التزايدي المعتاد */
+            _runEventQuery();
+        }, function(){ _runEventQuery(); });   /* فشل قراءة المؤشّر → تابع عادياً */
+        return;
+    }
+    _runEventQuery();
+
+    function _runEventQuery(){
     _evQuery.once('value',snap=>{
         const evData=snap.val();
         if(evData){
@@ -1391,6 +1418,7 @@ function _fbInitialLoad(){
         _startFbSync();
         _startSettingsSync();
     });
+    }   /* نهاية _runEventQuery */
     });   /* نهاية غلاف resetAt */
 }
 
