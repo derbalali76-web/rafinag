@@ -208,6 +208,8 @@ function _finishLogin(uname,pw,role,ws,custName){
     window._roleLock=role==='admin'?null:role;
     /* الزبون قارئ خالص: امسح أي صندوق صادر عالق (يمنع شارة «غير محفوظ» الكاذبة) */
     if(window._roleLock==='customer'){ try{localStorage.removeItem('gp_outbox');}catch(e){} }
+    /* اربط جهاز OneSignal (Median) برقم الزبون إن كان معرّفه وصل قبل الدخول */
+    if(window._roleLock==='customer'){ setTimeout(function(){ try{if(window._linkOneSignalDevice)window._linkOneSignalDevice();}catch(e){} },800); }
     window._sessionRole=role;                       /* لحارس النسخة الاحتياطية */
     window._wsLock=role==='worker'?ws:null;
     _encKey=pw;
@@ -673,9 +675,14 @@ function renderCustomerPortal(){
     if(bell){bell.style.display=showNew?'flex':'none';bell.textContent=newCount;}
     const dot=document.getElementById('cpTabDot'); if(dot)dot.style.display=showNew?'block':'none';
     const nb=document.getElementById('cpNotifBanner');
-    if(nb)nb.style.display=(typeof Notification!=='undefined'&&Notification.permission!=='granted')?'flex':'none';
+    const _inMedian=!!(window.median||window.gonative||/median|gonative/i.test(navigator.userAgent||''));
+    if(nb){
+        /* في Median: أظهر البانر ما لم يُفعّل مسبقاً (لا نعتمد على Notification.permission) */
+        if(_inMedian){ nb.style.display=(localStorage.getItem('gp_notif_on')==='1')?'none':'flex'; }
+        else nb.style.display=(typeof Notification!=='undefined'&&Notification.permission!=='granted')?'flex':'none';
+    }
     const pb=document.getElementById('cpNotifBanner');
-    if(pb){
+    if(pb && !_inMedian){
         const can=('Notification' in window)&&Notification.permission!=='granted';
         pb.style.display=can?'flex':'none';
     }
@@ -867,9 +874,66 @@ function _showNotifBlockedHelp(){
 }
 window._showNotifBlockedHelp=_showNotifBlockedHelp;
 
+/* يستدعيها Median تلقائياً عند كل تحميل صفحة بمعلومات OneSignal للجهاز.
+   قد تُستدعى قبل تسجيل الدخول — فنحفظ المعرّف ونربطه بالرقم لاحقاً. */
+window._pendingOneSignalId=null;
+window.median_onesignal_info=function(info){
+    try{
+        if(!info||!info.oneSignalUserId)return;
+        window._pendingOneSignalId=info.oneSignalUserId;
+        if(info.oneSignalSubscribed){ try{localStorage.setItem('gp_notif_on','1');}catch(e){} }
+        /* اربط الآن إن كان الزبون مسجّلاً دخوله */
+        if(window._db && window._currentUser){ window._linkOneSignalDevice(); }
+    }catch(e){}
+};
+/* يربط جهاز OneSignal المحفوظ برقم الزبون الحالي — يُستدعى من median_onesignal_info
+   ومن بعد تسجيل الدخول (كي يُربط الجهاز حتى لو وصل معرّفه قبل الدخول). */
+window._linkOneSignalDevice=function(){
+    try{
+        const oid=window._pendingOneSignalId;
+        if(!oid || !window._db || !window._currentUser)return;
+        const _phone=(window._currentUser||'').replace(/^c/,'');
+        window._db.ref('goldpro/_tokens/'+oid).set({
+            phone:_phone, name:(window._sessionCustName||''), ts:Date.now(), provider:'onesignal'
+        });
+    }catch(e){}
+};
+
 /* تفعيل الإشعارات — من بوابة الزبون */
 window.cpEnableNotifs=async function(){
     try{
+        /* ═══ داخل تطبيق Median (APK): الإشعارات عبر جسر OneSignal، لا Notification API ═══ */
+        if(window.median || window.gonative || /median|gonative/i.test(navigator.userAgent||'')){
+            try{
+                /* اطلب إذن الإشعارات عبر جسر Median (يُظهر نافذة النظام الأصلية) */
+                if(window.median && median.onesignal && median.onesignal.register){
+                    median.onesignal.register();
+                }else if(window.median && median.onesignal && median.onesignal.promptForPushNotifications){
+                    median.onesignal.promptForPushNotifications();
+                }
+                /* اربط الزبون بمعرّفه (رقم الهاتف) في OneSignal ليصله إشعاره الخاص */
+                const _phone=(_currentUser||'').replace(/^c/,'');
+                if(window.median && median.onesignal && median.onesignal.login){
+                    try{ await median.onesignal.login(_phone); }catch(e){}
+                }
+                /* احصل على معرّف OneSignal واحفظه (بديل رمز FCM) */
+                setTimeout(async ()=>{
+                    try{
+                        let info=null;
+                        if(median.onesignal.onesignalInfo){ info=await median.onesignal.onesignalInfo(); }
+                        else if(median.onesignal.info){ median.onesignal.info({callback:'median_onesignal_info'}); }
+                        if(info && info.oneSignalUserId){
+                            await _db.ref('goldpro/_tokens/'+info.oneSignalUserId).set({phone:_phone,name:_sessionCustName||'',ts:Date.now(),provider:'onesignal'});
+                        }
+                    }catch(e){}
+                },1500);
+                const b=document.getElementById('cpNotifBanner'); if(b)b.style.display='none';
+                try{localStorage.setItem('gp_notif_on','1');}catch(e){}
+                toast('✅ فُعّلت الإشعارات — ستصلك الفواتير الجديدة','success');
+                return;
+            }catch(e){ toast('تعذّر تفعيل الإشعارات في التطبيق: '+(e&&e.message||''),'error'); return; }
+        }
+        /* ═══ متصفح ويب عادي: Firebase Cloud Messaging ═══ */
         if(typeof Notification==='undefined')return toast('هذا المتصفح لا يدعم الإشعارات','error');
         /* إن كان محظوراً مسبقاً: requestPermission لا يُظهر نافذة — نرشد الزبون للإعدادات */
         if(Notification.permission==='denied'){ _showNotifBlockedHelp(); return; }

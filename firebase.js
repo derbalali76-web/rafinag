@@ -1,4 +1,4 @@
-window.FB_JS_VER='v350';
+window.FB_JS_VER='v353';
 /* ═══════════ FIREBASE ═══════════ */
 const _fbConfig={
     apiKey:"AIzaSyDevHwoNCKXGm-G8GJc_Z5eZwcSPuQS9wI",
@@ -578,9 +578,16 @@ function _applyEvt(st,evt){
         }
 
         case 'DUBAI_RATE':{
-            /* سعر دولار يدوي لفاتورة دبي (عرض/حساب فقط، لا يمسّ الأرصدة) */
+            /* سعر دولار يدوي لفاتورة دبي (عرض/حساب فقط, لا يمسّ الأرصدة) */
             const inv=st.dubaiInvoices.find(x=>x.id===d.id);
             if(inv){ if(d.usdRate>0)inv.usdRate=d.usdRate; else delete inv.usdRate; }
+            break;
+        }
+
+        case 'DUBAI_CALC':{
+            /* إعدادات حاسبة دبي (خصم/شحن/دولار/مصاريف) — مشتركة بين كل الأجهزة.
+               آخر تعديل (بالـts) يفوز — لأن الأحداث تُرتّب بالـts في _reproject. */
+            st.dubaiCalc=d.vals||null;
             break;
         }
 
@@ -1028,6 +1035,8 @@ function _reproject(){
     wsBars=st.wsBars;wsSessions=st.wsSessions;
     wsWorkerBars=st.wsWorkerBars;wsWorkerSessions=st.wsWorkerSessions;
     window._tarbahList=st.tarbah||[];
+    /* حاسبة دبي من الأحداث (لا من settings) — مزامنة حتمية عبر الأجهزة */
+    if(st.dubaiCalc){ window._dubaiCalcVals=st.dubaiCalc; try{if(typeof _applyDubaiCalcSettings==='function')_applyDubaiCalcSettings(st.dubaiCalc);}catch(e){} }
     try{if(typeof _renderTarbahList==='function')_renderTarbahList();}catch(e){}
 
     syncBal();
@@ -1240,12 +1249,12 @@ function load(){
 
 /* ═══════════ SAVE — يحفظ الإعدادات فقط ═══════════ */
 function save(){
-    const _dc=(typeof _dubaiCalcVals!=='undefined')?_dubaiCalcVals:null;
+    /* حاسبة دبي لم تعد تُحفظ في settings — صارت حدث DUBAI_CALC (يمنع تعارض الأجهزة) */
     /* ترباح لم تعد تُحفظ في settings: مصدرها الوحيد أحداث TARBAH_ADD/DEL.
        كان حفظها هنا يسبّب تعارضاً — إعدادات قديمة من جهاز آخر تمسح قيوداً جديدة. */
     try{localStorage.setItem('gp_settings_'+(_currentUser||''),JSON.stringify({goldPrice,dollarRate,darkMode}));}catch(e){}
     if(!_baseRef||!_fbLoaded)return;
-    try{_baseRef.child('settings').set(_withOwner({goldPrice,dollarRate,darkMode,dubaiCalc:_dc,_ts:firebase.database.ServerValue.TIMESTAMP})).catch(_fbErr);}catch(e){}
+    try{_baseRef.child('settings').set(_withOwner({goldPrice,dollarRate,darkMode,_ts:firebase.database.ServerValue.TIMESTAMP})).catch(_fbErr);}catch(e){}
 }
 
 let _saveTimer=null;
@@ -1262,7 +1271,7 @@ function _fbInitialLoad(){
             if(cfg.dollarRate)dollarRate=cfg.dollarRate;
             if(typeof cfg.darkMode==='boolean'){darkMode=cfg.darkMode;if(darkMode)applyDark();}
             try{localStorage.setItem('gp_settings_'+(_currentUser||''),JSON.stringify({goldPrice,dollarRate,darkMode}));}catch(e){}
-            if(cfg.dubaiCalc&&typeof _applyDubaiCalcSettings==='function')_applyDubaiCalcSettings(cfg.dubaiCalc);
+            /* dubaiCalc تأتي من حدث DUBAI_CALC لا من settings */
             /* ترباح تأتي من الأحداث لا من الإعدادات (تُجنّب تعارض الأجهزة) */
         }
     });
@@ -1463,7 +1472,7 @@ function _startSettingsSync(){
         if(s.dollarRate)dollarRate=s.dollarRate;
         if(typeof s.darkMode==='boolean'){darkMode=s.darkMode;if(darkMode)applyDark();}
         try{localStorage.setItem('gp_settings_'+(_currentUser||''),JSON.stringify({goldPrice,dollarRate,darkMode}));}catch(e){}
-        if(s.dubaiCalc&&typeof _applyDubaiCalcSettings==='function')_applyDubaiCalcSettings(s.dubaiCalc);
+        /* dubaiCalc من الأحداث لا من settings (مزامنة حتمية) */
         /* لا نطبّق ترباح من settings — الأحداث (TARBAH_ADD/DEL) هي المصدر الوحيد */
         if(typeof updAll==='function')updAll();
     },_fbErr);

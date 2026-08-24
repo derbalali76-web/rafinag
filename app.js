@@ -1,4 +1,4 @@
-window.APP_JS_VER='v350';
+window.APP_JS_VER='v353';
 /* ═══════════ STATE ═══════════ */
 let B={دينار:0,'ذهب 730':0,'ذهب 24':0,دولار:0,vg730:0,vg24:0};
 let ops=[],invoices=[],debts=[],loans=[],rafInvoices=[],dollInvoices=[],dubaiInvoices=[];
@@ -1502,8 +1502,8 @@ function _saveDubaiCalcInputs(){
     };
     try{localStorage.setItem(_dcKey(),JSON.stringify(vals));}catch(e){}
     window._dubaiCalcVals=vals;
-    /* مزامنة عبر الأجهزة: تُحفظ ضمن إعدادات Firebase */
-    if(typeof _scheduleSave==='function')_scheduleSave();
+    /* مزامنة حتمية عبر الأجهزة: حدث مستقل (آخر تعديل يفوز) بدل settings */
+    if(typeof emitEvent==='function')emitEvent('DUBAI_CALC',{vals:vals},null);
 }
 /* تطبيق إعدادات دبي الواردة من جهاز آخر */
 window._applyDubaiCalcSettings=(vals)=>{
