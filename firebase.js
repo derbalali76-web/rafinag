@@ -1,4 +1,4 @@
-window.FB_JS_VER='v355';
+window.FB_JS_VER='v356';
 /* ═══════════ FIREBASE ═══════════ */
 const _fbConfig={
     apiKey:"AIzaSyDevHwoNCKXGm-G8GJc_Z5eZwcSPuQS9wI",
@@ -1316,7 +1316,11 @@ function _fbInitialLoad(){
     /* التحميل التزايدي لكل الأدوار (توفير هائل، خاصة الأدمين على عدة أجهزة).
        التصحيح في النظام يتم بحدث VOID جديد (لا حذف فعلي)، فالتزايدي يلتقطه.
        تحميل كامل دوري كضمان: الزبون كل 24س، الأدمين/العامل كل 6س (يصحّحون أكثر). */
-    const _fullEveryMs = _isCustomer ? 3*24*3600*1000 : 6*3600*1000;
+    /* التحميل الكامل الدوري ضمان فقط (المزامنة العكسية). الحذف كله بـVOID (حدث
+       جديد، لا remove) فالتزايدي + المؤشّر + child_added يلتقطون كل شيء بينها.
+       لذا يكفي تحميل كامل كل 24س للأدمين/العامل (كان 6س — مكلف مع عدة أجهزة)،
+       والزبون كل 3 أيام. التوفير كبير مع حسابات مفتوحة على أجهزة متعددة. */
+    const _fullEveryMs = _isCustomer ? 3*24*3600*1000 : 24*3600*1000;
     let _fullReload=true;
     try{
         const _lastFull=+(localStorage.getItem('gp_fullsync_'+(_currentUser||''))||0);
