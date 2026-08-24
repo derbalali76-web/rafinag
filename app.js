@@ -1,4 +1,4 @@
-window.APP_JS_VER='v357';
+window.APP_JS_VER='v360';
 /* ═══════════ STATE ═══════════ */
 let B={دينار:0,'ذهب 730':0,'ذهب 24':0,دولار:0,vg730:0,vg24:0};
 let ops=[],invoices=[],debts=[],loans=[],rafInvoices=[],dollInvoices=[],dubaiInvoices=[];
@@ -888,6 +888,8 @@ function closeModal(id){
     const er=window._editRestore;
     if(er&&er.modalId===id){ window._editRestore=null; if(typeof _reemitSnapshot==='function')_reemitSnapshot(er.snap); toast('↩️ أُلغي التعديل واستُعيدت الفاتورة','info'); }
     document.getElementById(id).classList.remove('active');
+    /* وضع kiosk: أعِد ملء الشاشة إن خرج عند فتح/إغلاق النافذة */
+    try{ if(window._kioskRefresh)window._kioskRefresh(); }catch(e){}
 }
 /* window.resetAllData مُعرَّفة في firebase.js */
 
@@ -1314,7 +1316,7 @@ function _showRafEditBanner(){
     b.style.display='flex';
 }
 window._hideRafEditBanner=()=>{ const b=document.getElementById('rafEditBanner'); if(b)b.style.display='none'; };
-window.cancelRafEdit=()=>{ _flushPendingEdit(); if(typeof resetRafForm==='function')resetRafForm(); if(window._hideRafEditBanner)window._hideRafEditBanner(); toast('↩️ أُلغي التعديل واستُعيدت الفاتورة','info'); };
+window.cancelRafEdit=()=>{ _flushPendingEdit(); if(typeof resetRafForm==='function')resetRafForm(); if(window._hideRafEditBanner)window._hideRafEditBanner(); try{if(window._kioskRefresh)window._kioskRefresh();}catch(e){} toast('↩️ أُلغي التعديل واستُعيدت الفاتورة','info'); };
 
 /* ═══════════ SHIPPING ═══════════ */
 window.openShipping=()=>{
@@ -2198,7 +2200,7 @@ function renderLog(){
                     ?(o.diffG?`${o.diffG>0?'+':'−'}${fmt(Math.abs(o.diffG),2)} g`:(o.diffD?`${fmt(Math.abs(o.diffD),0)} DZD`:'✏️ تصحيح'))
                     :`${out?'−':'+'}${fmt(o.a||0, o.m==='دينار'?0:2)} ${unit}`}
             </span>
-            <button class="btn-pdf" onclick="showCustomerLog('${(o.c||'').replace(/'/g,"\\'")}')" style="background:rgba(14,165,233,.12);color:#0ea5e9;margin-top:.1rem" title="سجل الزبون"><i class="fas fa-eye"></i></button>
+            <button class="btn-pdf" onclick="showOpInvoice('${o.id}')" style="background:rgba(14,165,233,.12);color:#0ea5e9;margin-top:.1rem" title="عرض الفاتورة"><i class="fas fa-file-invoice"></i></button>
             <button class="btndel" onclick="delOp('${o.id}')" style="margin-top:.1rem"><i class="fas fa-trash-alt"></i></button>
         </div>`;
     }).join('');
@@ -3056,16 +3058,21 @@ function _applySettle(type){
 window.settleOne=(type)=>{
     if(type==='ذهب 730'||type==='ذهب 24'){_openGoldSettleModal(type);return;}
     if(!_applySettle(type))return;
-    /* emitEvent داخل _applySettle يستدعي _reproject ← syncBal+updAll+save تلقائياً */
+    /* emitEvent يؤجّل _reproject (16ms+rAF)، فـdebts لا تتحدّث فوراً.
+       نعيد رسم النافذة بعد اكتمال إعادة البناء كي يختفي الرصيد المصفّى. */
     _renderSettleRows();
+    setTimeout(_renderSettleRows,80);
+    requestAnimationFrame(()=>requestAnimationFrame(_renderSettleRows));
     toast(`✅ تم تصفية ${type} مع ${_settleCustomer}`);
 };
 window.settleAll=()=>{
     const types=['دينار','دولار','ذهب 730','ذهب 24'];
     let done=0;
     types.forEach(t=>{const ok=_applySettle(t);if(ok)done++;});
-    /* emitEvent داخل _applySettle يستدعي _reproject ← syncBal+updAll+save تلقائياً */
+    /* إعادة الرسم بعد اكتمال إعادة البناء المؤجّلة */
     _renderSettleRows();
+    setTimeout(_renderSettleRows,80);
+    requestAnimationFrame(()=>requestAnimationFrame(_renderSettleRows));
     if(done)toast(`✅ تم تصفية جميع أرصدة ${_settleCustomer}`);
     else toast('لا توجد أرصدة','info');
 };
@@ -3201,6 +3208,8 @@ window._gsmConfirm=function(){
     closeModal('goldSettleModal');
     if(typeof _sendCustomerPush==='function')_sendCustomerPush(_settleCustomer,'تسوية حساب','سُجّلت حركة على حسابك — افتح حسابك للاطلاع');
     _renderSettleRows();
+    setTimeout(_renderSettleRows,80);
+    requestAnimationFrame(()=>requestAnimationFrame(_renderSettleRows));
     const msg=remaining>0.001
         ?`✅ تم تصفية ${fmt(w,3)} غ — الباقي: ${fmt(remaining,3)} غ`
         :`✅ تم تصفية ${type} مع ${c} وحفظ الفاتورة`;
@@ -3284,6 +3293,8 @@ window._confirm730With24=function(){
     );
     closeModal('s730cModal');
     _renderSettleRows();
+    setTimeout(_renderSettleRows,80);
+    requestAnimationFrame(()=>requestAnimationFrame(_renderSettleRows));
     const msg=remaining>0.001
         ?`✅ تم: ${fmt(partial,3)} غ 730 ← ${fmt(equiv24,3)} غ 24 — الباقي: ${fmt(remaining,3)} غ`
         :`✅ تم: ${fmt(partial,3)} غ 730 ← ${fmt(equiv24,3)} غ 24 خُصمت من المخزون`;
@@ -3376,6 +3387,8 @@ window._confirm24FromInv=function(){
     );
     closeModal('i24cModal');
     _renderSettleRows();
+    setTimeout(_renderSettleRows,80);
+    requestAnimationFrame(()=>requestAnimationFrame(_renderSettleRows));
     const msg=remaining>0.001
         ?`✅ تم: ${fmt(partial,3)} غ ${isGiving?'خُصمت':'أُضيفت'} — الباقي: ${fmt(remaining,3)} غ`
         :`✅ تم: ${fmt(partial,3)} غ ذهب 24 ${isGiving?'خُصمت من المخزون':'أُضيفت للمخزون'}`;
@@ -3512,6 +3525,8 @@ window._confirmReceive730=function(){
     );
     closeModal('rs730Modal');
     _renderSettleRows();
+    setTimeout(_renderSettleRows,80);
+    requestAnimationFrame(()=>requestAnimationFrame(_renderSettleRows));
     toast(remaining>0.001
         ? `✅ استُلمت ${bars.length} سبيكة (${fmt(totW,3)} غ) — الباقي: ${fmt(remaining,3)} غ معيار 730`
         : `✅ استُلمت ${bars.length} سبيكة (${fmt(totW,3)} غ) من ${_settleCustomer} — أُضيفت للمخزون`);
@@ -4521,10 +4536,20 @@ window._liqImport=function(inp){
         }catch(e){}
     }
     function arm(){ if(armed)return; armed=true; }
+    /* وضع kiosk: أي تفاعل (نقرة/لمسة/مفتاح) يعيد ملء الشاشة فور الخروج.
+       نستمع على عدة أحداث لضمان الالتقاط السريع (المتصفح يمنع الإعادة بلا تفاعل). */
     document.addEventListener('pointerdown',go,true);
+    document.addEventListener('pointerup',go,true);
+    document.addEventListener('touchstart',go,true);
+    document.addEventListener('click',go,true);
     document.addEventListener('keydown',go,true);
-    /* أي خروج من ملء الشاشة (نوافذ تأكيد، تحميل فاتورة، حذف...) → أول نقرة تُعيده */
-    document.addEventListener('fullscreenchange',()=>{ if(!document.fullscreenElement)arm(); });
+    /* أي خروج من ملء الشاشة (نوافذ تأكيد، تحميل فاتورة، حذف...) → سلّح فوراً +
+       حاول الإعادة مباشرة (تنجح إن كان الخروج ضمن سياق تفاعل حديث). */
+    document.addEventListener('fullscreenchange',()=>{
+        if(!document.fullscreenElement){ arm(); setTimeout(go,60); }
+    });
+    /* وسِّط ملء الشاشة عالمياً كي يستدعيه أي مسار (تعديل الفاتورة يستعيده فوراً) */
+    window._kioskRefresh=function(){ arm(); go(); setTimeout(go,80); };
     arm();   /* التسليح الأول عند فتح التطبيق */
 })();
 
@@ -4962,6 +4987,39 @@ window.openProfitModal=function(sel){
 
 
 /* عرض سجل الزبون داخل التطبيق (لا PDF) */
+/* يعرض فاتورة العملية مباشرة حسب نوعها (شراء/بيع/رافيناج/دولار/دبي).
+   إن لم تكن للعملية فاتورة، يعرض سجل الزبون كبديل. */
+window.showOpInvoice=function(opId){
+    const o=ops.find(x=>x&&x.id===opId);
+    if(!o){ return toast('العملية غير موجودة','info'); }
+    const t=o.t||'';
+    try{
+        /* فاتورة شراء/بيع الذهب */
+        if((t==='شراء'||t==='بيع') && o.iid && invoices.find(i=>i.id===o.iid)){
+            return window.printInv(o.iid);
+        }
+        /* فاتورة رافيناج */
+        if(t==='رافيناج' && o.rid && rafInvoices.find(r=>r&&r.id===o.rid)){
+            return window.printRaf(o.rid);
+        }
+        /* فاتورة دولار (شراء/بيع) */
+        if((t==='شراء دولار'||t==='بيع دولار') && o.did && dollInvoices.find(d=>d.id===o.did)){
+            return window.printDoll(o.did);
+        }
+        /* فاتورة بيع دبي */
+        if(t==='بيع دبي' && o.did && dubaiInvoices.find(d=>d.id===o.did)){
+            return window.printDubai(o.did);
+        }
+        /* تصفية بفاتورة (شراء/بيع بسعر) لها iid */
+        if(o.iid && invoices.find(i=>i.id===o.iid)){
+            return window.printInv(o.iid);
+        }
+    }catch(e){}
+    /* لا فاتورة لهذه العملية → اعرض سجل الزبون (المعاملة فقط) */
+    if(o.c) return window.showCustomerLog(o.c);
+    toast('لا فاتورة لهذه العملية','info');
+};
+
 window.showCustomerLog=function(c){
     if(!c)return;
     const custOps=ops.filter(o=>o.c===c);
