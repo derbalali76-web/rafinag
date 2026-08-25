@@ -1,4 +1,4 @@
-window.FB_JS_VER='v362';
+window.FB_JS_VER='v363';
 /* ═══════════ FIREBASE ═══════════ */
 const _fbConfig={
     apiKey:"AIzaSyDevHwoNCKXGm-G8GJc_Z5eZwcSPuQS9wI",
@@ -1331,7 +1331,7 @@ function _fbInitialLoad(){
        يمنع مشكلة «العامل يجد ما سجّله البارحة فقط» — التزايدي كان يبني على محلي ناقص. */
     let _archiveEver=false;
     try{ _archiveEver=(localStorage.getItem('gp_archived_'+(_currentUser||''))==='1'); }catch(e){}
-    if(!_archiveEver)_fullReload=true;
+    if(!_archiveEver && _lastLocalTs===0)_fullReload=true;   /* فقط إن كان المحلي فارغاً فعلاً */
     let _incremental=(_lastLocalTs>0 && !_fullReload);
     /* الزبون: التحميل الكامل يجلب كل الأحداث (3006+) رغم أنه يحتاج ~4 فقط —
        أكبر مصدر للتكلفة. الحل: تزايدي كالأدمين، مع تحميل كامل أول مرة (لا بيانات
@@ -1342,8 +1342,13 @@ function _fbInitialLoad(){
        للزبون هامش أوسع (7 أيام) لأنه قارئ خالص لا يرفع — يضمن التقاط أي
        تصحيح قديم يخصّه دون تحميل كل الأحداث. التكرار يُزال بالـid. */
     const _SYNC_MARGIN=_isCustomer ? 7*24*3600*1000 : 3600*1000;
+    /* إن لم يُؤرشف هذا المستخدم بعد (محلي ناقص: جهاز/تخزين جديد)، اجلب تزايدياً
+       من البداية (startAt 0) مرة واحدة — يكمل أرشيفه دون تحميل كامل متكرّر.
+       بعد نجاحه يُضبط العلم فيعود للتزايدي العادي (الأحدث فقط). */
+    let _startFrom = _incremental ? (_lastLocalTs-_SYNC_MARGIN) : 0;
+    if(_incremental && !_archiveEver) _startFrom = 0;   /* أرشفة أولى: من البداية */
     const _evQuery=_incremental
-        ? _baseRef.child('events').orderByChild('ts').startAt(_lastLocalTs-_SYNC_MARGIN)
+        ? _baseRef.child('events').orderByChild('ts').startAt(_startFrom)
         : _baseRef.child('events');                                            /* الكل */
     if(_fullReload){ try{localStorage.setItem('gp_fullsync_'+(_currentUser||''),String(Date.now()));}catch(e){} }
 
@@ -1356,6 +1361,7 @@ function _fbInitialLoad(){
             const _remoteTs = +(ms.val()||0);
             if(_remoteTs>0 && _remoteTs<=_lastLocalTs){
                 /* لا جديد — اعتمد المحلي كلياً، لا تجلب شيئاً */
+                try{ localStorage.setItem('gp_archived_'+(_currentUser||''),'1'); }catch(e){}
                 _fbLoaded=true; _startFbSync(); _startSettingsSync();
                 try{ _reproject(); }catch(e){}
                 return;
@@ -1395,6 +1401,9 @@ function _fbInitialLoad(){
             }
             _lsSaveEvents();
             _reproject();
+            /* أرشيف هذا المستخدم اكتمل (تزايدي من البداية أو كامل) — علّمه
+               كي لا يعيد الجلب من البداية في الفتحات التالية. */
+            try{ localStorage.setItem('gp_archived_'+(_currentUser||''),'1'); }catch(e){}
             if(_added>0||!_isCustomer)toast('☁️ تمت المزامنة مع السحابة','info');
         }else if(_allEvents.length>0 && !_isCustomer){
             /* لا توجد أحداث في Firebase — ارفع المحلية (الأدمين/العامل فقط) */
