@@ -1,4 +1,4 @@
-window.FB_JS_VER='v363';
+window.FB_JS_VER='v364';
 /* ═══════════ FIREBASE ═══════════ */
 const _fbConfig={
     apiKey:"AIzaSyDevHwoNCKXGm-G8GJc_Z5eZwcSPuQS9wI",
@@ -216,7 +216,12 @@ let _encKey='';
 function _lsSet(key,obj){
     try{
         const plain=JSON.stringify(obj);
-        const stored=_encKey?CryptoJS.AES.encrypt(plain,_encKey).toString():plain;
+        /* سجل الأحداث (gp_ev_) يُخزَّن خاماً بلا تشفير: تشفير AES لآلاف الأحداث
+           عند كل حفظ كان يُبطئ حفظ الجلسة بوضوح. البيانات على Firebase خام أصلاً،
+           والتشفير المحلي هنا كان يحمي localStorage فقط — أُزيل لسجل الأحداث للسرعة.
+           باقي المفاتيح الحسّاسة (النسخ الاحتياطي) تبقى مشفّرة كما هي. */
+        const _isEvents=(key.indexOf('gp_ev_')===0);
+        const stored=(_encKey && !_isEvents)?CryptoJS.AES.encrypt(plain,_encKey).toString():plain;
         localStorage.setItem(key,stored);
     }catch(e){}
 }
@@ -224,12 +229,26 @@ function _lsGet(key){
     try{
         const raw=localStorage.getItem(key);
         if(!raw)return null;
-        if(_encKey){
+        const _isEvents=(key.indexOf('gp_ev_')===0);
+        /* سجل الأحداث خام الآن. لكن قد يوجد سجل قديم مشفّر — نجرّب فكّه أولاً للتوافق. */
+        if(_encKey && !_isEvents){
             try{
                 const bytes=CryptoJS.AES.decrypt(raw,_encKey);
                 const plain=bytes.toString(CryptoJS.enc.Utf8);
                 if(plain)return JSON.parse(plain);
             }catch(e2){}
+        }
+        if(_isEvents){
+            /* جرّب الخام أولاً (الصيغة الجديدة)، فإن فشل فهو سجل قديم مشفّر */
+            try{ return JSON.parse(raw); }catch(_){}
+            if(_encKey){
+                try{
+                    const bytes=CryptoJS.AES.decrypt(raw,_encKey);
+                    const plain=bytes.toString(CryptoJS.enc.Utf8);
+                    if(plain)return JSON.parse(plain);
+                }catch(e3){}
+            }
+            return null;
         }
         return JSON.parse(raw);
     }catch(e){return null;}
@@ -1487,7 +1506,12 @@ function _startFbSync(){
        هذا يوفّر كثيراً للأدمين على عدة أجهزة أيضاً. */
     let _addedRef=_baseRef.child('events');
     let _maxTs=0; _allEvents.forEach(e=>{ if((e.ts||0)>_maxTs)_maxTs=e.ts||0; });
-    if(_maxTs>0)_addedRef=_baseRef.child('events').orderByChild('ts').startAt(_maxTs-3600*1000);
+    /* نبدأ المستمع من (الآن) لا من _maxTs-ساعة: التحميل الأولي جلب كل شيء حتى الآن،
+       فالمستمع يحتاج فقط ما هو أحدث. هذا يمنع إعادة تنزيل أحداثك المرفوعة للتو
+       (حفظ جلسة الورشة) وأحداث آخر ساعة — كانت تُنقل بلا داعٍ وتُحسب تكلفة.
+       نطرح ثانيتين فقط كهامش أمان ضد فروق الساعات. */
+    const _listenFrom=Math.max(_maxTs, Date.now())-2000;
+    _addedRef=_baseRef.child('events').orderByChild('ts').startAt(_listenFrom);
     /* مجموعة معرّفات للفحص السريع O(1) بدل البحث الخطّي O(n) في كل حدث وارد
        (كان يسبّب تجميداً عند الدخول الأول مع آلاف الأحداث). */
     /* املأ مجموعة المعرّفات العامة بما لدينا (للفحص السريع O(1) ومنع التكرار). */
