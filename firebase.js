@@ -1,4 +1,4 @@
-window.FB_JS_VER='v366';
+window.FB_JS_VER='v367';
 /* ═══════════ FIREBASE ═══════════ */
 const _fbConfig={
     apiKey:"AIzaSyDevHwoNCKXGm-G8GJc_Z5eZwcSPuQS9wI",
@@ -1287,6 +1287,10 @@ function _scheduleSave(){clearTimeout(_saveTimer);_saveTimer=setTimeout(save,120
 /* ═══════════ FIREBASE INITIAL LOAD — مزامنة الأحداث أول مرة ═══════════ */
 function _fbInitialLoad(){
     if(!_baseRef)return;
+    /* ═ حرج للعمل الأوفلاين: حمّل البيانات المحلية وأعد بناءها فوراً ═
+       قبل أي استعلام Firebase (الذي يعلّق أوفلاين). هكذا يرى المستخدم بياناته
+       فور فتح التطبيق بلا نت، لا شاشة فارغة حتى تعود المزامنة. */
+    try{ _lsLoadEvents(); if(_allEvents.length>0)_reproject(); }catch(e){}
     /* تحميل الإعدادات من Firebase */
     _baseRef.child('settings').once('value',s=>{
         const cfg=s.val();

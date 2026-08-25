@@ -498,8 +498,10 @@ async function _checkAuth(){
            حتى لو تعطّل تحميل Firebase (انقطاع النت). */
         _applyRoleUI();
         _loadUsers().catch(()=>{});
-        if(_encKey) await _fbSignInEmail(savedUser,_encKey).catch(()=>{});
+        /* حمّل البيانات المحلية فوراً — لا تنتظر مصادقة Firebase (تعلّق أوفلاين).
+           المصادقة تجري في الخلفية؛ عند نجاحها تُرفع التغييرات وتُجلب التحديثات. */
         _fbInitialLoad();_afterLogin();
+        if(_encKey){ _fbSignInEmail(savedUser,_encKey).catch(()=>{}); }
         _applyRoleUI();   /* مرة ثانية بعد التحميل — احتياط (بوابة الزبون قد تحتاج بيانات) */
         return;
     }

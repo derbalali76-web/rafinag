@@ -5,13 +5,13 @@ const NS = (() => { try {
   return String(seg).toLowerCase().replace(/[^a-z0-9_-]/g,'');
 } catch(e){ return 'root'; } })();
 const CACHE_PREFIX = 'goldpro@' + NS + '-';
-const CACHE = CACHE_PREFIX + 'v366';
+const CACHE = CACHE_PREFIX + 'v367';
 const ASSETS = [
   './','./index.html',
-  './style.css?v=366',
-  './firebase.js?v=366','./app.js?v=366','./assistant.js?v=366',
-  './inventory.js?v=366','./invoice.js?v=366','./raffinage.js?v=366',
-  './workshops.js?v=366','./auth.js?v=366',
+  './style.css?v=367',
+  './firebase.js?v=367','./app.js?v=367','./assistant.js?v=367',
+  './inventory.js?v=367','./invoice.js?v=367','./raffinage.js?v=367',
+  './workshops.js?v=367','./auth.js?v=367',
   './manifest.json',
   './icons/icon-192.png','./icons/icon-512.png',
   './icons/icon-512-maskable.png','./icons/icon-180.png',
@@ -62,7 +62,16 @@ self.addEventListener('fetch', e => {
           return res;
         }).catch(() => cached);
         /* إن وُجد في الكاش: أعده فوراً (أوفلاين/سريع)، والشبكة تحدّث بصمت */
-        return cached || net;
+        if (cached) return cached;
+        /* لا نسخة مطابقة: للتنقّل (فتح التطبيق) اخدم index.html من الكاش —
+           يضمن إقلاع التطبيق أوفلاين مهما اختلف شكل الرابط (معاملات، مسار). */
+        return net.catch(() => null).then(r => {
+          if (r) return r;
+          if (e.request.mode === 'navigate' || (e.request.headers.get('accept')||'').includes('text/html')) {
+            return c.match('./index.html') || c.match('./');
+          }
+          return undefined;
+        });
       })
     )
   );
