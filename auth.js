@@ -192,10 +192,28 @@ async function doLogin(){
     }
     const user=users[uname];
 
+    /* ── مسار أوفلاين: إن لا نت وللأدمين نسخة محلية، تحقّق من بصمة كلمة المرور ──
+       (المسار المتصل أدناه يبقى يتحقّق عبر Firebase حصراً — الأقوى) */
+    if(!navigator.onLine){
+        try{
+            const _cached=JSON.parse(localStorage.getItem('gp_adm_'+uname)||'null');
+            if(_cached && _cached.pwHash){
+                const _h=await _sha256(pw);
+                if(btn){btn.disabled=false;btn.textContent=origTxt;}
+                if(_h===_cached.pwHash){ return _finishLogin(uname,pw,'admin',null,''); }
+                return _showLoginErr('كلمة المرور خاطئة');
+            }
+        }catch(e){}
+        if(btn){btn.disabled=false;btn.textContent=origTxt;}
+        return _showLoginErr('أول دخول يحتاج اتصالاً بالإنترنت');
+    }
+
     /* التحقّق من كلمة المرور عبر مصادقة Firebase حصراً (لا بصمة مخزّنة تُكسَر) */
     const _ok=await _fbSignInEmail(uname,pw,true);
     if(btn){btn.disabled=false;btn.textContent=origTxt;}
     if(!_ok)return _showLoginErr('كلمة المرور خاطئة');
+    /* احفظ بصمة كلمة المرور محلياً للدخول الأوفلاين لاحقاً */
+    try{ const _h=await _sha256(pw); localStorage.setItem('gp_adm_'+uname,JSON.stringify({pwHash:_h})); }catch(e){}
     /* نظّف أي بصمة قديمة متبقّية في _users */
     try{ if(user.pwHash!==undefined) _saveUser(uname,!!user.isAdmin); }catch(e){}
     _finishLogin(uname,pw,'admin',null,'');
@@ -310,26 +328,56 @@ async function doLoginRafEditor(uname,pw){
     _finishLogin(uname,pw,'rafeditor',null,dispName);
 }
 
-/* ═══ دخول الزبون برقم الهاتف ═══ */
+/* ═══ دخول الزبون برقم الهاتف — يعمل أوفلاين بعد أول دخول ناجح ═══ */
 async function doLoginCustomer(phone,pw){
     phone=(phone||'').replace(/[^0-9]/g,'');
     document.getElementById('loginErr').style.display='none';
     if(phone.length<6)return _showLoginErr('أدخل رقم هاتف صحيحاً');
     if(!pw)return _showLoginErr('أدخل كلمة المرور');
-    /* الرقم لا بد أن يكون مربوطاً باسم زبون من المسؤول */
+    const uname='c'+phone;
+
+    /* ── مسار أوفلاين: إن كان الزبون دخل من قبل على هذا الجهاز، تحقّق محلياً ──
+       نحفظ بصمة كلمة المرور واسم الزبون بعد أول دخول ناجح، فلا نحتاج نت بعدها. */
+    let _offlineName='';
+    try{
+        const _cached=JSON.parse(localStorage.getItem('gp_cust_'+phone)||'null');
+        if(_cached && _cached.pwHash){
+            const _h=await _sha256(pw);
+            if(_h===_cached.pwHash){
+                _offlineName=_cached.name||'';
+                /* إن لا نت: ادخل محلياً فوراً. إن يوجد نت: جدّد الجلسة في الخلفية. */
+                if(!navigator.onLine){
+                    return _finishLogin(uname,pw,'customer',null,_offlineName);
+                }
+            }else if(!navigator.onLine){
+                return _showLoginErr('كلمة المرور خاطئة');
+            }
+        }else if(!navigator.onLine){
+            return _showLoginErr('أول دخول يحتاج اتصالاً بالإنترنت');
+        }
+    }catch(e){}
+
+    /* ── مسار متصل: تحقّق من Firebase (أول دخول أو تجديد) ── */
     const rec=await new Promise(res=>{
         const t=setTimeout(()=>res(null),6000);
         _db.ref(_CUSTS_PATH+'/'+phone).once('value',s=>{clearTimeout(t);res(s.val());},()=>{clearTimeout(t);res(null);});
     });
-    if(!rec||!rec.name)return _showLoginErr('الرقم غير مسجّل — تواصل مع المسؤول');
-    /* التحقق من كلمة السر التي اختارها المسؤول (بصمة SHA-256) */
+    if(!rec||!rec.name){
+        /* تعذّر الوصول للسحابة لكن لدينا نسخة محلية → ادخل بها */
+        if(_offlineName)return _finishLogin(uname,pw,'customer',null,_offlineName);
+        return _showLoginErr('الرقم غير مسجّل — تواصل مع المسؤول');
+    }
     if(rec.pwHash){
         const h=await _sha256(pw);
         if(h!==rec.pwHash)return _showLoginErr('كلمة المرور خاطئة');
+        /* احفظ محلياً للدخول الأوفلاين لاحقاً */
+        try{localStorage.setItem('gp_cust_'+phone,JSON.stringify({name:rec.name,pwHash:rec.pwHash}));}catch(e){}
     }
-    const uname='c'+phone;
     const _ok=await _fbSignInEmail(uname,pw,true);
-    if(!_ok)return _showLoginErr('كلمة المرور خاطئة');
+    if(!_ok){
+        if(_offlineName)return _finishLogin(uname,pw,'customer',null,_offlineName);
+        return _showLoginErr('كلمة المرور خاطئة');
+    }
     _finishLogin(uname,pw,'customer',null,rec.name);
 }
 
