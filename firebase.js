@@ -1,4 +1,4 @@
-window.FB_JS_VER='v360';
+window.FB_JS_VER='v362';
 /* ═══════════ FIREBASE ═══════════ */
 const _fbConfig={
     apiKey:"AIzaSyDevHwoNCKXGm-G8GJc_Z5eZwcSPuQS9wI",
@@ -1326,6 +1326,12 @@ function _fbInitialLoad(){
         const _lastFull=+(localStorage.getItem('gp_fullsync_'+(_currentUser||''))||0);
         if(_lastLocalTs>0 && (Date.now()-_lastFull)<_fullEveryMs)_fullReload=false;
     }catch(e){}
+    /* ضمان الأرشيف الكامل: إن لم يُجلب أرشيف هذا المستخدم كاملاً بنجاح من قبل
+       (جهاز جديد، تخزين مُسح، أو عامل لم يُحمّل أرشيفه)، أجبر التحميل الكامل مرة.
+       يمنع مشكلة «العامل يجد ما سجّله البارحة فقط» — التزايدي كان يبني على محلي ناقص. */
+    let _archiveEver=false;
+    try{ _archiveEver=(localStorage.getItem('gp_archived_'+(_currentUser||''))==='1'); }catch(e){}
+    if(!_archiveEver)_fullReload=true;
     let _incremental=(_lastLocalTs>0 && !_fullReload);
     /* الزبون: التحميل الكامل يجلب كل الأحداث (3006+) رغم أنه يحتاج ~4 فقط —
        أكبر مصدر للتكلفة. الحل: تزايدي كالأدمين، مع تحميل كامل أول مرة (لا بيانات
@@ -1384,6 +1390,8 @@ function _fbInitialLoad(){
                     /* الزبون في تحميل كامل: احذف محلياً ما لم يعد في السحابة (تصحيحات) */
                     _allEvents=_allEvents.filter(e=>!e.id||remoteIds.has(e.id));
                 }
+                /* الأرشيف جُلب كاملاً بنجاح — علّم كي لا نُجبر التحميل الكامل ثانية */
+                try{ localStorage.setItem('gp_archived_'+(_currentUser||''),'1'); }catch(e){}
             }
             _lsSaveEvents();
             _reproject();

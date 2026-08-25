@@ -1,4 +1,4 @@
-window.APP_JS_VER='v360';
+window.APP_JS_VER='v362';
 /* ═══════════ STATE ═══════════ */
 let B={دينار:0,'ذهب 730':0,'ذهب 24':0,دولار:0,vg730:0,vg24:0};
 let ops=[],invoices=[],debts=[],loans=[],rafInvoices=[],dollInvoices=[],dubaiInvoices=[];
@@ -4992,30 +4992,22 @@ window.openProfitModal=function(sel){
 window.showOpInvoice=function(opId){
     const o=ops.find(x=>x&&x.id===opId);
     if(!o){ return toast('العملية غير موجودة','info'); }
-    const t=o.t||'';
     try{
-        /* فاتورة شراء/بيع الذهب */
-        if((t==='شراء'||t==='بيع') && o.iid && invoices.find(i=>i.id===o.iid)){
-            return window.printInv(o.iid);
-        }
-        /* فاتورة رافيناج */
-        if(t==='رافيناج' && o.rid && rafInvoices.find(r=>r&&r.id===o.rid)){
+        /* نوجّه حسب المعرّف الموجود في العملية (أمتن من نوع النص المتعدّد):
+           rid → رافيناج · iid → شراء/بيع ذهب · did → دولار أو دبي */
+        if(o.rid && rafInvoices.find(r=>r&&r.id===o.rid)){
             return window.printRaf(o.rid);
         }
-        /* فاتورة دولار (شراء/بيع) */
-        if((t==='شراء دولار'||t==='بيع دولار') && o.did && dollInvoices.find(d=>d.id===o.did)){
-            return window.printDoll(o.did);
-        }
-        /* فاتورة بيع دبي */
-        if(t==='بيع دبي' && o.did && dubaiInvoices.find(d=>d.id===o.did)){
-            return window.printDubai(o.did);
-        }
-        /* تصفية بفاتورة (شراء/بيع بسعر) لها iid */
         if(o.iid && invoices.find(i=>i.id===o.iid)){
             return window.printInv(o.iid);
         }
+        if(o.did){
+            /* did قد يكون فاتورة دولار أو دبي — نجرّب كليهما */
+            if(dollInvoices.find(d=>d.id===o.did)) return window.printDoll(o.did);
+            if(dubaiInvoices.find(d=>d.id===o.did)) return window.printDubai(o.did);
+        }
     }catch(e){}
-    /* لا فاتورة لهذه العملية → اعرض سجل الزبون (المعاملة فقط) */
+    /* لا فاتورة لهذه العملية (سلف، تحويل، شحن، تصفية بلا فاتورة...) → سجل الزبون */
     if(o.c) return window.showCustomerLog(o.c);
     toast('لا فاتورة لهذه العملية','info');
 };
