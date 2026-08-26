@@ -1,4 +1,4 @@
-window.FB_JS_VER='v367';
+window.FB_JS_VER='v368';
 /* ═══════════ FIREBASE ═══════════ */
 const _fbConfig={
     apiKey:"AIzaSyDevHwoNCKXGm-G8GJc_Z5eZwcSPuQS9wI",
@@ -1291,6 +1291,18 @@ function _fbInitialLoad(){
        قبل أي استعلام Firebase (الذي يعلّق أوفلاين). هكذا يرى المستخدم بياناته
        فور فتح التطبيق بلا نت، لا شاشة فارغة حتى تعود المزامنة. */
     try{ _lsLoadEvents(); if(_allEvents.length>0)_reproject(); }catch(e){}
+    /* تشخيص مؤقت: أظهر عدد الأحداث المحلية (يُكشف سبب الفراغ أوفلاين) */
+    try{
+        if(!navigator.onLine){
+            const _n=_allEvents.length;
+            const _d=document.createElement('div');
+            _d.style.cssText='position:fixed;top:0;left:0;right:0;z-index:2147483646;background:'+(_n>0?'#059669':'#dc2626')+';color:#fff;font-size:12px;padding:4px 8px;text-align:center;direction:rtl;font-family:sans-serif';
+            _d.textContent='أوفلاين · '+(_n>0?('البيانات المحلية: '+_n+' حدث'):'لا بيانات محلية — ادخل متصلاً مرة')+' · '+(_currentUser||'؟');
+            _d.onclick=function(){_d.remove();};
+            document.body.appendChild(_d);
+            setTimeout(function(){try{_d.remove();}catch(e){}},8000);
+        }
+    }catch(e){}
     /* تحميل الإعدادات من Firebase */
     _baseRef.child('settings').once('value',s=>{
         const cfg=s.val();
