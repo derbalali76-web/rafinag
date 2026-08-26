@@ -1,4 +1,4 @@
-window.FB_JS_VER='v372';
+window.FB_JS_VER='v373';
 /* ═══════════ FIREBASE ═══════════ */
 const _fbConfig={
     apiKey:"AIzaSyDevHwoNCKXGm-G8GJc_Z5eZwcSPuQS9wI",
@@ -298,6 +298,49 @@ let _allEvents=[];
 let _seenIds=new Set();
 let _fbListening=false;
 
+/* ═══════════ تخزين دائم عبر IndexedDB ═══════════
+   localStorage قد يُمسح في WebView/Median عند إغلاق التطبيق، ما يفقد الأحداث.
+   IndexedDB أكثر ديمومة (لا تُمسح تلقائياً) وسعتها كبيرة. نخزّن الأحداث فيها
+   كمصدر أساسي، مع localStorage احتياطاً. */
+let _idb=null, _idbReady=false;
+function _idbOpen(){
+    return new Promise(function(res){
+        if(_idb){res(_idb);return;}
+        try{
+            const rq=indexedDB.open('goldpro_db',1);
+            rq.onupgradeneeded=function(e){ const db=e.target.result; if(!db.objectStoreNames.contains('events'))db.createObjectStore('events'); };
+            rq.onsuccess=function(e){ _idb=e.target.result; _idbReady=true; res(_idb); };
+            rq.onerror=function(){ res(null); };
+        }catch(e){ res(null); }
+    });
+}
+function _idbSaveEvents(user,arr){
+    return new Promise(function(res){
+        _idbOpen().then(function(db){
+            if(!db){res(false);return;}
+            try{
+                const tx=db.transaction('events','readwrite');
+                tx.objectStore('events').put(arr,'gp_ev_'+(user||''));
+                tx.oncomplete=function(){res(true);};
+                tx.onerror=function(){res(false);};
+            }catch(e){res(false);}
+        });
+    });
+}
+function _idbLoadEvents(user){
+    return new Promise(function(res){
+        _idbOpen().then(function(db){
+            if(!db){res(null);return;}
+            try{
+                const tx=db.transaction('events','readonly');
+                const rq=tx.objectStore('events').get('gp_ev_'+(user||''));
+                rq.onsuccess=function(){ res(Array.isArray(rq.result)?rq.result:null); };
+                rq.onerror=function(){ res(null); };
+            }catch(e){res(null);}
+        });
+    });
+}
+
 function _getEvLsKey(){return 'gp_ev_'+(_currentUser||'');}
 
 /* تخزين صورة محلياً بأمان: يحدّ العدد ويحذف الأقدم عند الامتلاء،
@@ -322,6 +365,8 @@ window._cachePhotoSafe=function(key,imgs){
 
 let _lsSaveWarned=false;
 function _lsSaveEvents(){
+    /* احفظ في IndexedDB (دائم، لا يُمسح في WebView) — المصدر الأساسي */
+    try{ _idbSaveEvents(_currentUser,_allEvents); }catch(e){}
     try{
         _lsSet(_getEvLsKey(),_allEvents);
         /* تحقّق فعلي أن الكتابة نجحت — _lsSet يبتلع الأخطاء بصمت */
@@ -1312,6 +1357,18 @@ function _fbInitialLoad(){
     if(!_baseRef)return;
     /* ═ حرج للعمل الأوفلاين: حمّل البيانات المحلية وأعد بناءها فوراً ═ */
     try{ _lsLoadEvents(); if(_allEvents.length>0)_reproject(); }catch(e){}
+    /* حمّل من IndexedDB (دائم) — إن كان أكثر مما في localStorage، اعتمده.
+       يعالج مسح WebView لـlocalStorage عند إغلاق التطبيق. */
+    try{
+        _idbLoadEvents(_currentUser).then(function(idbArr){
+            if(idbArr && idbArr.length>_allEvents.length){
+                _allEvents=idbArr;
+                _seenIds=new Set(idbArr.map(e=>e&&e.id).filter(Boolean));
+                try{ _lsSaveEvents(); }catch(e){}   /* أعد الكتابة لـlocalStorage */
+                try{ _reproject(); }catch(e){}
+            }
+        });
+    }catch(e){}
     /* تحميل الإعدادات من Firebase */
     _baseRef.child('settings').once('value',s=>{
         const cfg=s.val();

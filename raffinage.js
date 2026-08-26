@@ -1,4 +1,4 @@
-window.RAF_JS_VER='v372';
+window.RAF_JS_VER='v373';
 /* ═══════════ RAFFINAGE ═══════════ */
 let rafRows=4;
 const _rafSentIds=new Set();
