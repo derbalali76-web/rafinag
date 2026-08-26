@@ -1,4 +1,4 @@
-window.FB_JS_VER='v370';
+window.FB_JS_VER='v371';
 /* ═══════════ FIREBASE ═══════════ */
 const _fbConfig={
     apiKey:"AIzaSyDevHwoNCKXGm-G8GJc_Z5eZwcSPuQS9wI",
@@ -1290,10 +1290,35 @@ function _scheduleSave(){clearTimeout(_saveTimer);_saveTimer=setTimeout(save,120
 /* ═══════════ FIREBASE INITIAL LOAD — مزامنة الأحداث أول مرة ═══════════ */
 function _fbInitialLoad(){
     if(!_baseRef)return;
-    /* ═ حرج للعمل الأوفلاين: حمّل البيانات المحلية وأعد بناءها فوراً ═
-       قبل أي استعلام Firebase (الذي يعلّق أوفلاين). هكذا يرى المستخدم بياناته
-       فور فتح التطبيق بلا نت، لا شاشة فارغة حتى تعود المزامنة. */
+    /* ═ حرج للعمل الأوفلاين: حمّل البيانات المحلية وأعد بناءها فوراً ═ */
     try{ _lsLoadEvents(); if(_allEvents.length>0)_reproject(); }catch(e){}
+    /* تشخيص شامل: يكشف أين تتوقّف السلسلة أوفلاين */
+    try{
+        if(!navigator.onLine){
+            /* افحص التخزين الخام مباشرة */
+            let _rawKey='gp_ev_'+(_currentUser||'');
+            let _nsKey=(window.__GP_NS||'')+_rawKey;
+            let _rawVal=null, _rawLen=0, _parsed=0;
+            try{ _rawVal=localStorage.getItem(_nsKey); }catch(e){}
+            if(!_rawVal){ try{ _rawVal=localStorage.getItem(_rawKey); }catch(e){} }
+            if(_rawVal){ _rawLen=_rawVal.length; try{ const p=JSON.parse(_rawVal); if(Array.isArray(p))_parsed=p.length; }catch(e){} }
+            /* عدّ كل مفاتيح gp_ev في التخزين */
+            let _allKeys=[];
+            try{ for(let i=0;i<localStorage.length;i++){ const k=localStorage.key(i); if(k&&k.indexOf('gp_ev')>=0)_allKeys.push(k+'='+(localStorage.getItem(k)||'').length); } }catch(e){}
+            const _d=document.createElement('div');
+            _d.style.cssText='position:fixed;top:0;left:0;right:0;z-index:2147483646;background:#1e3a8a;color:#fff;font-size:11px;padding:6px 8px;text-align:right;direction:rtl;font-family:monospace;line-height:1.6;max-height:50vh;overflow:auto';
+            _d.innerHTML='<b>تشخيص أوفلاين</b> (انقر للإغلاق)<br>'+
+                'المستخدم: '+(_currentUser||'—')+'<br>'+
+                '_allEvents (بالذاكرة): '+_allEvents.length+'<br>'+
+                'المفتاح: '+_nsKey+'<br>'+
+                'الخام موجود؟ '+(_rawVal?('نعم، '+_rawLen+' حرف'):'لا')+'<br>'+
+                'محلّل (عدد الأحداث): '+_parsed+'<br>'+
+                'كل مفاتيح gp_ev: '+(_allKeys.join(' | ')||'لا شيء')+'<br>'+
+                '_baseRef؟ '+(!!_baseRef)+' · _roleLock: '+(window._roleLock||'admin');
+            _d.onclick=function(){_d.remove();};
+            (document.body||document.documentElement).appendChild(_d);
+        }
+    }catch(e){}
     /* تحميل الإعدادات من Firebase */
     _baseRef.child('settings').once('value',s=>{
         const cfg=s.val();
