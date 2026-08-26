@@ -1,4 +1,4 @@
-window.FB_JS_VER='v373';
+window.FB_JS_VER='v375';
 /* ═══════════ FIREBASE ═══════════ */
 const _fbConfig={
     apiKey:"AIzaSyDevHwoNCKXGm-G8GJc_Z5eZwcSPuQS9wI",
@@ -141,14 +141,21 @@ setInterval(function(){
    نظّف أيضاً عند الإقلاع فوراً (لا ننتظر 30 ثانية) لتحرير المساحة قبل حفظ الأحداث. */
 function _cleanFbJunk(){
     try{
-        for(var i=localStorage.length-1;i>=0;i--){
+        var kill=[];
+        for(var i=0;i<localStorage.length;i++){
             var k=localStorage.key(i);
-            if(k&&k.indexOf('previous_websocket_failure')>=0){ try{localStorage.removeItem(k);}catch(_){}}
+            if(!k)continue;
+            /* احذف كل مؤقتات Firebase العابثة (تتراكم بالآلاف وتملأ التخزين) */
+            if(k.indexOf('previous_websocket_failure')>=0 ||
+               k.indexOf('firebase:previous')>=0 ||
+               k.indexOf('fcm_token_details')>=0 ||
+               /firebase.*websocket/i.test(k)){ kill.push(k); }
         }
+        kill.forEach(function(k){ try{localStorage.removeItem(k);}catch(_){}});
     }catch(e){}
 }
 _cleanFbJunk();                    /* فوراً عند الإقلاع */
-setInterval(_cleanFbJunk,30000);   /* ثم دورياً */
+setInterval(_cleanFbJunk,15000);   /* ثم دورياً (أكثر تكراراً) */
 
 _db.ref('.info/connected').on('value',s=>{
     const wasOffline=!_fbOnline;
@@ -365,11 +372,11 @@ window._cachePhotoSafe=function(key,imgs){
 
 let _lsSaveWarned=false;
 function _lsSaveEvents(){
-    /* احفظ في IndexedDB (دائم، لا يُمسح في WebView) — المصدر الأساسي */
+    /* IndexedDB هو المصدر الأساسي الدائم (سعة كبيرة، لا يُمسح في WebView) */
     try{ _idbSaveEvents(_currentUser,_allEvents); }catch(e){}
+    try{ _cleanFbJunk(); }catch(e){}   /* حرّر مساحة localStorage قبل الكتابة */
     try{
         _lsSet(_getEvLsKey(),_allEvents);
-        /* تحقّق فعلي أن الكتابة نجحت — _lsSet يبتلع الأخطاء بصمت */
         const _chk=localStorage.getItem((window.__GP_NS||'')+_getEvLsKey());
         if(!_chk||_chk.length<10)throw new Error('empty-after-write');
         _lsSaveWarned=false;
@@ -385,13 +392,11 @@ function _lsSaveEvents(){
             const _c2=localStorage.getItem((window.__GP_NS||'')+_getEvLsKey());
             if(_c2&&_c2.length>10){_lsSaveWarned=false;return;}
         }catch(_){}
-        /* الزبون لا يكتب عمليات — لا معنى لتحذيره عن فقدان الحفظ */
-        if(!_lsSaveWarned&&window._roleLock!=='customer'){
+        /* localStorage ممتلئ لكن IndexedDB (v373) هو المصدر الدائم المعوّل عليه.
+           لا نحذّر ما دام IndexedDB متاحاً — البيانات محفوظة فيه بأمان. */
+        if(typeof indexedDB==='undefined' && !_lsSaveWarned && window._roleLock!=='customer'){
             _lsSaveWarned=true;
-            const m='⚠️ تعذّر حفظ العمليات على هذا الجهاز (المساحة ممتلئة).\n\n'
-                +'خطر: قد تضيع العمليات عند إعادة تحميل التطبيق.\n\n'
-                +'لا تُعِد تحميل الصفحة قبل أن تصير شارة المزامنة خضراء.';
-            try{ if(typeof appAlert==='function')appAlert(m); else alert(m); }catch(_){}
+            try{ if(typeof toast==='function')toast('⚠️ تعذّر الحفظ المحلي — تأكّد من المزامنة الخضراء','error'); }catch(_){}
         }
     }
 }
@@ -1247,6 +1252,13 @@ function _fbReconnect(){
 window.forceFullSync=function(){
     if(!_baseRef){ if(typeof toast==='function')toast('لا اتصال بقاعدة البيانات','error'); return; }
     if(!navigator.onLine){ if(typeof toast==='function')toast('التحديث يحتاج اتصالاً بالإنترنت','error'); return; }
+    /* تنظيف عميق أولاً: احذف كل مؤقتات Firebase المتراكمة لتحرير المساحة */
+    try{ _cleanFbJunk(); }catch(e){}
+    try{
+        const kill=[];
+        for(let i=0;i<localStorage.length;i++){ const k=localStorage.key(i); if(k&&(k.indexOf('firebase')>=0||k.indexOf('gp_ph_')>=0))kill.push(k); }
+        kill.forEach(k=>{try{localStorage.removeItem(k);}catch(_){}});
+    }catch(e){}
     if(typeof toast==='function')toast('⏳ جارٍ جلب كل البيانات…','info');
     _baseRef.child('events').once('value',function(snap){
         const data=snap.val();

@@ -1,4 +1,4 @@
-window.APP_JS_VER='v373';
+window.APP_JS_VER='v375';
 /* ═══════════ STATE ═══════════ */
 let B={دينار:0,'ذهب 730':0,'ذهب 24':0,دولار:0,vg730:0,vg24:0};
 let ops=[],invoices=[],debts=[],loans=[],rafInvoices=[],dollInvoices=[],dubaiInvoices=[];
@@ -55,7 +55,7 @@ function fmt(n,d=2){
     const abs=Math.abs(n);
     const fixed=abs.toFixed(d);
     const [int,dec]=fixed.split('.');
-    const intFmt=int.replace(/\B(?=(\d{3})+(?!\d))/g,'\u202F');
+    const intFmt=int.replace(/\B(?=(\d{3})+(?!\d))/g,'\u2004');
     return (neg?'−':'')+intFmt+(d>0?','+dec:'');
 }
 /* FIX: uid() غير قابل للاستخدام في onclick بدون quotes — نستخدم base36 نظيف */
