@@ -498,7 +498,22 @@ function reconcileBars(adminBars,workerBars){
 window.wsReconcile=function(){
     const adminBars=_wsBarsOf(_wsCur);
     const workerBars=_wsWBarsOf(_wsCur);
-    if(!workerBars.length&&!adminBars.length)return toast('لا سبائك للمقارنة','info');
+    /* تشخيص: اكشف القيم الفعلية إن لم تكن هناك سبائك عامل */
+    if(!workerBars.length){
+        const _wsAll=(typeof wsWorkerBars!=='undefined')?wsWorkerBars:{};
+        const _keys=Object.keys(_wsAll).map(k=>k+':'+((_wsAll[k]||[]).length)).join(' | ');
+        const _wEvents=(typeof _allEvents!=='undefined')?_allEvents.filter(e=>e&&e.type==='WS_WBARADD').length:'؟';
+        alert('تشخيص المطابقة:\n\n'+
+            'الورشة الحالية: '+_wsCur+'\n'+
+            'سبائكك (مسؤول): '+adminBars.length+'\n'+
+            'سبائك العامل هنا: '+workerBars.length+'\n\n'+
+            'كل ورش العامل: '+(_keys||'فارغة')+'\n'+
+            'أحداث WS_WBARADD المستلمة: '+_wEvents+'\n\n'+
+            (_wEvents===0?'⚠️ لم تصل أي سبيكة من العامل — تأكّد أن العامل سجّل وأن المزامنة تمّت':
+             'سبائك العامل في ورشة أخرى — بدّل الورشة'));
+        return;
+    }
+    if(!adminBars.length)return toast('لا سبائك لديك للمقارنة','info');
     const r=reconcileBars(adminBars,workerBars);
     _wsMiss[_wsCur]=r.miss;
     renderWorkshops();

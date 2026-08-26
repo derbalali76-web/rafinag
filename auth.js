@@ -134,6 +134,9 @@ function _afterLogin(){
     }catch(e){}
     restoreDraft();calcRaf();
     setInterval(save,30000);
+    /* أظهر مؤشّر الاتصال (النقطة الخضراء) فوراً بعد الدخول، ثم حدّثه دورياً —
+       يضمن ظهور الشارة العائمة للعامل حتى لو لم يتغيّر الاتصال منذ الدخول. */
+    try{ if(typeof _updSyncIndicator==='function'){ _updSyncIndicator(); setInterval(_updSyncIndicator,5000); } }catch(e){}
     _startAutoBackup();
     fetchSpotPrice();setInterval(fetchSpotPrice,30*1000);
     /* إن فُتح ملف .gpdf قبل توفّر مفتاح المستخدم، عالجه الآن */
