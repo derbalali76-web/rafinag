@@ -15,6 +15,10 @@
         /* حارس المساحة: عند الامتلاء، احذف مؤقتات Firebase (غير المهمة) وأعد المحاولة —
            يمنع تعليق التطبيق أوفلاين بسبب QuotaExceededError. */
         P.setItem=function(k,v){
+            /* ارفض مفاتيح Firebase العابثة من الأساس: previous_websocket_failure
+               تتراكم بالآلاف على الشبكات المتقطّعة وتملأ التخزين فيفشل حفظ الأحداث.
+               (السبب الجذري لـ«الذاكرة ممتلئة» وضياع البيانات محلياً). */
+            if(k && k.indexOf('previous_websocket_failure')>=0) return;
             var kk=OURS.test(k)?NS+k:k;
             try{ return _s.call(this,kk,v); }
             catch(e){
@@ -22,7 +26,7 @@
                     try{
                         var junk=[];
                         for(var i=0;i<this.length;i++){var kn=this.key(i);
-                            if(kn&&(kn.indexOf('firebase:')===0||kn.indexOf('previous_websocket')>=0))junk.push(kn);}
+                            if(kn&&(kn.indexOf('firebase:')===0||kn.indexOf('previous_websocket')>=0||kn.indexOf('fcm')>=0||kn.indexOf('firebaseLocalStorage')>=0))junk.push(kn);}
                         junk.forEach(function(x){ _r.call(this,x); },this);
                     }catch(_){}
                     try{ return _s.call(this,kk,v); }catch(e2){ /* ما زال ممتلئاً — لا تُسقط التطبيق */ }
@@ -55,7 +59,7 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-messaging-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.2.0/crypto-js.min.js"></script>
-    <link rel="stylesheet" href="style.css?v=368">
+    <link rel="stylesheet" href="style.css?v=370">
     <script>
     /* منع وميض نافذة الدخول: إن كانت الجلسة محفوظة، نخفيها قبل أول رسم */
     (function(){try{
@@ -1249,14 +1253,14 @@
 
 
 <!-- ═══ ملفات JS ═══ -->
-<script src="firebase.js?v=368"></script>
-<script src="app.js?v=368"></script>
-<script src="assistant.js?v=368"></script>
-<script src="inventory.js?v=368"></script>
-<script src="invoice.js?v=368"></script>
-<script src="raffinage.js?v=368"></script>
-<script src="workshops.js?v=368"></script>
-<script src="auth.js?v=368"></script>
+<script src="firebase.js?v=370"></script>
+<script src="app.js?v=370"></script>
+<script src="assistant.js?v=370"></script>
+<script src="inventory.js?v=370"></script>
+<script src="invoice.js?v=370"></script>
+<script src="raffinage.js?v=370"></script>
+<script src="workshops.js?v=370"></script>
+<script src="auth.js?v=370"></script>
 
 
 

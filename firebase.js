@@ -1,4 +1,4 @@
-window.FB_JS_VER='v368';
+window.FB_JS_VER='v370';
 /* ═══════════ FIREBASE ═══════════ */
 const _fbConfig={
     apiKey:"AIzaSyDevHwoNCKXGm-G8GJc_Z5eZwcSPuQS9wI",
@@ -137,15 +137,18 @@ setInterval(function(){
     try{ if(_fbOnline&&_baseRef&&_outboxCount()>0)_outboxFlush(); }catch(e){}
 },20000);
 
-/* تنظيف دوري لمؤقتات Firebase الفاشلة (previous_websocket_failure تتراكم وتملأ التخزين) */
-setInterval(function(){
+/* تنظيف دوري لمؤقتات Firebase الفاشلة (previous_websocket_failure تتراكم وتملأ التخزين).
+   نظّف أيضاً عند الإقلاع فوراً (لا ننتظر 30 ثانية) لتحرير المساحة قبل حفظ الأحداث. */
+function _cleanFbJunk(){
     try{
         for(var i=localStorage.length-1;i>=0;i--){
             var k=localStorage.key(i);
             if(k&&k.indexOf('previous_websocket_failure')>=0){ try{localStorage.removeItem(k);}catch(_){}}
         }
     }catch(e){}
-},30000);
+}
+_cleanFbJunk();                    /* فوراً عند الإقلاع */
+setInterval(_cleanFbJunk,30000);   /* ثم دورياً */
 
 _db.ref('.info/connected').on('value',s=>{
     const wasOffline=!_fbOnline;
@@ -1291,18 +1294,6 @@ function _fbInitialLoad(){
        قبل أي استعلام Firebase (الذي يعلّق أوفلاين). هكذا يرى المستخدم بياناته
        فور فتح التطبيق بلا نت، لا شاشة فارغة حتى تعود المزامنة. */
     try{ _lsLoadEvents(); if(_allEvents.length>0)_reproject(); }catch(e){}
-    /* تشخيص مؤقت: أظهر عدد الأحداث المحلية (يُكشف سبب الفراغ أوفلاين) */
-    try{
-        if(!navigator.onLine){
-            const _n=_allEvents.length;
-            const _d=document.createElement('div');
-            _d.style.cssText='position:fixed;top:0;left:0;right:0;z-index:2147483646;background:'+(_n>0?'#059669':'#dc2626')+';color:#fff;font-size:12px;padding:4px 8px;text-align:center;direction:rtl;font-family:sans-serif';
-            _d.textContent='أوفلاين · '+(_n>0?('البيانات المحلية: '+_n+' حدث'):'لا بيانات محلية — ادخل متصلاً مرة')+' · '+(_currentUser||'؟');
-            _d.onclick=function(){_d.remove();};
-            document.body.appendChild(_d);
-            setTimeout(function(){try{_d.remove();}catch(e){}},8000);
-        }
-    }catch(e){}
     /* تحميل الإعدادات من Firebase */
     _baseRef.child('settings').once('value',s=>{
         const cfg=s.val();
@@ -1367,6 +1358,10 @@ function _fbInitialLoad(){
     let _archiveEver=false;
     try{ _archiveEver=(localStorage.getItem('gp_archived_'+(_currentUser||''))==='1'); }catch(e){}
     if(!_archiveEver && _lastLocalTs===0)_fullReload=true;   /* فقط إن كان المحلي فارغاً فعلاً */
+    /* حماية من المحلي الناقص: إن كان عدد الأحداث المحلية ضئيلاً جداً بينما المستمع
+       سيبدأ من الآن، فالأرشيف القديم لن يُجلب. نجبر التزايدي من البداية (startAt 0)
+       ليكمل الأرشيف. يعالج «حدث واحد محلي» للأدمين/الزبون على جهاز/تخزين جديد. */
+    let _localCount=_allEvents.length;
     let _incremental=(_lastLocalTs>0 && !_fullReload);
     /* الزبون: التحميل الكامل يجلب كل الأحداث (3006+) رغم أنه يحتاج ~4 فقط —
        أكبر مصدر للتكلفة. الحل: تزايدي كالأدمين، مع تحميل كامل أول مرة (لا بيانات
@@ -1382,6 +1377,9 @@ function _fbInitialLoad(){
        بعد نجاحه يُضبط العلم فيعود للتزايدي العادي (الأحدث فقط). */
     let _startFrom = _incremental ? (_lastLocalTs-_SYNC_MARGIN) : 0;
     if(_incremental && !_archiveEver) _startFrom = 0;   /* أرشفة أولى: من البداية */
+    /* محلي ناقص بشكل مريب (أقل من 5 أحداث): اجلب من البداية لإكمال الأرشيف.
+       يعالج حالة «حدث واحد محلي» رغم أن السحابة فيها آلاف. */
+    if(_incremental && _localCount<5) _startFrom = 0;
     const _evQuery=_incremental
         ? _baseRef.child('events').orderByChild('ts').startAt(_startFrom)
         : _baseRef.child('events');                                            /* الكل */
@@ -1394,14 +1392,15 @@ function _fbInitialLoad(){
     if(_incremental){
         _baseRef.child('_meta/lastTs').once('value', function(ms){
             const _remoteTs = +(ms.val()||0);
-            if(_remoteTs>0 && _remoteTs<=_lastLocalTs){
+            /* لا نتخطّى إن كان المحلي ناقصاً (أقل من 5): يجب إكمال الأرشيف أولاً */
+            if(_localCount>=5 && _remoteTs>0 && _remoteTs<=_lastLocalTs){
                 /* لا جديد — اعتمد المحلي كلياً، لا تجلب شيئاً */
                 try{ localStorage.setItem('gp_archived_'+(_currentUser||''),'1'); }catch(e){}
                 _fbLoaded=true; _startFbSync(); _startSettingsSync();
                 try{ _reproject(); }catch(e){}
                 return;
             }
-            /* يوجد جديد (أو لا مؤشّر بعد) — تابع الاستعلام التزايدي المعتاد */
+            /* يوجد جديد (أو لا مؤشّر بعد أو محلي ناقص) — تابع الاستعلام */
             _runEventQuery();
         }, function(){ _runEventQuery(); });   /* فشل قراءة المؤشّر → تابع عادياً */
         return;
