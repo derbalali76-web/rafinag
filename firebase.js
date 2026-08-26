@@ -1,4 +1,4 @@
-window.FB_JS_VER='v384';
+window.FB_JS_VER='v383';
 /* ═══════════ FIREBASE ═══════════ */
 const _fbConfig={
     apiKey:"AIzaSyDevHwoNCKXGm-G8GJc_Z5eZwcSPuQS9wI",
@@ -1514,15 +1514,9 @@ function _fbInitialLoadCore(){
     if(_incremental && !_archiveEver) _startFrom = 0;   /* أرشفة أولى: من البداية */
     /* محلي ناقص بشكل مريب (أقل من 5 أحداث): اجلب من البداية لإكمال الأرشيف.
        يعالج حالة «حدث واحد محلي» رغم أن السحابة فيها آلاف. */
-    /* التزايدي: نستعمل orderByKey().limitToLast(N) بدل orderByChild('ts') —
-       الأخير يحتاج فهرسة .indexOn منشورة، وإن لم تكن منشورة يفشل الاستعلام
-       فيتراجع لتحميل كل الأحداث (كان سبب استهلاك الحصة الضخم). المفتاح مفهرس
-       تلقائياً (لا يحتاج .indexOn)، وlimitToLast يحدّ الجلب بآخر N حدثاً.
-       المؤشّر الخفيف أعلاه يمنع الجلب أصلاً إن لا جديد — فهذا يعمل فقط عند وجود
-       جديد فعلي، ويجلب دفعة محدودة لا كل الأرشيف. */
-    const _INCR_LIMIT = _isCustomer ? 100 : 500;
+    if(_incremental && _localCount<5) _startFrom = 0;
     const _evQuery=_incremental
-        ? _baseRef.child('events').orderByKey().limitToLast(_INCR_LIMIT)
+        ? _baseRef.child('events').orderByChild('ts').startAt(_startFrom)
         : _baseRef.child('events');                                            /* الكل */
     if(_fullReload){ try{localStorage.setItem('gp_fullsync_'+(_currentUser||''),String(Date.now()));}catch(e){} }
 
@@ -1671,10 +1665,7 @@ function _startFbSync(){
        (حفظ جلسة الورشة) وأحداث آخر ساعة — كانت تُنقل بلا داعٍ وتُحسب تكلفة.
        نطرح ثانيتين فقط كهامش أمان ضد فروق الساعات. */
     const _listenFrom=Math.max(_maxTs, Date.now())-2000;
-    /* orderByKey().limitToLast() بدل orderByChild('ts').startAt(): الأخير يحتاج
-       فهرسة .indexOn منشورة وإلا يفشل/يجلب الكل. نستمع لآخر دفعة صغيرة ونفلتر
-       الأحدث بالـ_seenIds محلياً (لا تكرار). المفتاح مفهرس تلقائياً. */
-    _addedRef=_baseRef.child('events').orderByKey().limitToLast(_isCust?20:80);
+    _addedRef=_baseRef.child('events').orderByChild('ts').startAt(_listenFrom);
     /* مجموعة معرّفات للفحص السريع O(1) بدل البحث الخطّي O(n) في كل حدث وارد
        (كان يسبّب تجميداً عند الدخول الأول مع آلاف الأحداث). */
     /* املأ مجموعة المعرّفات العامة بما لدينا (للفحص السريع O(1) ومنع التكرار). */
