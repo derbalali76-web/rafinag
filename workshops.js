@@ -496,29 +496,29 @@ function reconcileBars(adminBars,workerBars){
     return {miss,missW};
 }
 window.wsReconcile=function(){
+    /* اضمن اكتمال سبائك العامل: اجلب كل الأحداث مرة واحدة في الجلسة فقط
+       (أول مطابقة)، ثم اعتمد المحلي + المستمع الحيّ. يمنع الجلب المتكرر المكلف. */
+    if(navigator.onLine && !window._wsReconcileSynced && typeof _baseRef!=='undefined' && _baseRef && typeof _mergeRemoteEvents==='function'){
+        window._wsReconcileSynced=true;
+        toast('⏳ جلب سبائك العامل…','info');
+        _baseRef.child('events').once('value',function(snap){
+            try{ _mergeRemoteEvents(snap.val()); }catch(e){}
+            _doReconcile();
+        },function(){ _doReconcile(); });
+    }else{
+        try{ _reproject(); }catch(e){}
+        _doReconcile();
+    }
+};
+function _doReconcile(){
     const adminBars=_wsBarsOf(_wsCur);
     const workerBars=_wsWBarsOf(_wsCur);
-    /* تشخيص: اكشف القيم الفعلية إن لم تكن هناك سبائك عامل */
-    if(!workerBars.length){
-        const _wsAll=(typeof wsWorkerBars!=='undefined')?wsWorkerBars:{};
-        const _keys=Object.keys(_wsAll).map(k=>k+':'+((_wsAll[k]||[]).length)).join(' | ');
-        const _wEvents=(typeof _allEvents!=='undefined')?_allEvents.filter(e=>e&&e.type==='WS_WBARADD').length:'؟';
-        alert('تشخيص المطابقة:\n\n'+
-            'الورشة الحالية: '+_wsCur+'\n'+
-            'سبائكك (مسؤول): '+adminBars.length+'\n'+
-            'سبائك العامل هنا: '+workerBars.length+'\n\n'+
-            'كل ورش العامل: '+(_keys||'فارغة')+'\n'+
-            'أحداث WS_WBARADD المستلمة: '+_wEvents+'\n\n'+
-            (_wEvents===0?'⚠️ لم تصل أي سبيكة من العامل — تأكّد أن العامل سجّل وأن المزامنة تمّت':
-             'سبائك العامل في ورشة أخرى — بدّل الورشة'));
-        return;
-    }
-    if(!adminBars.length)return toast('لا سبائك لديك للمقارنة','info');
+    if(!workerBars.length&&!adminBars.length)return toast('لا سبائك للمقارنة','info');
     const r=reconcileBars(adminBars,workerBars);
     _wsMiss[_wsCur]=r.miss;
     renderWorkshops();
     _wsShowReconcileReport(adminBars,workerBars,r);
-};
+}
 /* ═══ تقرير المطابقة: عمودان، غير المتطابق أولاً وبالأحمر ═══ */
 function _wsShowReconcileReport(adminBars,workerBars,r){
     const mi=new Set(r.miss), mw=new Set(r.missW);

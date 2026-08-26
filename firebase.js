@@ -1,4 +1,4 @@
-window.FB_JS_VER='v378';
+window.FB_JS_VER='v382';
 /* ═══════════ FIREBASE ═══════════ */
 const _fbConfig={
     apiKey:"AIzaSyDevHwoNCKXGm-G8GJc_Z5eZwcSPuQS9wI",
@@ -314,8 +314,8 @@ function _idbOpen(){
     return new Promise(function(res){
         if(_idb){res(_idb);return;}
         try{
-            const rq=indexedDB.open('goldpro_db',1);
-            rq.onupgradeneeded=function(e){ const db=e.target.result; if(!db.objectStoreNames.contains('events'))db.createObjectStore('events'); };
+            const rq=indexedDB.open('goldpro_db',2);
+            rq.onupgradeneeded=function(e){ const db=e.target.result; if(!db.objectStoreNames.contains('events'))db.createObjectStore('events'); if(!db.objectStoreNames.contains('photos'))db.createObjectStore('photos'); };
             rq.onsuccess=function(e){ _idb=e.target.result; _idbReady=true; res(_idb); };
             rq.onerror=function(){ res(null); };
         }catch(e){ res(null); }
@@ -347,6 +347,34 @@ function _idbLoadEvents(user){
         });
     });
 }
+/* صور فواتير الرافيناج في IndexedDB (دائم) — بدل localStorage الذي يُمسح في Median.
+   يوفّر إعادة تحميل الصور من Firebase كل فتح (سبب رئيسي لتجاوز الحصة). */
+window._idbSavePhotos=function(rid,imgs){
+    return new Promise(function(res){
+        _idbOpen().then(function(db){
+            if(!db){res(false);return;}
+            try{
+                const tx=db.transaction('photos','readwrite');
+                tx.objectStore('photos').put(imgs,rid);
+                tx.oncomplete=function(){res(true);};
+                tx.onerror=function(){res(false);};
+            }catch(e){res(false);}
+        });
+    });
+};
+window._idbLoadPhotos=function(rid){
+    return new Promise(function(res){
+        _idbOpen().then(function(db){
+            if(!db){res(null);return;}
+            try{
+                const tx=db.transaction('photos','readonly');
+                const rq=tx.objectStore('photos').get(rid);
+                rq.onsuccess=function(){ res(Array.isArray(rq.result)?rq.result:null); };
+                rq.onerror=function(){ res(null); };
+            }catch(e){res(null);}
+        });
+    });
+};
 
 function _getEvLsKey(){return 'gp_ev_'+(_currentUser||'');}
 
@@ -1249,6 +1277,23 @@ function _fbReconnect(){
 
 /* جلب كل الأحداث من السحابة وحفظها محلياً — ضمان يدوي لإصلاح المحلي الناقص.
    يُستدعى من زر «تحديث البيانات» أو تلقائياً عند اكتشاف نقص. */
+/* دمج أحداث من السحابة مع المحلية (dedup بالـid) وإعادة البناء —
+   يضمن اكتمال البيانات (مثلاً كل سبائك الورشة) دون تحميل كامل كلّي. */
+window._mergeRemoteEvents=function(data){
+    if(!data)return;
+    const arr=Object.keys(data).map(k=>data[k]).filter(Boolean);
+    if(!arr.length)return;
+    const known=new Set(_allEvents.map(e=>e&&e.id).filter(Boolean));
+    let added=0;
+    arr.forEach(e=>{ if(e&&e.id&&!known.has(e.id)){ _allEvents.push(e); known.add(e.id); added++; } });
+    if(added>0){
+        _seenIds=new Set([..._allEvents.map(e=>e&&e.id).filter(Boolean)]);
+        try{ _lsSaveEvents(); }catch(e){}
+        _reproject();
+    }
+    return added;
+};
+
 window.forceFullSync=function(){
     if(!_baseRef){ if(typeof toast==='function')toast('لا اتصال بقاعدة البيانات','error'); return; }
     if(!navigator.onLine){ if(typeof toast==='function')toast('التحديث يحتاج اتصالاً بالإنترنت','error'); return; }
@@ -1369,18 +1414,21 @@ function _fbInitialLoad(){
     if(!_baseRef)return;
     /* ═ حرج للعمل الأوفلاين: حمّل البيانات المحلية وأعد بناءها فوراً ═ */
     try{ _lsLoadEvents(); if(_allEvents.length>0)_reproject(); }catch(e){}
-    /* حمّل من IndexedDB (دائم) — إن كان أكثر مما في localStorage، اعتمده.
-       يعالج مسح WebView لـlocalStorage عند إغلاق التطبيق. */
-    try{
-        _idbLoadEvents(_currentUser).then(function(idbArr){
-            if(idbArr && idbArr.length>_allEvents.length){
-                _allEvents=idbArr;
-                _seenIds=new Set(idbArr.map(e=>e&&e.id).filter(Boolean));
-                try{ _lsSaveEvents(); }catch(e){}   /* أعد الكتابة لـlocalStorage */
-                try{ _reproject(); }catch(e){}
-            }
-        });
-    }catch(e){}
+    /* حمّل من IndexedDB (دائم) قبل قرار التحميل الكامل — حاسم لمنع حلقة التحميل:
+       لو حسبنا _localCount من localStorage وحده (الذي يُمسح في Median)، يبدو ناقصاً
+       فيُجبر تحميلاً كاملاً كل فتح (السبب الأكبر لتجاوز الحصة). ننتظر IndexedDB أولاً. */
+    _idbLoadEvents(_currentUser).then(function(idbArr){
+        if(idbArr && idbArr.length>_allEvents.length){
+            _allEvents=idbArr;
+            _seenIds=new Set(idbArr.map(e=>e&&e.id).filter(Boolean));
+            try{ _lsSaveEvents(); }catch(e){}
+            try{ _reproject(); }catch(e){}
+        }
+        _fbInitialLoadCore();   /* الآن _allEvents مكتملة → القرار صحيح */
+    }).catch(function(){ _fbInitialLoadCore(); });
+}
+function _fbInitialLoadCore(){
+    if(!_baseRef)return;
     /* تحميل الإعدادات من Firebase */
     _baseRef.child('settings').once('value',s=>{
         const cfg=s.val();

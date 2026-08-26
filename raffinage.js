@@ -1,4 +1,4 @@
-window.RAF_JS_VER='v378';
+window.RAF_JS_VER='v382';
 /* ═══════════ RAFFINAGE ═══════════ */
 let rafRows=4;
 const _rafSentIds=new Set();
@@ -754,23 +754,41 @@ function _rafSavePhotos(rid){
     if(!_rafPhotos.length)return 0;
     const n=_rafPhotos.length;
     try{_db.ref('goldpro/_photos/'+rid).set({imgs:_rafPhotos,ts:Date.now()});}catch(e){}
+    /* احفظ الصور محلياً في IndexedDB فوراً — فلا تُعاد من Firebase عند العرض */
+    try{ if(window._idbSavePhotos)window._idbSavePhotos(rid,_rafPhotos); }catch(e){}
     _rafPhotos=[];_renderRafPhotoStrip();
     return n;
 }
 /* جلب صور فاتورة للعرض/الطباعة */
 window._rafLoadPhotos=function(rid){
     return new Promise(res=>{
-        /* تخزين محلي دائم: الصورة تُحمّل من Firebase مرة واحدة فقط، ثم تُخزَّن.
-           يوفّر تكلفة إعادة تحميلها في كل زيارة (توفير كبير في خطة Blaze). */
-        const _ck='gp_ph_raf_'+rid;
-        try{ const c=localStorage.getItem(_ck); if(c){ const p=JSON.parse(c); if(p&&p.length){ res(p); return; } } }catch(e){}
-        const t=setTimeout(()=>res([]),5000);
-        try{_db.ref('goldpro/_photos/'+rid).once('value',s=>{
-            clearTimeout(t);const v=s.val();const imgs=(v&&v.imgs)?v.imgs:[];
-            if(imgs.length){ try{if(window._cachePhotoSafe)window._cachePhotoSafe(_ck,imgs);}catch(e){} }
-            res(imgs);
-        },()=>{clearTimeout(t);res([]);});}
-        catch(e){clearTimeout(t);res([]);}
+        /* ١) IndexedDB (دائم) أولاً — لا يُمسح في Median، فلا نعيد التحميل */
+        const _finish=(imgs)=>{ res(imgs||[]); };
+        const _fromCloud=()=>{
+            const t=setTimeout(()=>res([]),5000);
+            try{_db.ref('goldpro/_photos/'+rid).once('value',s=>{
+                clearTimeout(t);const v=s.val();const imgs=(v&&v.imgs)?v.imgs:[];
+                if(imgs.length){
+                    try{ if(window._idbSavePhotos)window._idbSavePhotos(rid,imgs); }catch(e){}
+                    try{ if(window._cachePhotoSafe)window._cachePhotoSafe('gp_ph_raf_'+rid,imgs); }catch(e){}
+                }
+                res(imgs);
+            },()=>{clearTimeout(t);res([]);});}
+            catch(e){clearTimeout(t);res([]);}
+        };
+        /* جرّب IndexedDB */
+        if(window._idbLoadPhotos){
+            window._idbLoadPhotos(rid).then(idb=>{
+                if(idb && idb.length){ _finish(idb); return; }
+                /* ٢) localStorage القديم (توافق) */
+                try{ const c=localStorage.getItem('gp_ph_raf_'+rid); if(c){ const p=JSON.parse(c); if(p&&p.length){ try{if(window._idbSavePhotos)window._idbSavePhotos(rid,p);}catch(e){} _finish(p); return; } } }catch(e){}
+                /* ٣) Firebase (مرة واحدة، ثم يُخزّن دائماً) */
+                _fromCloud();
+            }).catch(_fromCloud);
+        }else{
+            try{ const c=localStorage.getItem('gp_ph_raf_'+rid); if(c){ const p=JSON.parse(c); if(p&&p.length){ _finish(p); return; } } }catch(e){}
+            _fromCloud();
+        }
     });
 };
 
