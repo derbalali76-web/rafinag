@@ -1,4 +1,4 @@
-window.FB_JS_VER='v371';
+window.FB_JS_VER='v372';
 /* ═══════════ FIREBASE ═══════════ */
 const _fbConfig={
     apiKey:"AIzaSyDevHwoNCKXGm-G8GJc_Z5eZwcSPuQS9wI",
@@ -1196,6 +1196,26 @@ function _fbReconnect(){
         setTimeout(()=>{try{_db.goOnline();}catch(e){}},700);
     }catch(e){}
 }
+
+/* جلب كل الأحداث من السحابة وحفظها محلياً — ضمان يدوي لإصلاح المحلي الناقص.
+   يُستدعى من زر «تحديث البيانات» أو تلقائياً عند اكتشاف نقص. */
+window.forceFullSync=function(){
+    if(!_baseRef){ if(typeof toast==='function')toast('لا اتصال بقاعدة البيانات','error'); return; }
+    if(!navigator.onLine){ if(typeof toast==='function')toast('التحديث يحتاج اتصالاً بالإنترنت','error'); return; }
+    if(typeof toast==='function')toast('⏳ جارٍ جلب كل البيانات…','info');
+    _baseRef.child('events').once('value',function(snap){
+        const data=snap.val();
+        if(!data){ if(typeof toast==='function')toast('لا توجد بيانات في السحابة','info'); return; }
+        const arr=Object.keys(data).map(k=>data[k]).filter(Boolean);
+        _allEvents=arr;
+        _seenIds=new Set(arr.map(e=>e&&e.id).filter(Boolean));
+        try{ localStorage.setItem('gp_archived_'+(_currentUser||''),'1'); }catch(e){}
+        try{ localStorage.setItem('gp_fullsync_'+(_currentUser||''),String(Date.now())); }catch(e){}
+        _lsSaveEvents();
+        _reproject();
+        if(typeof toast==='function')toast('✅ تم جلب '+arr.length+' حركة وحفظها','success');
+    },function(){ if(typeof toast==='function')toast('تعذّر جلب البيانات','error'); });
+};
 function _retryUnsynced(){
     try{
         if(!_baseRef||typeof _unsyncedIds==='undefined'||_unsyncedIds.size===0){_retryStrikes=0;_healFails=0;return;}
@@ -1292,33 +1312,6 @@ function _fbInitialLoad(){
     if(!_baseRef)return;
     /* ═ حرج للعمل الأوفلاين: حمّل البيانات المحلية وأعد بناءها فوراً ═ */
     try{ _lsLoadEvents(); if(_allEvents.length>0)_reproject(); }catch(e){}
-    /* تشخيص شامل: يكشف أين تتوقّف السلسلة أوفلاين */
-    try{
-        if(!navigator.onLine){
-            /* افحص التخزين الخام مباشرة */
-            let _rawKey='gp_ev_'+(_currentUser||'');
-            let _nsKey=(window.__GP_NS||'')+_rawKey;
-            let _rawVal=null, _rawLen=0, _parsed=0;
-            try{ _rawVal=localStorage.getItem(_nsKey); }catch(e){}
-            if(!_rawVal){ try{ _rawVal=localStorage.getItem(_rawKey); }catch(e){} }
-            if(_rawVal){ _rawLen=_rawVal.length; try{ const p=JSON.parse(_rawVal); if(Array.isArray(p))_parsed=p.length; }catch(e){} }
-            /* عدّ كل مفاتيح gp_ev في التخزين */
-            let _allKeys=[];
-            try{ for(let i=0;i<localStorage.length;i++){ const k=localStorage.key(i); if(k&&k.indexOf('gp_ev')>=0)_allKeys.push(k+'='+(localStorage.getItem(k)||'').length); } }catch(e){}
-            const _d=document.createElement('div');
-            _d.style.cssText='position:fixed;top:0;left:0;right:0;z-index:2147483646;background:#1e3a8a;color:#fff;font-size:11px;padding:6px 8px;text-align:right;direction:rtl;font-family:monospace;line-height:1.6;max-height:50vh;overflow:auto';
-            _d.innerHTML='<b>تشخيص أوفلاين</b> (انقر للإغلاق)<br>'+
-                'المستخدم: '+(_currentUser||'—')+'<br>'+
-                '_allEvents (بالذاكرة): '+_allEvents.length+'<br>'+
-                'المفتاح: '+_nsKey+'<br>'+
-                'الخام موجود؟ '+(_rawVal?('نعم، '+_rawLen+' حرف'):'لا')+'<br>'+
-                'محلّل (عدد الأحداث): '+_parsed+'<br>'+
-                'كل مفاتيح gp_ev: '+(_allKeys.join(' | ')||'لا شيء')+'<br>'+
-                '_baseRef؟ '+(!!_baseRef)+' · _roleLock: '+(window._roleLock||'admin');
-            _d.onclick=function(){_d.remove();};
-            (document.body||document.documentElement).appendChild(_d);
-        }
-    }catch(e){}
     /* تحميل الإعدادات من Firebase */
     _baseRef.child('settings').once('value',s=>{
         const cfg=s.val();
@@ -1383,10 +1376,10 @@ function _fbInitialLoad(){
     let _archiveEver=false;
     try{ _archiveEver=(localStorage.getItem('gp_archived_'+(_currentUser||''))==='1'); }catch(e){}
     if(!_archiveEver && _lastLocalTs===0)_fullReload=true;   /* فقط إن كان المحلي فارغاً فعلاً */
-    /* حماية من المحلي الناقص: إن كان عدد الأحداث المحلية ضئيلاً جداً بينما المستمع
-       سيبدأ من الآن، فالأرشيف القديم لن يُجلب. نجبر التزايدي من البداية (startAt 0)
-       ليكمل الأرشيف. يعالج «حدث واحد محلي» للأدمين/الزبون على جهاز/تخزين جديد. */
+    /* محلي ناقص بشكل مريب (أقل من 5 أحداث): أجبر تحميلاً كاملاً حقيقياً — تجاهل علم
+       الأرشفة (قد يكون ضُبط بعد جلب ناقص سابق). يعالج «حدث واحد محلي» نهائياً. */
     let _localCount=_allEvents.length;
+    if(_localCount<5 && navigator.onLine)_fullReload=true;
     let _incremental=(_lastLocalTs>0 && !_fullReload);
     /* الزبون: التحميل الكامل يجلب كل الأحداث (3006+) رغم أنه يحتاج ~4 فقط —
        أكبر مصدر للتكلفة. الحل: تزايدي كالأدمين، مع تحميل كامل أول مرة (لا بيانات
