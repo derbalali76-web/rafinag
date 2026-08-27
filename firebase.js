@@ -1,4 +1,4 @@
-window.FB_JS_VER='v385';
+window.FB_JS_VER='v388';
 /* ═══════════ FIREBASE ═══════════ */
 const _fbConfig={
     apiKey:"AIzaSyDevHwoNCKXGm-G8GJc_Z5eZwcSPuQS9wI",
@@ -1520,9 +1520,12 @@ function _fbInitialLoadCore(){
        تلقائياً (لا يحتاج .indexOn)، وlimitToLast يحدّ الجلب بآخر N حدثاً.
        المؤشّر الخفيف أعلاه يمنع الجلب أصلاً إن لا جديد — فهذا يعمل فقط عند وجود
        جديد فعلي، ويجلب دفعة محدودة لا كل الأرشيف. */
-    const _INCR_LIMIT = _isCustomer ? 100 : 500;
+    /* التزايدي: orderByChild('ts').startAt() — الفهرسة .indexOn:"ts" منشورة
+       ومؤكّدة، فالاستعلام يعمل بدقة زمنية ويجلب فقط الأحداث الأحدث من آخر ما لدينا
+       (لا كل الأرشيف، ولا دفعة عشوائية بالمفتاح). المؤشّر أعلاه يمنعه أصلاً إن لا
+       جديد. هذا يجمع الدقة (لا يفوّت حدثاً) والتوفير (جديد فقط). */
     const _evQuery=_incremental
-        ? _baseRef.child('events').orderByKey().limitToLast(_INCR_LIMIT)
+        ? _baseRef.child('events').orderByChild('ts').startAt(_startFrom)
         : _baseRef.child('events');                                            /* الكل */
     if(_fullReload){ try{localStorage.setItem('gp_fullsync_'+(_currentUser||''),String(Date.now()));}catch(e){} }
 
@@ -1670,14 +1673,13 @@ function _startFbSync(){
        فالمستمع يحتاج فقط ما هو أحدث. هذا يمنع إعادة تنزيل أحداثك المرفوعة للتو
        (حفظ جلسة الورشة) وأحداث آخر ساعة — كانت تُنقل بلا داعٍ وتُحسب تكلفة.
        نطرح ثانيتين فقط كهامش أمان ضد فروق الساعات. */
-    /* المستمع الحيّ — لحظية مضمونة:
-       مفاتيح الأحداث عشوائية (uid)، فأي limitToLast/orderByKey لا تلتقط الجديد
-       زمنياً (الجديد قد يقع خارج النافذة). ولا نعتمد orderByChild('ts') لأنه
-       يحتاج فهرسة منشورة وإلا يفشل. لذا نصغي للمرجع كاملاً: child_added يُطلق
-       لكل حدث جديد فور إضافته — لحظي 100%. التكلفة: عند الاتصال يمرّ على الأحداث
-       الموجودة مرة، لكن _seenIds يتجاهل القديم بلا إعادة معالجة، والمستمع يبقى
-       نشطاً (لا يُعاد إنشاؤه) فلا تتكرّر هذه التكلفة إلا عند إعادة اتصال فعلي. */
-    _addedRef=_baseRef.child('events');
+    /* المستمع الحيّ — لحظي ورخيص معاً:
+       orderByChild('ts').startAt(الآن) يجعل child_added يُطلق فقط للأحداث الأحدث
+       من لحظة الاتصال — أي الجديد فقط، لا كل الأرشيف. هذا يجمع اللحظية والتوفير.
+       يتطلّب فهرسة .indexOn:"ts" منشورة على Firebase (موجودة في database.rules.json)
+       — نشرها إلزامي وإلا يفشل الاستعلام. _fbErr يُسجّل أي فشل دون تحميل كامل. */
+    const _listenFrom = Date.now() - 3000;   /* هامش 3 ثوانٍ ضد فروق ساعات الأجهزة */
+    _addedRef=_baseRef.child('events').orderByChild('ts').startAt(_listenFrom);
     /* مجموعة معرّفات للفحص السريع O(1) بدل البحث الخطّي O(n) في كل حدث وارد
        (كان يسبّب تجميداً عند الدخول الأول مع آلاف الأحداث). */
     /* املأ مجموعة المعرّفات العامة بما لدينا (للفحص السريع O(1) ومنع التكرار). */
@@ -1691,17 +1693,11 @@ function _startFbSync(){
         _allEvents.push(evt);
         _debouncedReproject();
     },_fbErr);
-    /* child_removed: يلتقط الحذف الفعلي (استعادة نسخة احتياطية). الأدمين/العامل فقط.
-       التصحيح اليومي يتم بحدث VOID (إضافة)، فلا يحتاج هذا المستمع. */
-    if(!_isCust){
-        _baseRef.child('events').on('child_removed',snap=>{
-            if(_importing)return;
-            const evt=snap.val();
-            if(!evt||!evt.id)return;
-            _allEvents=_allEvents.filter(e=>e.id!==evt.id);
-            _debouncedReproject();
-        },_fbErr);
-    }
+    /* child_removed: أُزيل — كان يجلب كل الأحداث الموجودة مرة عند كل اتصال
+       (Firebase يحتاج كل الأطفال لاكتشاف الحذف)، فيحمّل ~2.5MB لكل أدمين عند
+       كل إعادة اتصال (Median يقطع كثيراً) = تسرّب حصة ضخم. الحذف الفعلي نادر
+       (استعادة نسخة احتياطية فقط)؛ التصحيح اليومي يتم بحدث VOID (إضافة) يلتقطه
+       child_added. عند استعادة نسخة، إعادة فتح التطبيق تعيد البناء الكامل. */
 }
 
 function _startSettingsSync(){

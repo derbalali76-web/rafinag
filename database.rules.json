@@ -1,0 +1,55 @@
+{
+  "rules": {
+    "goldpro": {
+      "_users": {
+        ".read": true,
+        ".write": "auth != null && auth.token.email === 'admin@goldpro.local'"
+      },
+      "_customers": {
+        ".read": true,
+        ".write": "auth != null && auth.token.email === 'admin@goldpro.local'"
+      },
+      "_appcfg": {
+        ".read": "auth != null",
+        ".write": "auth != null && auth.token.email === 'admin@goldpro.local'"
+      },
+      "admin": {
+        "data": {
+          ".read": "auth != null",
+          "events": {
+            ".indexOn": "ts",
+            "$eid": {
+              ".write": "auth != null && (auth.token.email === 'admin@goldpro.local' || (!data.exists() && newData.exists() && newData.child('ownerUid').val() === auth.uid && (auth.token.email === 'dahmoun@goldpro.local' || auth.token.email === 'salah@goldpro.local' || auth.token.email === 'ghazali@goldpro.local') && (newData.child('type').val().beginsWith('WS_W') || (auth.token.email === 'ghazali@goldpro.local' && (newData.child('type').val() === 'RAF' || newData.child('type').val() === 'RAF_EDIT' || newData.child('type').val() === 'VOID')))))",
+              ".validate": "newData.hasChildren(['id','ts','type'])"
+            }
+          },
+          "settings": {
+            ".write": "auth != null && !(auth.token.email.matches(/^c[0-9].*@goldpro[.]local$/))"
+          },
+          "resetAt": {
+            ".write": "auth != null && auth.token.email === 'admin@goldpro.local'"
+          },
+          "$other": {
+            ".write": "auth != null && auth.token.email === 'admin@goldpro.local'"
+          },
+          "_meta": {
+            ".write": "auth != null && !(auth.token.email.matches(/^c[0-9].*@goldpro[.]local$/))"
+          }
+        }
+      },
+      "_tokens": {
+        ".read": "auth != null && auth.token.email === 'admin@goldpro.local'",
+        ".write": "auth != null",
+        ".indexOn": "phone"
+      },
+      "_push": {
+        ".read": "auth != null && auth.token.email === 'admin@goldpro.local'",
+        ".write": "auth != null"
+      },
+      "_photos": {
+        ".read": "auth != null",
+        ".write": "auth != null"
+      }
+    }
+  }
+}
