@@ -1,4 +1,4 @@
-window.FB_JS_VER='v383';
+window.FB_JS_VER='v385';
 /* ═══════════ FIREBASE ═══════════ */
 const _fbConfig={
     apiKey:"AIzaSyDevHwoNCKXGm-G8GJc_Z5eZwcSPuQS9wI",
@@ -1514,9 +1514,15 @@ function _fbInitialLoadCore(){
     if(_incremental && !_archiveEver) _startFrom = 0;   /* أرشفة أولى: من البداية */
     /* محلي ناقص بشكل مريب (أقل من 5 أحداث): اجلب من البداية لإكمال الأرشيف.
        يعالج حالة «حدث واحد محلي» رغم أن السحابة فيها آلاف. */
-    if(_incremental && _localCount<5) _startFrom = 0;
+    /* التزايدي: نستعمل orderByKey().limitToLast(N) بدل orderByChild('ts') —
+       الأخير يحتاج فهرسة .indexOn منشورة، وإن لم تكن منشورة يفشل الاستعلام
+       فيتراجع لتحميل كل الأحداث (كان سبب استهلاك الحصة الضخم). المفتاح مفهرس
+       تلقائياً (لا يحتاج .indexOn)، وlimitToLast يحدّ الجلب بآخر N حدثاً.
+       المؤشّر الخفيف أعلاه يمنع الجلب أصلاً إن لا جديد — فهذا يعمل فقط عند وجود
+       جديد فعلي، ويجلب دفعة محدودة لا كل الأرشيف. */
+    const _INCR_LIMIT = _isCustomer ? 100 : 500;
     const _evQuery=_incremental
-        ? _baseRef.child('events').orderByChild('ts').startAt(_startFrom)
+        ? _baseRef.child('events').orderByKey().limitToLast(_INCR_LIMIT)
         : _baseRef.child('events');                                            /* الكل */
     if(_fullReload){ try{localStorage.setItem('gp_fullsync_'+(_currentUser||''),String(Date.now()));}catch(e){} }
 
@@ -1664,8 +1670,14 @@ function _startFbSync(){
        فالمستمع يحتاج فقط ما هو أحدث. هذا يمنع إعادة تنزيل أحداثك المرفوعة للتو
        (حفظ جلسة الورشة) وأحداث آخر ساعة — كانت تُنقل بلا داعٍ وتُحسب تكلفة.
        نطرح ثانيتين فقط كهامش أمان ضد فروق الساعات. */
-    const _listenFrom=Math.max(_maxTs, Date.now())-2000;
-    _addedRef=_baseRef.child('events').orderByChild('ts').startAt(_listenFrom);
+    /* المستمع الحيّ — لحظية مضمونة:
+       مفاتيح الأحداث عشوائية (uid)، فأي limitToLast/orderByKey لا تلتقط الجديد
+       زمنياً (الجديد قد يقع خارج النافذة). ولا نعتمد orderByChild('ts') لأنه
+       يحتاج فهرسة منشورة وإلا يفشل. لذا نصغي للمرجع كاملاً: child_added يُطلق
+       لكل حدث جديد فور إضافته — لحظي 100%. التكلفة: عند الاتصال يمرّ على الأحداث
+       الموجودة مرة، لكن _seenIds يتجاهل القديم بلا إعادة معالجة، والمستمع يبقى
+       نشطاً (لا يُعاد إنشاؤه) فلا تتكرّر هذه التكلفة إلا عند إعادة اتصال فعلي. */
+    _addedRef=_baseRef.child('events');
     /* مجموعة معرّفات للفحص السريع O(1) بدل البحث الخطّي O(n) في كل حدث وارد
        (كان يسبّب تجميداً عند الدخول الأول مع آلاف الأحداث). */
     /* املأ مجموعة المعرّفات العامة بما لدينا (للفحص السريع O(1) ومنع التكرار). */
