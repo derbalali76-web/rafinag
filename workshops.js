@@ -113,7 +113,7 @@ window.wsSaveSession = function(){
         _wsRotor[_wsCur]=[];
         const mi=document.getElementById('wsMfg'); if(mi)mi.value='';
         toast('✅ حُفظت جلستك في أرشيفك');
-        try{_wsMakeSessionPdf(_wsWSessOf(_wsCur)[0]||null);}catch(e){}
+        /* أُزيل توليد PDF التلقائي — كان يجمّد الحفظ. متاح من الأرشيف عند الحاجة. */
         return;
     }
     const bars = _wsBarsOf(_wsCur).filter(b=>(b.w||0)>0.001);
@@ -157,7 +157,8 @@ window.wsSaveSession = function(){
     _wsRotor[_wsCur]=[];
     const mi=document.getElementById('wsMfg'); if(mi)mi.value='';
     toast('✅ الجلسة محفوظة: 730 −'+fmt(totalRaw,2)+'غ · 24 +'+fmt(mfg,2)+'غ · لابارت '+fmt(lapart,3)+'غ');
-    try{_wsMakeSessionPdf(session);}catch(e){console.error('session pdf',e);}
+    /* أُزيل توليد PDF التلقائي عند الحفظ — كان يجمّد الواجهة (html2canvas بطيء).
+       الحساب محفوظ في الأرشيف، ويمكن توليد PDF منه عند الحاجة. */
 };
 
 window.wsDelSession = function(id){
