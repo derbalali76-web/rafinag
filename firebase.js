@@ -1,4 +1,4 @@
-window.FB_JS_VER='v389';
+window.FB_JS_VER='v390';
 /* ═══════════ FIREBASE ═══════════ */
 const _fbConfig={
     apiKey:"AIzaSyDevHwoNCKXGm-G8GJc_Z5eZwcSPuQS9wI",

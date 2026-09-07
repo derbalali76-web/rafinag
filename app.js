@@ -1,4 +1,4 @@
-window.APP_JS_VER='v389';
+window.APP_JS_VER='v390';
 /* ═══════════ STATE ═══════════ */
 let B={دينار:0,'ذهب 730':0,'ذهب 24':0,دولار:0,vg730:0,vg24:0};
 let ops=[],invoices=[],debts=[],loans=[],rafInvoices=[],dollInvoices=[],dubaiInvoices=[];
@@ -2181,7 +2181,12 @@ function renderLog(){
     if(!fl.length){list.innerHTML='<div style="text-align:center;padding:2.5rem;color:var(--t3)"><i class="fas fa-inbox" style="font-size:2rem;display:block;margin-bottom:.5rem"></i>لا توجد عمليات</div>';return}
     const outTypes=new Set(['أعطيت','بيع','بيع دولار','شحن','مصاريف','سلف','دولار صادر']);
     const colors={'سلف':'#f97316','رافيناج':'#ea580c','مصاريف':'#dc2626','شحن':'#8b5cf6','بيع دبي':'#14b8a6'};
-    list.innerHTML=fl.map((o,_li)=>{
+    /* حدّ العرض: رسم آلاف الصفوف دفعة واحدة يجمّد الواجهة. نعرض دفعة (60)
+       وزرّ «تحميل المزيد» يزيدها. البيانات كلها محلية — هذا حدّ عرض فقط. */
+    if(typeof window._logShow==='undefined')window._logShow=60;
+    const _logTotal=fl.length;
+    const _logSlice=fl.slice(0,window._logShow);
+    list.innerHTML=_logSlice.map((o,_li)=>{
         const out=outTypes.has(o.t);
         const bg=colors[o.t]||(out?'var(--rd)':'var(--gr)');
         const unit=o.m==='دينار'?'DZD':o.m==='دولار'?'USD':'g';
@@ -2204,6 +2209,10 @@ function renderLog(){
             <button class="btndel" onclick="delOp('${o.id}')" style="margin-top:.1rem"><i class="fas fa-trash-alt"></i></button>
         </div>`;
     }).join('');
+    /* زر تحميل المزيد إن بقيت عمليات غير معروضة */
+    if(_logTotal>window._logShow){
+        list.innerHTML += '<button onclick="window._logShow+=60;renderLog()" style="width:100%;margin-top:.8rem;padding:.7rem;border:1.5px solid #7c3aed;background:rgba(124,58,237,.08);color:#7c3aed;border-radius:10px;font-weight:900;font-family:Tajawal,sans-serif;font-size:.85rem;cursor:pointer">تحميل المزيد ('+(_logTotal-window._logShow)+' متبقية)</button>';
+    }
     /* علامة مائية باسم المستخدم خلف السجل */
     const _wmEl=document.getElementById('logWm');
     if(_wmEl){

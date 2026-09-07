@@ -59,7 +59,7 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-messaging-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.2.0/crypto-js.min.js"></script>
-    <link rel="stylesheet" href="style.css?v=389">
+    <link rel="stylesheet" href="style.css?v=390">
     <script>
     /* منع وميض نافذة الدخول: إن كانت الجلسة محفوظة، نخفيها قبل أول رسم */
     (function(){try{
@@ -487,11 +487,11 @@
             </div>
             <div class="section-box" style="padding:.5rem">
                 <div class="frow" style="margin-bottom:0">
-                    <div class="fg"><input type="text" id="logSearch" placeholder="🔍 بحث باسم الزبون..." oninput="renderLog()"></div>
-                    <div class="fg"><input type="date" id="logDay" onchange="if(this.value)document.getElementById('logMonth').value='';renderLog()" title="فلترة بيوم"></div>
-                    <div class="fg"><input type="month" id="logMonth" onchange="if(this.value)document.getElementById('logDay').value='';renderLog()" title="فلترة بشهر"></div>
+                    <div class="fg"><input type="text" id="logSearch" placeholder="🔍 بحث باسم الزبون..." oninput="window._logShow=60;renderLog()"></div>
+                    <div class="fg"><input type="date" id="logDay" onchange="window._logShow=60;if(this.value)document.getElementById('logMonth').value='';renderLog()" title="فلترة بيوم"></div>
+                    <div class="fg"><input type="month" id="logMonth" onchange="window._logShow=60;if(this.value)document.getElementById('logDay').value='';renderLog()" title="فلترة بشهر"></div>
                     <div class="fg">
-                        <select id="logFilter" onchange="renderLog()">
+                        <select id="logFilter" onchange="window._logShow=60;renderLog()">
                             <option value="all">الكل</option>
                             <option value="شراء">شراء</option><option value="بيع">بيع</option>
                             <option value="أعطيت">أعطيت</option><option value="استلمت">استلمت</option>
@@ -1254,14 +1254,14 @@
 
 
 <!-- ═══ ملفات JS ═══ -->
-<script src="firebase.js?v=389"></script>
-<script src="app.js?v=389"></script>
-<script src="assistant.js?v=389"></script>
-<script src="inventory.js?v=389"></script>
-<script src="invoice.js?v=389"></script>
-<script src="raffinage.js?v=389"></script>
-<script src="workshops.js?v=389"></script>
-<script src="auth.js?v=389"></script>
+<script src="firebase.js?v=390"></script>
+<script src="app.js?v=390"></script>
+<script src="assistant.js?v=390"></script>
+<script src="inventory.js?v=390"></script>
+<script src="invoice.js?v=390"></script>
+<script src="raffinage.js?v=390"></script>
+<script src="workshops.js?v=390"></script>
+<script src="auth.js?v=390"></script>
 
 
 
