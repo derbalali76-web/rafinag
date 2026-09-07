@@ -1,4 +1,4 @@
-window.APP_JS_VER='v392';
+window.APP_JS_VER='v393';
 /* ═══════════ STATE ═══════════ */
 let B={دينار:0,'ذهب 730':0,'ذهب 24':0,دولار:0,vg730:0,vg24:0};
 let ops=[],invoices=[],debts=[],loans=[],rafInvoices=[],dollInvoices=[],dubaiInvoices=[];
@@ -905,8 +905,9 @@ window.toggleGTKarat=()=>{
         l.textContent='الوزن (غ)';
         if(kr)kr.style.display='';
         eq.style.display='block';
-        /* قائمة سبائك إضافية تظهر فقط عند الاستلام (قبضت) */
-        if(ex)ex.style.display=(gtType==='take')?'block':'none';
+        /* قائمة سبائك إضافية: تظهر للاستلام (قبضت) وللتسليم (أعطيت) —
+           التسليم يقبل عدة سبائك بشرط مطابقة كل واحدة لسبيكة في المخزون تماماً. */
+        if(ex)ex.style.display='block';
         calcGTEq();
     }else{
         l.textContent='الكمية / المبلغ';
@@ -1015,12 +1016,12 @@ window.saveGT=()=>{
     const a=readNum('gtAmount');
     const k=m==='ذهب 730'?(parseFloat(document.getElementById('gtKarat')?.value)||730):730;
     const isG730=m==='ذهب 730',isG24=m==='ذهب 24';
-    /* استلام ذهب 730: قد يكون عدّة سبائك */
+    /* ذهب 730 (استلام أو تسليم): قد يكون عدّة سبائك */
     let gt730Bars=null;
-    if(isG730&&gtType==='take'){
+    if(isG730){
         gt730Bars=_collectGT730Bars();
         if(!c||!gt730Bars.length)return toast('أدخل الاسم ووزن سبيكة واحدة على الأقل','error');
-        /* حارس العيار: لا يُسجَّل وزن بلا عيار (بعد حذف اقتراح 730) */
+        /* حارس العيار: لا يُسجَّل وزن بلا عيار */
         const _noK=gt730Bars.find(b=>!b.k||b.k<100||b.k>1000);
         if(_noK)return toast(`⚠️ أدخل عيار السبيكة ${fmt(_noK.w,2)} غ (بين 100 و1000)`,'error');
     }else{
@@ -1042,22 +1043,21 @@ window.saveGT=()=>{
         const avail = isG24 ? (g24.reduce((s,b)=>s+(b.w||0),0)) : (B[m]||0);
         if(avail<finalAmount-0.001)return toast('⚠️ رصيد غير كافٍ','error');
         if(isG730){
-            /* تسليم 730: لا يُعامل المخزون كسائل — يجب أن يطابق الوزن سبيكة/سبائك موجودة كاملة */
-            const _k730=parseFloat(document.getElementById('gtKarat')?.value)||730;
-            /* جِد سبيكة موجودة تطابق الوزن (±0.05غ) والعيار (±1) */
-            let _match=g730.find(b=>Math.abs(b.w-a)<0.05 && Math.abs((b.k||730)-_k730)<1.5);
-            if(!_match){
-                /* حاول تجميع سبائك كاملة تطابق الوزن المطلوب تماماً */
-                const _byK=g730.filter(b=>Math.abs((b.k||730)-_k730)<1.5).sort((x,y)=>y.w-x.w);
-                let _sum=0,_ids=[],_ok=false;
-                for(const b of _byK){ if(_sum+b.w<=a+0.05){_sum+=b.w;_ids.push(b.id);} if(Math.abs(_sum-a)<0.05){_ok=true;break;} }
-                if(_ok){ barsRemove=_ids; }
-                else{
-                    return toast('⚠️ لا توجد سبيكة عيار '+fmt(_k730,0)+' بوزن '+fmt(a,2)+' غ في المخزون. تسليم 730 يجب أن يطابق سبيكة موجودة كاملة (لا يُقتطع من المخزون).','error');
+            /* تسليم 730: كل سبيكة مُدخلة يجب أن تطابق سبيكة موجودة في المخزون
+               تماماً (عيار + وزن). لا يُقتطع من المخزون. المطابقة واحد-لواحد. */
+            const _pool=g730.map(b=>({id:b.id,w:b.w,k:(b.k||730),used:false}));
+            const _removeIds=[];
+            for(const _need of gt730Bars){
+                const _i=_pool.findIndex(p=>!p.used
+                    && Math.abs(p.w-_need.w)<0.05
+                    && Math.abs(p.k-_need.k)<1.5);
+                if(_i<0){
+                    return toast('⚠️ لا توجد سبيكة عيار '+fmt(_need.k,0)+' بوزن '+fmt(_need.w,2)+' غ في المخزون. كل سبيكة مُسلّمة يجب أن تطابق سبيكة موجودة تماماً.','error');
                 }
-            }else{
-                barsRemove=[_match.id];   /* السبيكة الكاملة تخرج */
+                _pool[_i].used=true;
+                _removeIds.push(_pool[_i].id);
             }
+            barsRemove=_removeIds;   /* السبائك الكاملة المطابقة تخرج */
         }else if(isG24){
             const r=_pickBarsToRemove('24',a);
             barsRemove=r.barsRemove;barUpdates=r.barUpdates;
