@@ -59,7 +59,7 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-messaging-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.2.0/crypto-js.min.js"></script>
-    <link rel="stylesheet" href="style.css?v=390">
+    <link rel="stylesheet" href="style.css?v=391">
     <script>
     /* منع وميض نافذة الدخول: إن كانت الجلسة محفوظة، نخفيها قبل أول رسم */
     (function(){try{
@@ -510,14 +510,14 @@
         <!-- الأرشيف -->
         <div class="page" id="page-archive">
             <input type="text" id="archSearch" placeholder="🔍 ابحث باسم الزبون في كل الفواتير..."
-                oninput="window._archQ=this.value;renderArchive()"
+                oninput="window._archQ=this.value;window._archShow=50;renderArchive()"
                 style="width:100%;box-sizing:border-box;padding:.6rem .8rem;border:1.5px solid var(--border);border-radius:12px;background:var(--card);color:var(--t);font-family:Tajawal,sans-serif;font-weight:800;font-size:.82rem;margin-top:.4rem;outline:none">
             <div style="display:flex;gap:.4rem;margin-top:.4rem;flex-wrap:wrap">
-                <input type="date" id="archDay" onchange="document.getElementById('archMonth').value='';renderArchive()" title="فلترة بيوم"
+                <input type="date" id="archDay" onchange="window._archShow=50;document.getElementById('archMonth').value='';renderArchive()" title="فلترة بيوم"
                     style="flex:1;min-width:130px;padding:.5rem;border:1.5px solid var(--border);border-radius:10px;background:var(--card);color:var(--t);font-family:Tajawal,sans-serif;font-weight:800;font-size:.78rem">
-                <input type="month" id="archMonth" onchange="document.getElementById('archDay').value='';renderArchive()" title="فلترة بشهر"
+                <input type="month" id="archMonth" onchange="window._archShow=50;document.getElementById('archDay').value='';renderArchive()" title="فلترة بشهر"
                     style="flex:1;min-width:130px;padding:.5rem;border:1.5px solid var(--border);border-radius:10px;background:var(--card);color:var(--t);font-family:Tajawal,sans-serif;font-weight:800;font-size:.78rem">
-                <button onclick="document.getElementById('archDay').value='';document.getElementById('archMonth').value='';renderArchive()" title="مسح الفلترة"
+                <button onclick="window._archShow=50;document.getElementById('archDay').value='';document.getElementById('archMonth').value='';renderArchive()" title="مسح الفلترة"
                     style="flex:0 0 auto;padding:.5rem .7rem;border:1.5px solid #94a3b8;background:transparent;color:#64748b;border-radius:10px;font-weight:900;font-family:Tajawal,sans-serif;cursor:pointer">✕</button>
             </div>
             <div id="archFilterBar" style="display:flex;gap:.4rem;overflow-x:auto;padding:.5rem 0;margin-bottom:.2rem;-webkit-overflow-scrolling:touch"></div>
@@ -1254,14 +1254,14 @@
 
 
 <!-- ═══ ملفات JS ═══ -->
-<script src="firebase.js?v=390"></script>
-<script src="app.js?v=390"></script>
-<script src="assistant.js?v=390"></script>
-<script src="inventory.js?v=390"></script>
-<script src="invoice.js?v=390"></script>
-<script src="raffinage.js?v=390"></script>
-<script src="workshops.js?v=390"></script>
-<script src="auth.js?v=390"></script>
+<script src="firebase.js?v=391"></script>
+<script src="app.js?v=391"></script>
+<script src="assistant.js?v=391"></script>
+<script src="inventory.js?v=391"></script>
+<script src="invoice.js?v=391"></script>
+<script src="raffinage.js?v=391"></script>
+<script src="workshops.js?v=391"></script>
+<script src="auth.js?v=391"></script>
 
 
 

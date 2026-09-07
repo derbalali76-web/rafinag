@@ -1,4 +1,4 @@
-window.APP_JS_VER='v390';
+window.APP_JS_VER='v391';
 /* ═══════════ STATE ═══════════ */
 let B={دينار:0,'ذهب 730':0,'ذهب 24':0,دولار:0,vg730:0,vg24:0};
 let ops=[],invoices=[],debts=[],loans=[],rafInvoices=[],dollInvoices=[],dubaiInvoices=[];
@@ -3590,6 +3590,12 @@ window._lastDollarSellRate=function(beforeTs){
 
 function renderArchive(){
     const empty='<div style="text-align:center;padding:1.5rem;color:var(--t3);font-size:.8rem"><i class="fas fa-folder-open"></i> لا توجد سجلات</div>';
+    /* حدّ عرض موحّد لقوائم الأرشيف: رسم مئات الفواتير دفعة واحدة يجمّد الواجهة.
+       نعرض دفعة لكل قائمة وزرّ «المزيد» يزيدها. البيانات كلها محلية. */
+    if(typeof window._archShow==='undefined')window._archShow=50;
+    const _archMore=(id,total)=>(total>window._archShow)
+        ? '<button onclick="window._archShow+=50;renderArchive()" style="width:100%;margin-top:.6rem;padding:.6rem;border:1.5px solid #7c3aed;background:rgba(124,58,237,.08);color:#7c3aed;border-radius:10px;font-weight:900;font-family:Tajawal,sans-serif;font-size:.8rem;cursor:pointer">تحميل المزيد ('+(total-window._archShow)+' متبقية)</button>'
+        : '';
     _renderArchiveChips();
     const f=_archiveFilter;
     const _sec=(id,vis)=>{const e=document.getElementById(id);if(e)e.style.display=vis?'':'none';};
@@ -3658,7 +3664,7 @@ function renderArchive(){
         box.innerHTML=goldList.length?_sumCard(lbl+' — الوزن',fmt(totW,2)+' غ','متوسط السعر',avg>0?fmt(avg,0)+' دج/غ':'—',col):'';
     })();
     document.getElementById('archiveCount').textContent=goldList.length;
-    document.getElementById('archiveList').innerHTML=goldList.length?goldList.map(inv=>`
+    document.getElementById('archiveList').innerHTML=goldList.length?(goldList.slice(0,window._archShow).map(inv=>`
         <div class="saved-card">
             <div>
                 <strong>${inv.c}</strong>
@@ -3678,7 +3684,7 @@ function renderArchive(){
                 <button class="btn-wa"  onclick="waInv('${inv.id}')"><i class="fab fa-whatsapp"></i></button>
                 <button class="btndel" onclick="delInv('${inv.id}')"><i class="fas fa-trash-alt"></i></button>
             </div>
-        </div>`).join(''):empty;
+        </div>`).join('')+_archMore('archiveList',goldList.length)):empty;
     /* أرشيف الرافيناج */
     document.getElementById('rafArchiveCount').textContent=rafInvoices.length;
     const _rafL=_byC(rafInvoices);
@@ -3688,7 +3694,7 @@ function renderArchive(){
         _rafL.forEach(r=>{ totEq+=(+r.eq24||0); totFee+=(+r.fee||0); });
         box.innerHTML=_rafL.length?_sumCard('إجمالي الخالص',fmt(totEq,2)+' غ','مجموع الأجرة',fmt(totFee,0)+' دج','#c2410c'):'';
     })();
-    document.getElementById('rafArchiveList').innerHTML=_rafL.length?_rafL.map(r=>`
+    document.getElementById('rafArchiveList').innerHTML=_rafL.length?(_rafL.slice(0,window._archShow).map(r=>`
         <div class="saved-card">
             <div>
                 <strong>${r.c}</strong>
@@ -3703,7 +3709,7 @@ function renderArchive(){
                 <button class="btn-wa"  onclick="waRaf('${r.id}')"><i class="fab fa-whatsapp"></i></button>
                 <button class="btndel" onclick="delRaf('${r.id}')"><i class="fas fa-trash-alt"></i></button>
             </div>
-        </div>`).join(''):empty;
+        </div>`).join('')+_archMore('rafArchiveList',_rafL.length)):empty;
     /* أرشيف الدولار */
     document.getElementById('dollArchiveCount').textContent=dollInvoices.length;
     const _dolL=_byC(dollInvoices);
@@ -3714,7 +3720,7 @@ function renderArchive(){
         const avg=totUsd>0?Math.round(totDin/totUsd):0;
         box.innerHTML=_dolL.length?_sumCard('إجمالي الدولار',fmt(totUsd,2)+' $','متوسط الصرف',avg>0?fmt(avg,0)+' دج/$':'—','#0369a1'):'';
     })();
-    document.getElementById('dollArchiveList').innerHTML=_dolL.length?_dolL.map(d=>`
+    document.getElementById('dollArchiveList').innerHTML=_dolL.length?(_dolL.slice(0,window._archShow).map(d=>`
         <div class="saved-card">
             <div>
                 <strong>${d.c}</strong>
@@ -3728,7 +3734,7 @@ function renderArchive(){
                 <button class="btn-wa"  onclick="waDoll('${d.id}')"><i class="fab fa-whatsapp"></i></button>
                 <button class="btndel" onclick="delDoll('${d.id}')"><i class="fas fa-trash-alt"></i></button>
             </div>
-        </div>`).join(''):empty;
+        </div>`).join('')+_archMore('dollArchiveList',_dolL.length)):empty;
     /* أرشيف دبي */
     document.getElementById('dubaiArchiveCount').textContent=dubaiInvoices.length;
     const _dubL=_byC(dubaiInvoices);
@@ -3755,7 +3761,7 @@ function renderArchive(){
         const avgDinG=totDinG_w>0?Math.round(totDinG_sum/totDinG_w):0;   /* متوسط دج/غ مرجّح */
         box.innerHTML=_dubL.length?_sumCard('إجمالي دبي — الوزن',fmt(totW,2)+' غ','مجموع $ / متوسط دج للغرام',fmt(totUsd,2)+' $ · '+(avgDinG>0?fmt(avgDinG,0)+' دج/غ':'—'),'#0f766e'):'';
     })();
-    document.getElementById('dubaiArchiveList').innerHTML=_dubL.length?_dubL.map(d=>`
+    document.getElementById('dubaiArchiveList').innerHTML=_dubL.length?(_dubL.slice(0,window._archShow).map(d=>`
         <div class="saved-card">
             <div>
                 <strong>${d.c}</strong>
@@ -3785,7 +3791,7 @@ function renderArchive(){
                 <button class="btn-wa"  onclick="waDubai('${d.id}')"><i class="fab fa-whatsapp"></i></button>
                 <button class="btndel" onclick="delDubai('${d.id}')"><i class="fas fa-trash-alt"></i></button>
             </div>
-        </div>`).join(''):empty;
+        </div>`).join('')+_archMore('dubaiArchiveList',_dubL.length)):empty;
 }
 /* فتح واتساب — whatsapp:// يعبر WebView مباشرة لنظام أندرويد */
 function _waOpen(){
