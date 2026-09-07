@@ -5,13 +5,13 @@ const NS = (() => { try {
   return String(seg).toLowerCase().replace(/[^a-z0-9_-]/g,'');
 } catch(e){ return 'root'; } })();
 const CACHE_PREFIX = 'goldpro@' + NS + '-';
-const CACHE = CACHE_PREFIX + 'v388';
+const CACHE = CACHE_PREFIX + 'v389';
 const ASSETS = [
   './','./index.html',
-  './style.css?v=388',
-  './firebase.js?v=388','./app.js?v=388','./assistant.js?v=388',
-  './inventory.js?v=388','./invoice.js?v=388','./raffinage.js?v=388',
-  './workshops.js?v=388','./auth.js?v=388',
+  './style.css?v=389',
+  './firebase.js?v=389','./app.js?v=389','./assistant.js?v=389',
+  './inventory.js?v=389','./invoice.js?v=389','./raffinage.js?v=389',
+  './workshops.js?v=389','./auth.js?v=389',
   './manifest.json',
   './icons/icon-192.png','./icons/icon-512.png',
   './icons/icon-512-maskable.png','./icons/icon-180.png',
@@ -21,6 +21,7 @@ const ASSETS = [
   'https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js',
   'https://www.gstatic.com/firebasejs/9.23.0/firebase-messaging-compat.js',
   'https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js',
+  'https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&display=swap',
 ];
 self.addEventListener('install', e => {
   e.waitUntil(
@@ -42,15 +43,20 @@ self.addEventListener('fetch', e => {
       url.pathname.includes('firebase-cloud-messaging-push-scope') ||
       url.pathname.endsWith('/sw.js') || url.pathname.endsWith('sw.js')) return;
 
+  /* خطوط Google (fonts.googleapis.com + fonts.gstatic.com): cache-first —
+     تُخزَّن مرة وتعمل أوفلاين. بدونها يسقط الخط العربي (Tajawal) أوفلاين. */
+  const _isGFonts = url.hostname === 'fonts.googleapis.com' || url.hostname === 'fonts.gstatic.com';
+
   /* مكتبات Firebase من gstatic: cache-first (تُخزَّن مرة، تُقرأ أوفلاين) */
   const _isGstatic = url.origin === 'https://www.gstatic.com';
   const _sameOrigin = url.origin === self.location.origin;
-  if (!_sameOrigin && !_isGstatic) return;   /* لا تعترض RTDB/APIs — تحتاج شبكة حيّة */
+  if (!_sameOrigin && !_isGstatic && !_isGFonts) return;   /* لا تعترض RTDB/APIs */
 
-  /* استعلامات قاعدة البيانات الحيّة (google/firebaseio) لا تُخزَّن — تمرّ مباشرة */
-  if (url.hostname.includes('firebaseio.com') ||
+  /* استعلامات قاعدة البيانات الحيّة (google/firebaseio) لا تُخزَّن — تمرّ مباشرة.
+     ملاحظة: نستثني fonts.googleapis من هذا (الخطوط تُخزَّن، ليست API حيّة). */
+  if (!_isGFonts && (url.hostname.includes('firebaseio.com') ||
       url.hostname.includes('googleapis.com') ||
-      url.hostname.includes('identitytoolkit')) return;
+      url.hostname.includes('identitytoolkit'))) return;
 
   /* الأصول (HTML/JS/CSS/أيقونات/مكتبات): cache-first — سريع ويعمل أوفلاين تماماً.
      نقرأ من الكاش فوراً، ونحدّث الكاش في الخلفية إن توفّرت الشبكة. */

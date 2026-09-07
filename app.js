@@ -1,4 +1,4 @@
-window.APP_JS_VER='v388';
+window.APP_JS_VER='v389';
 /* ═══════════ STATE ═══════════ */
 let B={دينار:0,'ذهب 730':0,'ذهب 24':0,دولار:0,vg730:0,vg24:0};
 let ops=[],invoices=[],debts=[],loans=[],rafInvoices=[],dollInvoices=[],dubaiInvoices=[];
@@ -4217,12 +4217,17 @@ window.switchPage=(p)=>{
     document.querySelectorAll('.ni').forEach(x=>x.classList.remove('active'));
     const pe=document.getElementById('page-'+p),ne=document.getElementById('nav-'+p);
     if(pe)pe.classList.add('active');if(ne)ne.classList.add('active');
+    /* التبديل يظهر فوراً؛ الرسم الثقيل (سجل/أرشيف/ديون بآلاف الصفوف) يؤجَّل
+       إطاراً واحداً كي لا يجمّد الانتقال — يحسّن إحساس السرعة كثيراً. */
     if(p==='invoice'){updateInvDate();}
     if(p==='raffinage'){if(typeof applyRafModeUI==='function')applyRafModeUI();calcRaf();}
-    if(p==='workshops'&&typeof renderWorkshops==='function')renderWorkshops();
-    if(p==='log')renderLog();
-    if(p==='archive')renderArchive();
-    if(p==='debts')renderDebts();
+    const _deferRender=()=>{
+        if(p==='workshops'&&typeof renderWorkshops==='function')renderWorkshops();
+        if(p==='log')renderLog();
+        if(p==='archive')renderArchive();
+        if(p==='debts')renderDebts();
+    };
+    requestAnimationFrame(()=>requestAnimationFrame(_deferRender));
     /* كرة السعر: تظهر في الواجهة الرئيسية فقط */
     const _ball=document.getElementById('hdrCenterWrap');
     if(_ball){
