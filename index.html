@@ -59,7 +59,7 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-messaging-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.2.0/crypto-js.min.js"></script>
-    <link rel="stylesheet" href="style.css?v=393">
+    <link rel="stylesheet" href="style.css?v=394">
     <script>
     /* منع وميض نافذة الدخول: إن كانت الجلسة محفوظة، نخفيها قبل أول رسم */
     (function(){try{
@@ -1049,7 +1049,11 @@
 
 <div class="modal-overlay" id="dubaiModal"><div class="modal">
     <div class="modal-handle"></div>
-    <h3>🏙️ دبي</h3>
+    <h3 id="dubaiTitle">🏙️ دبي — بيع</h3>
+    <div style="display:flex;gap:.5rem;margin-bottom:.7rem">
+        <button type="button" id="dubaiModeSell" onclick="setDubaiMode('sell')" style="flex:1;padding:.6rem;border-radius:10px;border:1.5px solid var(--gr,#059669);background:var(--gr,#059669);color:#fff;font-weight:900;font-family:Tajawal,sans-serif;cursor:pointer">🟢 بيع</button>
+        <button type="button" id="dubaiModeBuy" onclick="setDubaiMode('buy')" style="flex:1;padding:.6rem;border-radius:10px;border:1.5px solid var(--rd,#dc2626);background:transparent;color:var(--rd,#dc2626);font-weight:900;font-family:Tajawal,sans-serif;cursor:pointer">🔴 شراء</button>
+    </div>
     <input type="text" id="dubaiOffice" placeholder="🏢 المكتب"
         onkeydown="dubaiNav(event,0)">
     <input type="number" id="dubaiWeight" step="any" placeholder="⚖️ الوزن (غ)"
@@ -1254,14 +1258,14 @@
 
 
 <!-- ═══ ملفات JS ═══ -->
-<script src="firebase.js?v=393"></script>
-<script src="app.js?v=393"></script>
-<script src="assistant.js?v=393"></script>
-<script src="inventory.js?v=393"></script>
-<script src="invoice.js?v=393"></script>
-<script src="raffinage.js?v=393"></script>
-<script src="workshops.js?v=393"></script>
-<script src="auth.js?v=393"></script>
+<script src="firebase.js?v=394"></script>
+<script src="app.js?v=394"></script>
+<script src="assistant.js?v=394"></script>
+<script src="inventory.js?v=394"></script>
+<script src="invoice.js?v=394"></script>
+<script src="raffinage.js?v=394"></script>
+<script src="workshops.js?v=394"></script>
+<script src="auth.js?v=394"></script>
 
 
 

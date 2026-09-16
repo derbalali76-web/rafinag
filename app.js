@@ -1,4 +1,4 @@
-window.APP_JS_VER='v393';
+window.APP_JS_VER='v394';
 /* ═══════════ STATE ═══════════ */
 let B={دينار:0,'ذهب 730':0,'ذهب 24':0,دولار:0,vg730:0,vg24:0};
 let ops=[],invoices=[],debts=[],loans=[],rafInvoices=[],dollInvoices=[],dubaiInvoices=[];
@@ -1232,6 +1232,7 @@ window.editDubInv=(id)=>{
     const snap=_invSnapshot('dubaiInvoice',id); if(!snap){toast('تعذّر التعديل','error');return;}
     _voidByInvId('dubaiInvoice',id);
     openDubai();
+    setDubaiMode(d.isBuy?'buy':'sell');   /* استرجع نمط الفاتورة (بيع/شراء) */
     document.getElementById('dubaiOffice').value=d.c||'';
     document.getElementById('dubaiWeight').value=d.w!=null?d.w:'';
     document.getElementById('dubaiPrice').value=d.sp!=null?d.sp:'';
@@ -1458,7 +1459,23 @@ window.saveExp=()=>{
 };
 
 /* ═══════════ DUBAI ═══════════ */
+let _dubaiMode='sell';
+window.setDubaiMode=(m)=>{
+    _dubaiMode=m;
+    const sell=document.getElementById('dubaiModeSell'), buy=document.getElementById('dubaiModeBuy');
+    const ttl=document.getElementById('dubaiTitle');
+    if(m==='sell'){
+        if(sell){sell.style.background='var(--gr,#059669)';sell.style.color='#fff';}
+        if(buy){buy.style.background='transparent';buy.style.color='var(--rd,#dc2626)';}
+        if(ttl)ttl.textContent='🏙️ دبي — بيع';
+    }else{
+        if(buy){buy.style.background='var(--rd,#dc2626)';buy.style.color='#fff';}
+        if(sell){sell.style.background='transparent';sell.style.color='var(--gr,#059669)';}
+        if(ttl)ttl.textContent='🏙️ دبي — شراء';
+    }
+};
 window.openDubai=()=>{
+    setDubaiMode('sell');   /* الافتراضي: بيع */
     document.getElementById('dubaiOffice').value='';document.getElementById('dubaiWeight').value='';
     /* تعبئة سعر الشاشة اللحظي تلقائياً */
     document.getElementById('dubaiPrice').value=liveSpotPrice>0?liveSpotPrice:'';
@@ -1963,21 +1980,32 @@ window.saveDubai=()=>{
     const disc=parseFloat(document.getElementById('dubaiDisc').value)||0;
     if(!o||isNaN(w)||w<=0||isNaN(sp)||sp<=0)return toast('تأكد من البيانات','error');
     const usd=Math.max(0,(sp-disc)*w/31.1035);
-    const _cur24=getCustBal(o,'ذهب 24');
-    const fromDebt=Math.min(w,Math.max(0,_cur24));
-    const fromInv=w-fromDebt;
-    let barsRemove=[],barUpdates=[],_dubOut24=0;
-    if(fromInv>0.001){
-        if(B['ذهب 24']<fromInv-0.001)return toast('⚠️ مخزون 24 أو دين المكتب غير كافٍ','error');
-        const r=_pickBarsToRemove('24',fromInv);
-        barsRemove=r.barsRemove;barUpdates=r.barUpdates;_dubOut24=r.out24||0;
-    }
     const did='DUB-'+uid();
     const dt=new Date().toLocaleDateString('fr-FR');
     const nowStr=new Date().toLocaleDateString('fr-FR',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
+
+    if(_dubaiMode==='buy'){
+        /* شراء دبي — عكس البيع تماماً:
+           نشتري ذهب 24 من المكتب → يدخل المخزون، ونصير مدينين له بالدولار.
+           (البيع: ذهب يخرج + دولار لنا؛ الشراء: ذهب يدخل + دولار علينا) */
+        const _dub={id:did,c:o,w,sp,disc,usd,dt,rate:dollarRate,isBuy:true};
+        emitEvent('DUBAI_BUY',
+            {o,w,sp,disc,usd,rate:dollarRate},
+            {dubaiInvoice:_dub,op:{c:o,t:'شراء دبي',m:'دولار',a:usd,_ts:Date.now(),dt:nowStr,sentW:w,sp,disc,did,rate:dollarRate}}
+        );
+        window._editRestore=null;
+        closeModal('dubaiModal');
+        toast('🏙️ تم ترحيل شراء دبي');
+        return;
+    }
+
+    /* بيع دبي: يخصم من دين ذهب 24 للمكتب (المكتب مدين لنا بذهب 24، ينقص)
+       + دولار لنا على المكتب (يزيد). لا يمسّ المخزون إطلاقاً.
+       نرسل debt24Sub (حقل جديد) بدل fromDebt/barsRemove القديمة كي لا نغيّر
+       دلالة الأحداث القديمة (تبقى تُعالَج بحقولها الأصلية). */
     const _dub={id:did,c:o,w,sp,disc,usd,dt,rate:dollarRate};
     emitEvent('DUBAI',
-        {o,w,sp,disc,usd,rate:dollarRate,fromDebt,fromInv,barsRemove,barUpdates,...(_dubOut24>0?{out24:_dubOut24}:{})},
+        {o,w,sp,disc,usd,rate:dollarRate,debt24Sub:w},
         {dubaiInvoice:_dub,op:{c:o,t:'بيع دبي',m:'دولار',a:usd,_ts:Date.now(),dt:nowStr,sentW:w,sp,disc,did,rate:dollarRate}}
     );
     window._editRestore=null;

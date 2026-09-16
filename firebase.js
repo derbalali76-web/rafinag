@@ -1,4 +1,4 @@
-window.FB_JS_VER='v393';
+window.FB_JS_VER='v394';
 /* ═══════════ FIREBASE ═══════════ */
 const _fbConfig={
     apiKey:"AIzaSyDevHwoNCKXGm-G8GJc_Z5eZwcSPuQS9wI",
@@ -675,9 +675,21 @@ function _applyEvt(st,evt){
         }
 
         case 'DUBAI':{
+            /* أحداث قديمة: تحمل fromDebt/barsRemove (كانت تمسّ المخزون) — تبقى كما هي.
+               أحداث جديدة: تحمل debt24Sub فقط — تخصم دين ذهب 24 للمكتب بلا مسّ المخزون. */
             if(d.fromDebt>0.001)stUpdDebt(d.o,'ذهب 24',-d.fromDebt);
             applyBars();
+            if(d.debt24Sub>0.0001)stUpdDebt(d.o,'ذهب 24',-d.debt24Sub);
             stUpdDebt(d.o,'دولار',d.usd);
+            if(disp.dubaiInvoice)st.dubaiInvoices.unshift(disp.dubaiInvoice);
+            break;
+        }
+
+        case 'DUBAI_BUY':{
+            /* شراء دبي — عكس البيع تماماً: يضيف دين ذهب 24 على المكتب (يزيد)
+               + دولار علينا للمكتب (ينقص). لا يمسّ المخزون إطلاقاً. */
+            stUpdDebt(d.o,'ذهب 24',d.w);
+            stUpdDebt(d.o,'دولار',-d.usd);
             if(disp.dubaiInvoice)st.dubaiInvoices.unshift(disp.dubaiInvoice);
             break;
         }
