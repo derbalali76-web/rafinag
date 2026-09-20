@@ -1,4 +1,4 @@
-window.APP_JS_VER='v395';
+window.APP_JS_VER='v396';
 /* ═══════════ STATE ═══════════ */
 let B={دينار:0,'ذهب 730':0,'ذهب 24':0,دولار:0,vg730:0,vg24:0};
 let ops=[],invoices=[],debts=[],loans=[],rafInvoices=[],dollInvoices=[],dubaiInvoices=[];
@@ -5194,12 +5194,53 @@ window.doFreeTrade=function(){
 };
 
 
-/* ═══ تعديل وصل قبض 730: يفتح نافذة «قبضت» بالسبائك مملوءة (لا محرّر الفواتير) ═══ */
+/* ═══ تصحيح وزن/عيار سبائك فاتورة خرجت سبائكها (ورشة/رافيناج) ═══
+   بدل إلغاء الفاتورة (يعيد السبائك للمخزون)، نصحّح كل سبيكة في مكانها
+   الحالي عبر BAR_EDIT_ANY — تبقى في الورشة/الرافيناج بقيمتها الجديدة. */
+window._fixConsumedInvBars=function(field,id,items){
+    /* اجلب معرّفات السبائك الفعلية من حدث الفاتورة (barsAdd) */
+    const evt=(_allEvents||[]).find(e=>e.display&&e.display[field]&&e.display[field].id===id&&e.type!=='VOID');
+    const added=(evt&&evt.data&&(evt.data.barsAdd||evt.data.barsAdd24))||[];
+    if(!added.length){ toast('لا سبائك قابلة للتصحيح في هذه الفاتورة','info'); return; }
+    let html='<div style="direction:rtl;font-family:Tajawal,sans-serif">'
+        +'<h3 style="margin:.2rem 0 .8rem">✏️ تصحيح سبائك الفاتورة</h3>'
+        +'<p style="font-size:.78rem;color:var(--t2);margin-bottom:.7rem">السبائك خرجت للورشة/الرافيناج. صحّح الوزن/العيار وستبقى في مكانها بالقيمة الجديدة.</p>';
+    added.forEach((b,i)=>{
+        html+='<div style="display:flex;gap:.4rem;margin-bottom:.5rem;align-items:center">'
+            +'<span style="font-size:.72rem;color:var(--t3);min-width:52px">سبيكة '+(i+1)+'</span>'
+            +'<input id="_fxW_'+i+'" type="number" step="any" value="'+(b.w||'')+'" placeholder="وزن" style="flex:1;padding:.45rem;border:1px solid var(--border);border-radius:8px" dir="ltr">'
+            +'<input id="_fxK_'+i+'" type="number" step="any" value="'+(b.k||'')+'" placeholder="عيار" style="flex:1;padding:.45rem;border:1px solid var(--border);border-radius:8px" dir="ltr">'
+            +'<input type="hidden" id="_fxId_'+i+'" value="'+b.id+'">'
+            +'</div>';
+    });
+    html+='<div style="display:flex;gap:.5rem;margin-top:1rem">'
+        +'<button onclick="closeModal(\'_fixBarsModal\')" style="flex:1;padding:.6rem;border:1px solid var(--border);background:transparent;border-radius:10px;font-weight:900;font-family:Tajawal,sans-serif">إلغاء</button>'
+        +'<button onclick="_applyFixConsumedBars('+added.length+')" style="flex:1;padding:.6rem;border:none;background:var(--gr,#059669);color:#fff;border-radius:10px;font-weight:900;font-family:Tajawal,sans-serif">💾 حفظ التصحيح</button>'
+        +'</div></div>';
+    let m=document.getElementById('_fixBarsModal');
+    if(!m){ m=document.createElement('div'); m.id='_fixBarsModal'; m.className='modal-overlay'; document.body.appendChild(m); }
+    m.innerHTML='<div class="modal" style="max-width:440px">'+html+'</div>';
+    m.classList.add('active');
+};
+window._applyFixConsumedBars=function(n){
+    for(let i=0;i<n;i++){
+        const bid=document.getElementById('_fxId_'+i).value;
+        const w=parseFloat(document.getElementById('_fxW_'+i).value)||0;
+        const k=parseFloat(document.getElementById('_fxK_'+i).value)||0;
+        if(bid&&(w>0||k>0)) emitEvent('BAR_EDIT_ANY',{id:bid,w,k},null);
+    }
+    closeModal('_fixBarsModal');
+    toast('✅ صُحّحت السبائك في مكانها');
+};
+
+/* ═══ تعديل وصل قبض 730 ═══ */
 window.editRecvInv=function(id){
     const inv=(invoices||[]).find(x=>x.id===id);
     if(!inv||!inv.recv)return;
     if(typeof _invBarsConsumed==='function' && _invBarsConsumed(id)){
-        toast('🚫 لا يمكن تعديل وصل قبض خرجت سبائكه من مخزون 730 (بيعت أو دخلت رافيناج أو ورشة)','error');
+        /* السبائك خرجت (ورشة/رافيناج/بيع): لا نُلغي الوصل (يعيدها للمخزون)،
+           بل نتيح تصحيح وزن/عيار كل سبيكة في مكانها الحالي عبر BAR_EDIT_ANY. */
+        _fixConsumedInvBars('invoice',id,inv.items||[]);
         return;
     }
     if(!confirm('تعديل وصل القبض؟ سيُلغى الوصل القديم ويُسجَّل بالسبائك الجديدة.'))return;

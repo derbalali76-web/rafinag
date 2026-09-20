@@ -1,4 +1,4 @@
-window.FB_JS_VER='v395';
+window.FB_JS_VER='v396';
 /* ═══════════ FIREBASE ═══════════ */
 const _fbConfig={
     apiKey:"AIzaSyDevHwoNCKXGm-G8GJc_Z5eZwcSPuQS9wI",
@@ -907,6 +907,15 @@ function _applyEvt(st,evt){
             /* تعديل سبيكة العامل (وزن/عيار) في مكانها */
             const wb=(st.wsWorkerBars[d.ws]||[]).find(b=>b.id===d.id);
             if(wb){ if(d.w>0)wb.w=d.w; if(d.k>0)wb.k=d.k; }
+            break;
+        }
+        case 'BAR_EDIT_ANY':{
+            /* تصحيح وزن/عيار سبيكة بمعرّفها أينما كانت: مخزون 730/24 أو أي ورشة.
+               يُستعمل لتصحيح فاتورة شراء/قبض دون إعادة السبيكة للمخزون —
+               تبقى في الورشة بقيمتها الجديدة. آخر تصحيح (بالـts) يفوز. */
+            const _fix=(arr)=>{ if(!arr)return false; const b=arr.find(x=>x.id===d.id); if(b){ if(d.w>0)b.w=d.w; if(d.k>0)b.k=d.k; return true; } return false; };
+            let _done=_fix(st.g730)||_fix(st.g24);
+            if(!_done && st.wsBars){ for(const ws in st.wsBars){ if(_fix(st.wsBars[ws])){_done=true;break;} } }
             break;
         }
         case 'WS_WBARDEL':{

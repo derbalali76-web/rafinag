@@ -504,7 +504,10 @@ window.editInv=(id)=>{
         return;
     }
     if(inv.t==='buy' && typeof _invBarsConsumed==='function' && _invBarsConsumed(id)){
-        toast('🚫 لا يمكن تعديل فاتورة شراء خرجت سبيكتها من الكوفر (بيعت أو دخلت رافيناج) حتى لا تتلخبط الحسابات','error');
+        /* سبائك الشراء خرجت (ورشة/رافيناج): بدل المنع، صحّح وزن/عيار كل سبيكة
+           في مكانها عبر BAR_EDIT_ANY — تبقى في الورشة بقيمتها الجديدة. */
+        if(typeof _fixConsumedInvBars==='function'){ _fixConsumedInvBars('invoice',id,inv.items||[]); return; }
+        toast('🚫 لا يمكن تعديل فاتورة شراء خرجت سبيكتها من الكوفر','error');
         return;
     }
     if(!confirm('تعديل هذه الفاتورة؟ ستتغيّر الحسابات حسب التعديل بعد الحفظ.'))return;
