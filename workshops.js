@@ -497,13 +497,16 @@ function reconcileBars(adminBars,workerBars){
     return {miss,missW};
 }
 window.wsReconcile=function(){
-    /* اضمن اكتمال سبائك العامل: اجلب كل الأحداث مرة واحدة في الجلسة فقط
-       (أول مطابقة)، ثم اعتمد المحلي + المستمع الحيّ. يمنع الجلب المتكرر المكلف. */
-    if(navigator.onLine && !window._wsReconcileSynced && typeof _baseRef!=='undefined' && _baseRef && typeof _mergeRemoteEvents==='function'){
-        window._wsReconcileSynced=true;
-        toast('⏳ جلب سبائك العامل…','info');
+    /* اجلب أحدث الأحداث لالتقاط أي حفظ جلسة جديد للعامل (WS_WSESSION يمسح سبائكه).
+       نجلب مرة كل 20 ثانية كحدّ أقصى (يمنع الجلب المتكرر المكلف عند الضغط السريع). */
+    const _now=Date.now();
+    const _stale = !window._wsLastRecFetch || (_now-window._wsLastRecFetch>20000);
+    if(navigator.onLine && _stale && typeof _baseRef!=='undefined' && _baseRef && typeof _mergeRemoteEvents==='function'){
+        window._wsLastRecFetch=_now;
+        toast('⏳ جلب أحدث سبائك العامل…','info');
         _baseRef.child('events').once('value',function(snap){
             try{ _mergeRemoteEvents(snap.val()); }catch(e){}
+            try{ _reproject(); }catch(e){}
             _doReconcile();
         },function(){ _doReconcile(); });
     }else{
