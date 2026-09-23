@@ -1,4 +1,4 @@
-window.FB_JS_VER='v397';
+window.FB_JS_VER='v398';
 /* ═══════════ FIREBASE ═══════════ */
 const _fbConfig={
     apiKey:"AIzaSyDevHwoNCKXGm-G8GJc_Z5eZwcSPuQS9wI",
@@ -923,11 +923,15 @@ function _applyEvt(st,evt){
             break;
         }
         case 'WS_WSESSION':{
-            /* جلسة العامل: أرشيفية فقط — لا تمسّ المخزون إطلاقاً */
-            if(d.consumedBarIds&&d.consumedBarIds.length){
+            /* جلسة العامل: أرشيفية فقط — لا تمسّ المخزون إطلاقاً.
+               clearBars:true يمسح كل سبائك العامل (حفظ جلسة كامل) — له الأولوية.
+               consumedBarIds وحده (بلا clearBars) يمسح المستهلَكة فقط (استهلاك جزئي). */
+            if(d.clearBars){
+                st.wsWorkerBars[d.ws]=[];
+            }else if(d.consumedBarIds&&d.consumedBarIds.length){
                 const cs=new Set(d.consumedBarIds);
                 st.wsWorkerBars[d.ws]=(st.wsWorkerBars[d.ws]||[]).filter(b=>!cs.has(b.id));
-            }else if(d.clearBars){st.wsWorkerBars[d.ws]=[];}
+            }
             if(!st.wsWorkerSessions[d.ws])st.wsWorkerSessions[d.ws]=[];
             st.wsWorkerSessions[d.ws].unshift(d.session);
             break;
