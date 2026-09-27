@@ -1,4 +1,4 @@
-window.FB_JS_VER='v398';
+window.FB_JS_VER='v400';
 /* ═══════════ FIREBASE ═══════════ */
 const _fbConfig={
     apiKey:"AIzaSyDevHwoNCKXGm-G8GJc_Z5eZwcSPuQS9wI",
@@ -1058,6 +1058,27 @@ function _applyEvt(st,evt){
                     xferFrom: d.from, xferInType: d.dstType,
                     xferFeeTo: (d.feeTo>0?d.feeTo:0),   /* أجرة يدفعها المستلِم — تظهر في سجله */
                     id: evt.id+'_in'
+                });
+            }
+            break;
+        }
+
+        case 'XFER_SHIP':{
+            /* تحويل بشحن (ذهب 24) — لا يمسّ المخزون:
+               المصدر يُخصم الوزن فقط؛ الهدف يستلم الوزن+أجرة(÷1000) + دولار الشحن.
+               نتبع إشارة رصيد المصدر (sign) فيبقى نفس اتجاه/لون الرصيد. */
+            const sg=d.sign||1;
+            stUpdDebt(d.from,'ذهب 24',-(sg*d.w));       /* المصدر: الوزن فقط */
+            stUpdDebt(d.to,'ذهب 24', sg*d.recv);         /* الهدف: الوزن+الأجرة */
+            if(d.usd>0)stUpdDebt(d.to,'دولار', sg*d.usd); /* الهدف: دولار الشحن (نفس الاتجاه) */
+            /* سطر سجل للهدف (تحويل وارد) */
+            const _nrm2=s=>String(s||'').trim().toLowerCase();
+            if(_nrm2(d.from)!==_nrm2(d.to)){
+                st.ops.push({
+                    c:d.to, t:'تحويل بشحن وارد', m:'ذهب 24', a:d.recv,
+                    _ts:(disp.op&&disp.op._ts)||evt.ts||Date.now(),
+                    dt:(disp.op&&disp.op.dt)||'',
+                    xferFrom:d.from, id:evt.id+'_in'
                 });
             }
             break;

@@ -1,4 +1,4 @@
-window.APP_JS_VER='v398';
+window.APP_JS_VER='v400';
 /* ═══════════ STATE ═══════════ */
 let B={دينار:0,'ذهب 730':0,'ذهب 24':0,دولار:0,vg730:0,vg24:0};
 let ops=[],invoices=[],debts=[],loans=[],rafInvoices=[],dollInvoices=[],dubaiInvoices=[];
@@ -2891,9 +2891,14 @@ window.openXfer=(srcType)=>{
         const other=srcType==='ذهب 730'?'ذهب 24':'ذهب 730';
         document.getElementById('xferModeSame').textContent=`كما هي (${srcType})`;
         document.getElementById('xferModeConv').textContent=`حوّل لـ${other}`;
+        /* زر «بشحن» يظهر لذهب 24 فقط: الهدف يستلم الوزن + أجرة (÷1000) + دولار شحن */
+        const shipBtn=document.getElementById('xferModeShip');
+        if(shipBtn) shipBtn.style.display=(srcType==='ذهب 24')?'':'none';
         _setXferMode('same');
     }else{
         modeRow.style.display='none';
+        const shipBtn=document.getElementById('xferModeShip');
+        if(shipBtn) shipBtn.style.display='none';
         _xferMode='same';
         _xferCalc();
     }
@@ -2917,11 +2922,15 @@ window.openXfer=(srcType)=>{
 };
 window._setXferMode=(m)=>{
     _xferMode=m;
-    const a=document.getElementById('xferModeSame'),b=document.getElementById('xferModeConv');
+    const a=document.getElementById('xferModeSame'),b=document.getElementById('xferModeConv'),c=document.getElementById('xferModeShip');
     const base='flex:1;padding:.55rem;border:1.5px solid;border-radius:8px;font-size:.78rem;font-weight:700;cursor:pointer;';
     const on='background:#7c3aed;color:#fff;border-color:#7c3aed', off='background:transparent;color:#7c3aed;border-color:#7c3aed';
     a.style.cssText=base+(m==='same'?on:off);
     b.style.cssText=base+(m==='conv'?on:off);
+    if(c)c.style.cssText=base+(m==='ship'?'background:#0891b2;color:#fff;border-color:#0891b2':'background:transparent;color:#0891b2;border-color:#0891b2')+(c.style.display==='none'?'display:none;':'');
+    /* صف سعر الشحن يظهر في نمط «بشحن» فقط */
+    const shipRow=document.getElementById('xferShipRow');
+    if(shipRow)shipRow.style.display=(m==='ship')?'flex':'none';
     _xferCalc();
 };
 function _xferCalc(){
@@ -2963,6 +2972,14 @@ function _xferCalc(){
     el.innerHTML=`يستلم الزبون الهدف: <strong style="color:#7c3aed">${txt}</strong>`
         +((isGold&&_xferMode==='conv')?`<br><span style="font-size:.7rem;color:var(--t3)">${_xferSrcType==='ذهب 730'?'المكافئ = الكمية × 730 ÷ 1000':'المكافئ = الكمية × 1000 ÷ 730'}</span>`:'')
         +feeHtml+convFeeHtml;
+    /* نمط «بشحن» (ذهب 24): الهدف يستلم الوزن + أجرة (÷1000) + دولار الشحن */
+    if(_xferMode==='ship' && _xferSrcType==='ذهب 24'){
+        const _su=readNum('xferShipUsd')||0;
+        const _fee=W/1000, _recv=W+_fee, _usd=W*_su;
+        el.innerHTML=`يستلم الهدف: <strong style="color:#0891b2">${fmt(_recv,2)} غ</strong> (${fmt(W,2)} + أجرة ${fmt(_fee,2)} غ)`
+            +(_su>0?`<br>دولار على الهدف: <strong style="color:#0891b2">${fmt(_usd,0)} $</strong>`:'')
+            +`<br><span style="font-size:.68rem;color:var(--t3)">المصدر يُخصم ${fmt(W,2)} غ فقط · الفرق (${fmt(_fee,2)}غ) أجرتك</span>`;
+    }
 }
 window._xferCalc=_xferCalc;
 window.doXfer=async ()=>{
@@ -2989,6 +3006,20 @@ window.doXfer=async ()=>{
     }
     const sign=_xferSrcBal>0?1:-1;
     const isGold=_xferSrcType==='ذهب 730'||_xferSrcType==='ذهب 24';
+    const nowStr0=new Date().toLocaleDateString('fr-FR',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
+    /* ═══ نمط «بشحن» (ذهب 24 فقط): الهدف يستلم الوزن+أجرة(÷1000)+دولار الشحن ═══ */
+    if(_xferMode==='ship' && _xferSrcType==='ذهب 24'){
+        const su=readNum('xferShipUsd')||0;
+        const fee=W/1000, recv=Math.round((W+fee)*100)/100, usd=W*su;
+        emitEvent('XFER_SHIP',
+            {from:_settleCustomer,to,w:W,recv,fee,su,usd,sign},
+            {op:{c:_settleCustomer,t:'تحويل بشحن',m:'ذهب 24',a:W,_ts:Date.now(),dt:nowStr0,
+                 xferTo:to,xferRecv:recv,xferShipUsd:usd,xferSign:sign}}
+        );
+        closeModal('xferModal');closeModal('settleModal');
+        toast('🚢 حُوّل بشحن — '+to+' يستلم '+fmt(recv,2)+'غ (+أجرة '+fmt(fee,2)+'غ)'+(su>0?' · '+fmt(usd,0)+'$':''));
+        return;
+    }
     let dstType=_xferSrcType,wDst=W;
     if(isGold&&_xferMode==='conv'){
         if(_xferSrcType==='ذهب 730'){dstType='ذهب 24';wDst=W*730/1000;}
@@ -3045,9 +3076,16 @@ function _ensureXferModal(){
                     style="width:100%;padding:.65rem;border:1.5px solid var(--border);border-radius:8px;font-size:1rem;font-family:inherit;text-align:right;box-sizing:border-box"
                     oninput="liveNum(this);_xferCalc()" />
             </div>
-            <div id="xferModeRow" style="display:flex;gap:.5rem">
+            <div id="xferModeRow" style="display:flex;gap:.5rem;flex-wrap:wrap">
                 <button id="xferModeSame" onclick="_setXferMode('same')"></button>
                 <button id="xferModeConv" onclick="_setXferMode('conv')"></button>
+                <button id="xferModeShip" onclick="_setXferMode('ship')" style="display:none">🚢 بشحن</button>
+            </div>
+            <div id="xferShipRow" style="display:none;flex-direction:column;gap:.35rem;background:rgba(8,145,178,.06);border-radius:8px;padding:.55rem">
+                <label style="font-size:.76rem;color:#0891b2;font-weight:800">سعر الشحن ($/غ)</label>
+                <input type="text" inputmode="decimal" dir="ltr" id="xferShipUsd" placeholder="مثال: 3,2" oninput="liveNum(this);_xferCalc()"
+                    style="width:100%;padding:.5rem;border:1.5px solid var(--border);border-radius:8px">
+                <div id="xferShipHint" style="font-size:.68rem;color:#0891b2;text-align:center"></div>
             </div>
             <div id="xferFeeRow" style="display:none;flex-direction:column;gap:.35rem">
                 <label style="font-size:.76rem;color:var(--t2);font-weight:700">أجرة التحويل الخاصة</label>
