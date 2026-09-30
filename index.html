@@ -59,7 +59,7 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-messaging-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.2.0/crypto-js.min.js"></script>
-    <link rel="stylesheet" href="style.css?v=402">
+    <link rel="stylesheet" href="style.css?v=403">
     <script>
     /* منع وميض نافذة الدخول: إن كانت الجلسة محفوظة، نخفيها قبل أول رسم */
     (function(){try{
@@ -550,6 +550,11 @@
                 <div class="stitle" style="margin-top:.5rem">
                     <span>🏙️ أرشيف دبي</span>
                     <span id="dubaiArchiveCount" style="font-size:.58rem;background:#0f766e;color:#fff;padding:.1rem .5rem;border-radius:1rem">0</span>
+                </div>
+                <div style="display:flex;gap:.4rem;margin:.3rem 0 .5rem">
+                    <button id="dubFltAll" onclick="setDubaiFilter('all')" style="flex:1;padding:.4rem;border-radius:8px;border:1.5px solid #0f766e;background:#0f766e;color:#fff;font-weight:800;font-family:Tajawal,sans-serif;font-size:.75rem;cursor:pointer">الكل</button>
+                    <button id="dubFltSell" onclick="setDubaiFilter('sell')" style="flex:1;padding:.4rem;border-radius:8px;border:1.5px solid #0f766e;background:transparent;color:#0f766e;font-weight:800;font-family:Tajawal,sans-serif;font-size:.75rem;cursor:pointer">🟢 بيع</button>
+                    <button id="dubFltBuy" onclick="setDubaiFilter('buy')" style="flex:1;padding:.4rem;border-radius:8px;border:1.5px solid #dc2626;background:transparent;color:#dc2626;font-weight:800;font-family:Tajawal,sans-serif;font-size:.75rem;cursor:pointer">🔴 شراء</button>
                 </div>
                 <div id="dubaiSummary"></div>
                 <div id="dubaiArchiveList" style="padding-bottom:1rem"></div>
@@ -1259,14 +1264,14 @@
 
 
 <!-- ═══ ملفات JS ═══ -->
-<script src="firebase.js?v=402"></script>
-<script src="app.js?v=402"></script>
-<script src="assistant.js?v=402"></script>
-<script src="inventory.js?v=402"></script>
-<script src="invoice.js?v=402"></script>
-<script src="raffinage.js?v=402"></script>
-<script src="workshops.js?v=402"></script>
-<script src="auth.js?v=402"></script>
+<script src="firebase.js?v=403"></script>
+<script src="app.js?v=403"></script>
+<script src="assistant.js?v=403"></script>
+<script src="inventory.js?v=403"></script>
+<script src="invoice.js?v=403"></script>
+<script src="raffinage.js?v=403"></script>
+<script src="workshops.js?v=403"></script>
+<script src="auth.js?v=403"></script>
 
 
 

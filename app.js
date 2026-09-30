@@ -1,4 +1,4 @@
-window.APP_JS_VER='v402';
+window.APP_JS_VER='v403';
 /* ═══════════ STATE ═══════════ */
 let B={دينار:0,'ذهب 730':0,'ذهب 24':0,دولار:0,vg730:0,vg24:0};
 let ops=[],invoices=[],debts=[],loans=[],rafInvoices=[],dollInvoices=[],dubaiInvoices=[];
@@ -3610,8 +3610,19 @@ window._confirmReceive730=function(){
 /* ═══════════ ARCHIVE ═══════════ */
 let _archiveFilter='all';
 window.setArchiveFilter=(f)=>{ _archiveFilter=f; renderArchive(); };
-function _renderArchiveChips(){
-    const bar=document.getElementById('archFilterBar'); if(!bar)return;
+window._dubaiFilter='all';
+window.setDubaiFilter=(m)=>{
+    window._dubaiFilter=m;
+    window._archShow=50;   /* أعد للدفعة الأولى عند تبديل الفلتر */
+    const btns={all:document.getElementById('dubFltAll'),sell:document.getElementById('dubFltSell'),buy:document.getElementById('dubFltBuy')};
+    const clr={all:'#0f766e',sell:'#0f766e',buy:'#dc2626'};
+    Object.keys(btns).forEach(k=>{ const b=btns[k]; if(!b)return;
+        if(k===m){ b.style.background=clr[k]; b.style.color='#fff'; }
+        else{ b.style.background='transparent'; b.style.color=clr[k]; }
+    });
+    if(typeof renderArchive==='function')renderArchive();
+};
+function _renderArchiveChips(){    const bar=document.getElementById('archFilterBar'); if(!bar)return;
     const chips=[['all','📋 الكل'],['buy','🟢 شراء'],['sell','🔴 بيع'],['recv','📥 قبض 730'],['raf','🔥 رافيناج'],['doll','💲 دولار'],['dubai','🏙️ دبي']];
     bar.innerHTML=chips.map(([k,l])=>{
         const on=_archiveFilter===k;
@@ -3803,7 +3814,10 @@ function renderArchive(){
         </div>`).join('')+_archMore('dollArchiveList',_dolL.length)):empty;
     /* أرشيف دبي */
     document.getElementById('dubaiArchiveCount').textContent=dubaiInvoices.length;
-    const _dubL=_byC(dubaiInvoices);
+    let _dubL=_byC(dubaiInvoices);
+    /* فلتر بيع/شراء دبي */
+    if(window._dubaiFilter==='sell') _dubL=_dubL.filter(d=>!d.isBuy);
+    else if(window._dubaiFilter==='buy') _dubL=_dubL.filter(d=>!!d.isBuy);
     (function(){
         const box=document.getElementById('dubaiSummary'); if(!box)return;
         let totUsd=0,totW=0,totDinG_w=0,totDinG_sum=0;
