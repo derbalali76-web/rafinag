@@ -1,4 +1,4 @@
-window.RAF_JS_VER='v400';
+window.RAF_JS_VER='v402';
 /* ═══════════ RAFFINAGE ═══════════ */
 let rafRows=4;
 const _rafSentIds=new Set();
@@ -441,6 +441,18 @@ window.saveCustomerRaf=async function(){
     }
     const dt=new Date().toLocaleDateString('fr-FR');
     const dispBars={};
+    /* كشف السبيكة المكرّرة (فاتورة جديدة فقط، لا التعديل): إن كان كسر الزبون
+       يطابق سبيكة موجودة في مخزون 730 (نفس الوزن والعيار)، نبّه المستخدم. */
+    if(!(window._rafEditMeta&&window._rafEditMeta.rid)){
+        const _dup=[];
+        rows.forEach(r=>{
+            const hit=g730.find(b=>Math.abs((b.w||0)-r.w)<0.005 && Math.abs((b.k||730)-r.k)<1.5);
+            if(hit)_dup.push(fmt(r.w,2)+'غ · عيار '+fmt(r.k,0));
+        });
+        if(_dup.length){
+            if(!confirm('⚠️ سبيكة مكرّرة!\n\nهذه السبائك موجودة أصلاً في مخزون 730 بنفس الوزن والعيار:\n\n• '+_dup.join('\n• ')+'\n\nقد تكون أدخلتها مرتين. هل تريد المتابعة رغم ذلك؟'))return;
+        }
+    }
     /* كسر الزبون يُضاف إلى مخزون 730 (سطر لكل بند) */
     const barsAdd730=rows.map(r=>{
         const bid=uid();

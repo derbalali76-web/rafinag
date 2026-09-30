@@ -391,9 +391,22 @@ window.saveInvoice=()=>{
                 return toast(`⚠️ السيولة (الدينار) غير كافية للدفع. المطلوب دفعه: ${fmt(_akhdG,0)} · المتاح: ${fmt(_availDinar,0)}`,'error');
         }
     }
+    /* كشف السبيكة المكررة (الشراء فقط): إن كانت سبيكة جديدة تطابق سبيكة موجودة
+       في المخزون (نفس الوزن والعيار)، نبّه المستخدم — قد يكون أدخلها مرتين خطأً. */
+    if(t==='buy'){
+        const _dupNames=[];
+        newItems.forEach(item=>{
+            if(item.sbid)return;   /* سبيكة قائمة (بيع/استعادة) لا شراء جديد */
+            const pool=item.is1000?g24:g730;
+            const hit=pool.find(b=>Math.abs((b.w||0)-item.w)<0.005 && Math.abs((b.k||(item.is1000?1000:730))-item.k)<1.5);
+            if(hit)_dupNames.push(fmt(item.w,2)+'غ · عيار '+fmt(item.k,0));
+        });
+        if(_dupNames.length){
+            if(!confirm('⚠️ سبيكة مكرّرة!\n\nهذه السبائك موجودة أصلاً في المخزون بنفس الوزن والعيار:\n\n• '+_dupNames.join('\n• ')+'\n\nقد تكون أدخلتها مرتين. هل تريد المتابعة رغم ذلك؟'))return;
+        }
+    }
     /* نجحت كل الفحوص → أبطِل القديمة الآن (تُستعاد الحسابات/المخزون) ثم تُبنى الجديدة */
-    if(_isEdit){ _voidByInvId('invoice',_editingInvId); _editingInvId=null; if(typeof _hideEditBanner==='function')_hideEditBanner(); }
-    const tp=newItems.reduce((s,b)=>s+(b.total||0),0);
+    if(_isEdit){ _voidByInvId('invoice',_editingInvId); _editingInvId=null; if(typeof _hideEditBanner==='function')_hideEditBanner(); }const tp=newItems.reduce((s,b)=>s+(b.total||0),0);
     let akhd=parseInvNum(document.getElementById('invAkhd')?.value);
     if(ps==='full') akhd=tp;
     const prevBal=getCustBal(c,'دينار');

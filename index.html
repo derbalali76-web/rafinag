@@ -59,7 +59,7 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-messaging-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.2.0/crypto-js.min.js"></script>
-    <link rel="stylesheet" href="style.css?v=400">
+    <link rel="stylesheet" href="style.css?v=402">
     <script>
     /* منع وميض نافذة الدخول: إن كانت الجلسة محفوظة، نخفيها قبل أول رسم */
     (function(){try{
@@ -170,6 +170,7 @@
             <div class="icon-btn" onclick="doLogout()" title="تسجيل الخروج" style="background:rgba(239,68,68,.12);color:var(--rd)"><i class="fas fa-sign-out-alt"></i></div>
             <div class="icon-btn" onclick="toggleDark()" id="darkBtn"><i class="fas fa-moon"></i></div>
             <div class="icon-btn" id="fsBtn" onclick="toggleFullscreen()" title="فول سكرين"><i class="fas fa-expand"></i></div>
+            <div class="icon-btn" id="installBtn" onclick="doInstallApp()" title="تثبيت التطبيق" style="display:none;background:rgba(16,185,129,.14);color:#059669"><i class="fas fa-download"></i></div>
         </div>
     </div>
 
@@ -806,7 +807,7 @@
     </div>
     <div id="loanInfo" class="infobox" style="background:rgba(249,115,22,.08);border-color:rgba(249,115,22,.3);color:var(--or)"></div>
     <div class="fg" style="margin-bottom:.35rem"><label>الكمية المسلَّفة (غ)</label>
-        <input type="number" id="loanAmount" step="any" min="0.01"
+        <input type="number" inputmode="decimal" id="loanAmount" step="any" min="0.01"
             onkeydown="if(event.key==='Enter'){confirmLoan();event.preventDefault()}">
     </div>
     <div class="mactions">
@@ -825,11 +826,11 @@
         onkeydown="if(event.key==='Enter'){document.getElementById('sellAmount').focus();event.preventDefault()}">
     <div style="display:flex;gap:.4rem;margin-bottom:.35rem">
         <div class="fg" style="margin:0"><label>الكمية (غ)</label>
-            <input type="number" id="sellAmount" step="any" min="0.01"
+            <input type="number" inputmode="decimal" id="sellAmount" step="any" min="0.01"
                 onkeydown="if(event.key==='Enter'){document.getElementById('sellPrice').focus();event.preventDefault()}">
         </div>
         <div class="fg" style="margin:0"><label>سعر الغرام (دج)</label>
-            <input type="number" id="sellPrice" step="any" min="0"
+            <input type="number" inputmode="decimal" id="sellPrice" step="any" min="0"
                 onkeydown="if(event.key==='Enter'){confirmSell();event.preventDefault()}">
         </div>
     </div>
@@ -873,7 +874,7 @@
                 onkeydown="if(event.key==='Enter'){saveGT();event.preventDefault()}">
         </div>
         <div class="fg" id="gtKaratRow" style="display:none"><label>العيار</label>
-            <input type="number" id="gtKarat" placeholder="العيار" min="1" max="999" step="1"
+            <input type="number" inputmode="decimal" id="gtKarat" placeholder="العيار" min="1" max="999" step="1"
                 dir="ltr" style="text-align:right"
                 oninput="window._gt730Auto&&window._gt730Auto();window.calcGTEq()"
                 onkeydown="if(event.key==='Enter'){saveGT();event.preventDefault()}">
@@ -943,7 +944,7 @@
 <div class="modal-overlay" id="shipModal"><div class="modal">
     <div class="modal-handle"></div>
     <h3>🚢 شحن</h3>
-    <input type="number" id="shipWeight" step="any" placeholder="⚖️ الوزن (غ)"
+    <input type="number" inputmode="decimal" id="shipWeight" step="any" placeholder="⚖️ الوزن (غ)"
         onkeydown="modalNav(event,'shipFields',0)">
     <input type="text" inputmode="decimal" dir="ltr" id="shipUsdRate" placeholder="🚢 سعر الشحن ($/غ) — مثال: 3,4"
         onkeydown="modalNav(event,'shipFields',1)">
@@ -1034,10 +1035,10 @@
 <div class="modal-overlay" id="dubaiCalcModal"><div class="modal">
     <div class="modal-handle"></div>
     <h3>🏙️ حاسبة سعر البيع في دبي</h3>
-    <input type="number" id="dcDisc"     step="any" placeholder="🔻 الخصم ($/أوقية)">
-    <input type="number" id="dcShip"     step="any" placeholder="✈️ سعر الشحن ($/أوقية)">
-    <input type="number" id="dcDollar"   step="any" placeholder="💵 سعر الدولار (دج/$)">
-    <input type="number" id="dcExpenses" step="any" placeholder="💸 مصاريف (دج/غ)">
+    <input type="number" inputmode="decimal" id="dcDisc"     step="any" placeholder="🔻 الخصم ($/أوقية)">
+    <input type="number" inputmode="decimal" id="dcShip"     step="any" placeholder="✈️ سعر الشحن ($/أوقية)">
+    <input type="number" inputmode="decimal" id="dcDollar"   step="any" placeholder="💵 سعر الدولار (دج/$)">
+    <input type="number" inputmode="decimal" id="dcExpenses" step="any" placeholder="💸 مصاريف (دج/غ)">
     <div class="infobox" id="dcResult" style="font-size:1.05rem;font-weight:900;text-align:center;letter-spacing:.02em">
         أدخل البيانات ثم اضغط حساب
     </div>
@@ -1056,11 +1057,11 @@
     </div>
     <input type="text" id="dubaiOffice" placeholder="🏢 المكتب"
         onkeydown="dubaiNav(event,0)">
-    <input type="number" id="dubaiWeight" step="any" placeholder="⚖️ الوزن (غ)"
+    <input type="number" inputmode="decimal" id="dubaiWeight" step="any" placeholder="⚖️ الوزن (غ)"
         onkeydown="dubaiNav(event,1)">
-    <input type="number" id="dubaiPrice" step="any" placeholder="📺 سعر الشاشة ($/أوقية)"
+    <input type="number" inputmode="decimal" id="dubaiPrice" step="any" placeholder="📺 سعر الشاشة ($/أوقية)"
         onkeydown="dubaiNav(event,2)">
-    <input type="number" id="dubaiDisc" value="0" step="any" placeholder="🔻 الخصم ($/أوقية)"
+    <input type="number" inputmode="decimal" id="dubaiDisc" value="0" step="any" placeholder="🔻 الخصم ($/أوقية)"
         onkeydown="dubaiNav(event,3)">
     <div class="infobox" id="dubaiTotal">💰 0 USD</div>
     <div class="mactions">
@@ -1173,11 +1174,11 @@
     <button onclick="showG24Audit()" style="width:100%;margin-bottom:.6rem;border:1.5px solid #16a34a;background:rgba(22,163,74,.07);color:#16a34a;border-radius:10px;padding:.55rem;font-weight:800;font-family:Tajawal,sans-serif;font-size:.8rem;cursor:pointer">🔍 تدقيق مخزون 24 — كل حركة أثّرت في الذهب 24</button>
     <div class="setting-row">
         <label><i class="fas fa-crown" style="color:var(--g400)"></i> سعر الذهب (دج/غ)</label>
-        <input type="number" id="settingGoldPrice" step="any" min="1">
+        <input type="number" inputmode="decimal" id="settingGoldPrice" step="any" min="1">
     </div>
     <div class="setting-row">
         <label><i class="fas fa-dollar-sign" style="color:var(--gr)"></i> سعر الدولار (دج/$)</label>
-        <input type="number" id="settingDollarRate" step="any" min="1">
+        <input type="number" inputmode="decimal" id="settingDollarRate" step="any" min="1">
     </div>
     <div class="mactions">
         <button class="bgy" onclick="closeModal('settingsModal')">إلغاء</button>
@@ -1258,14 +1259,14 @@
 
 
 <!-- ═══ ملفات JS ═══ -->
-<script src="firebase.js?v=400"></script>
-<script src="app.js?v=400"></script>
-<script src="assistant.js?v=400"></script>
-<script src="inventory.js?v=400"></script>
-<script src="invoice.js?v=400"></script>
-<script src="raffinage.js?v=400"></script>
-<script src="workshops.js?v=400"></script>
-<script src="auth.js?v=400"></script>
+<script src="firebase.js?v=402"></script>
+<script src="app.js?v=402"></script>
+<script src="assistant.js?v=402"></script>
+<script src="inventory.js?v=402"></script>
+<script src="invoice.js?v=402"></script>
+<script src="raffinage.js?v=402"></script>
+<script src="workshops.js?v=402"></script>
+<script src="auth.js?v=402"></script>
 
 
 
@@ -1400,6 +1401,31 @@ if('serviceWorker' in navigator){
     navigator.serviceWorker.register('./sw.js').catch(()=>{});
   });
 }
+/* ─── تثبيت التطبيق (PWA) من كروم ─── */
+window._deferredInstall=null;
+window.addEventListener('beforeinstallprompt', function(e){
+  e.preventDefault();
+  window._deferredInstall=e;
+  var b=document.getElementById('installBtn'); if(b)b.style.display='';
+});
+window.doInstallApp=function(){
+  var e=window._deferredInstall;
+  if(!e){
+    /* المتصفح لم يطلق الحدث (مثبّت أصلاً أو iOS): أرشد المستخدم */
+    alert('لتثبيت التطبيق:\n\n• كروم أندرويد/كمبيوتر: افتح قائمة المتصفح (⋮) ← «تثبيت التطبيق» أو «إضافة إلى الشاشة الرئيسية».\n• آيفون (Safari): زر المشاركة ← «إضافة إلى الشاشة الرئيسية».');
+    return;
+  }
+  e.prompt();
+  e.userChoice.finally(function(){
+    window._deferredInstall=null;
+    var b=document.getElementById('installBtn'); if(b)b.style.display='none';
+  });
+};
+/* أُثبّت التطبيق → أخفِ الزر */
+window.addEventListener('appinstalled', function(){
+  window._deferredInstall=null;
+  var b=document.getElementById('installBtn'); if(b)b.style.display='none';
+});
 
 /* زر تثبيت التطبيق: أُزيل نهائياً بناءً على الطلب */
 </script>
