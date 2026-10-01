@@ -497,26 +497,55 @@ function reconcileBars(adminBars,workerBars){
     return {miss,missW};
 }
 window.wsReconcile=function(){
-    /* اجلب أحدث الأحداث لالتقاط أي حفظ جلسة جديد للعامل (WS_WSESSION يمسح سبائكه).
-       نجلب مرة كل 20 ثانية كحدّ أقصى (يمنع الجلب المتكرر المكلف عند الضغط السريع). */
+    /* المطابقة تبني سبائك العامل مباشرة من أحداث السحابة (لا الحالة المحلية التي
+       قد تكون ناقصة عند الأدمين) — يضمن أنها تعكس ما حفظه العامل بالضبط.
+       نجلب مرة كل 10 ثوانٍ كحدّ (منع الضغط المتكرر المكلف). */
     const _now=Date.now();
-    const _stale = !window._wsLastRecFetch || (_now-window._wsLastRecFetch>20000);
-    if(navigator.onLine && _stale && typeof _baseRef!=='undefined' && _baseRef && typeof _mergeRemoteEvents==='function'){
+    const _stale = !window._wsLastRecFetch || (_now-window._wsLastRecFetch>10000);
+    if(navigator.onLine && _stale && typeof _baseRef!=='undefined' && _baseRef){
         window._wsLastRecFetch=_now;
         toast('⏳ جلب أحدث سبائك العامل…','info');
         _baseRef.child('events').once('value',function(snap){
-            try{ _mergeRemoteEvents(snap.val()); }catch(e){}
-            try{ _reproject(); }catch(e){}
+            const data=snap.val()||{};
+            const arr=Object.keys(data).map(k=>data[k]).filter(Boolean);
+            try{ if(typeof _mergeRemoteEvents==='function')_mergeRemoteEvents(data); _reproject(); }catch(e){}
+            /* ابنِ سبائك العامل من السحابة مباشرة للمطابقة */
+            window._wsCloudWorkerBars=_wsWorkerBarsFromEvents(arr);
             _doReconcile();
-        },function(){ _doReconcile(); });
+        },function(){ window._wsCloudWorkerBars=null; _doReconcile(); });
     }else{
         try{ _reproject(); }catch(e){}
         _doReconcile();
     }
 };
+/* يبني سبائك العامل لكل ورشة من قائمة أحداث (نفس منطق _applyEvt، مرتّب بـts+id) */
+function _wsWorkerBarsFromEvents(arr){
+    const evs=arr.filter(e=>e&&e.type&&e.type.indexOf('WS_W')===0 && e.type!=='VOID')
+        .slice().sort((a,b)=>((a.ts||0)-(b.ts||0))||(String(a.id)>String(b.id)?1:-1));
+    /* استبعد المُبطَلة (VOID) */
+    const voided=new Set(arr.filter(e=>e&&e.type==='VOID').map(e=>e.data&&e.data.voids).filter(Boolean));
+    const wb={};
+    evs.forEach(e=>{
+        if(voided.has(e.id))return;
+        const d=e.data||{}, ws=d.ws; if(!ws)return;
+        if(!wb[ws])wb[ws]=[];
+        if(e.type==='WS_WBARADD')wb[ws].push({id:d.id,w:d.w,k:d.k});
+        else if(e.type==='WS_WBAREDIT'){ const b=wb[ws].find(x=>x.id===d.id); if(b){ if(d.w>0)b.w=d.w; if(d.k>0)b.k=d.k; } }
+        else if(e.type==='WS_WBARDEL')wb[ws]=wb[ws].filter(b=>b.id!==d.id);
+        else if(e.type==='WS_WSESSION'){
+            if(d.clearBars)wb[ws]=[];
+            else if(d.consumedBarIds&&d.consumedBarIds.length){ const cs=new Set(d.consumedBarIds); wb[ws]=wb[ws].filter(b=>!cs.has(b.id)); }
+        }
+    });
+    return wb;
+}
 function _doReconcile(){
     const adminBars=_wsBarsOf(_wsCur);
-    const workerBars=_wsWBarsOf(_wsCur);
+    /* سبائك العامل: من السحابة مباشرة إن جُلبت (أدقّ)، وإلا من الحالة المحلية */
+    let workerBars=_wsWBarsOf(_wsCur);
+    if(window._wsCloudWorkerBars && window._wsCloudWorkerBars[_wsCur]){
+        workerBars=window._wsCloudWorkerBars[_wsCur];
+    }
     if(!workerBars.length&&!adminBars.length)return toast('لا سبائك للمقارنة','info');
     const r=reconcileBars(adminBars,workerBars);
     _wsMiss[_wsCur]=r.miss;
