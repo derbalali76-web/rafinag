@@ -1,4 +1,4 @@
-window.APP_JS_VER='v404';
+window.APP_JS_VER='v406';
 /* ═══════════ STATE ═══════════ */
 let B={دينار:0,'ذهب 730':0,'ذهب 24':0,دولار:0,vg730:0,vg24:0};
 let ops=[],invoices=[],debts=[],loans=[],rafInvoices=[],dollInvoices=[],dubaiInvoices=[];
@@ -901,6 +901,14 @@ window.toggleGTKarat=()=>{
     const eq=document.getElementById('gtEqBox');
     const kr=document.getElementById('gtKaratRow');
     const ex=document.getElementById('gt730Extra');
+    /* «من أخذه؟»: اختياري، يظهر عند الاستلام بالدينار فقط.
+       تحويل دَين — لا يدخل الخزنة. */
+    const pr=document.getElementById('gtPartyRow');
+    if(pr){
+        const show=(gtType==='take'&&m==='دينار');
+        pr.style.display=show?'block':'none';
+        if(!show){const pe=document.getElementById('gtParty'); if(pe)pe.value='';}
+    }
     if(m==='ذهب 730'){
         l.textContent='الوزن (غ)';
         if(kr)kr.style.display='';
@@ -1002,6 +1010,7 @@ window.openGiveTake=(t)=>{
     document.getElementById('gtAmount').value='';
     document.getElementById('gtMetal').value='دينار';
     document.getElementById('gtNote').value='';
+    {const pe=document.getElementById('gtParty'); if(pe)pe.value='';}
     const kEl=document.getElementById('gtKarat');if(kEl)kEl.value='';   /* بلا اقتراح 730 */
     /* تصفير قائمة سبائك 730 الإضافية */
     _gt730Cnt=0; const gb=document.getElementById('gt730Bars'); if(gb)gb.innerHTML='';
@@ -1033,6 +1042,13 @@ window.saveGT=()=>{
         ? gt730Bars.reduce((s,b)=>s+b.w*b.k/730,0)
         : (isG730?(a*k)/730:a);
     const note=document.getElementById('gtNote').value.trim();
+    /* «من أخذه؟» — اختياري، للاستلام بالدينار فقط. تحويل دَين لا يمسّ الخزنة:
+       يُخصم من دين الدافع (c) ويُضاف لدين «من أخذه» (party). */
+    let party='';
+    if(gtType==='take'&&m==='دينار'){
+        party=(document.getElementById('gtParty')?.value||'').trim();
+        if(party&&party===c)return toast('⚠️ «من أخذه» يجب أن يكون زبوناً آخر غير الدافع','error');
+    }
     const dt=new Date().toLocaleDateString('fr-FR');
     const nowStr=new Date().toLocaleDateString('fr-FR',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
 
@@ -1088,12 +1104,13 @@ window.saveGT=()=>{
         window._editingRecvId=null;
     }
     emitEvent('GT',
-        {gtType,c,m,finalAmount,...(isG730?{realW:totW,realK:(uniformK||730)}:{}),...(_v24Out>0?{v24Out:_v24Out}:{}),...((window._out24Tmp||0)>0?{out24:window._out24Tmp}:{}),note,barsAdd,barsRemove,barUpdates},
+        {gtType,c,m,finalAmount,...(party?{party}:{}),...(isG730?{realW:totW,realK:(uniformK||730)}:{}),...(_v24Out>0?{v24Out:_v24Out}:{}),...((window._out24Tmp||0)>0?{out24:window._out24Tmp}:{}),note,barsAdd,barsRemove,barUpdates},
         {
             invoice:_recvInv,
             bars:Object.keys(dispBars).length?dispBars:undefined,
             op:{c,t:gtType==='give'?'أعطيت':'استلمت',m,a:finalAmount,
                 _ts:Date.now(),dt:nowStr,
+                ...(party?{akhd:party}:{}),   /* من أخذه — يظهر في سطر سجل الدافع */
                 ...(_recvInv?{iid:_recvInv.id}:{}),   /* رابط الوصل — ليفتحه الزبون من سجله */
                 ...(isG730?{realW:totW,realK:(uniformK||'متعدد'),note}:{note}),
                 ...(gtType==='take'&&isG730&&gt730Bars.length?{barsList:gt730Bars.map(b=>({w:b.w,k:b.k}))}:{})}
@@ -1102,6 +1119,7 @@ window.saveGT=()=>{
     document.getElementById('gtCustomer').value='';
     document.getElementById('gtAmount').value='';
     document.getElementById('gtNote').value='';
+    {const pe=document.getElementById('gtParty'); if(pe)pe.value='';}
     const gb=document.getElementById('gt730Bars'); if(gb)gb.innerHTML=''; _gt730Cnt=0;
     document.getElementById('gtBalBox').style.display='none';
     closeModal('gtModal');
@@ -1109,8 +1127,11 @@ window.saveGT=()=>{
         const _unit=m==='دينار'?'دج':(m==='دولار'?'$':'غ');
         const _act=gtType==='give'?'أعطيناك':'استلمنا منك';
         _sendCustomerPush(c,'حركة على حسابك',`${_act} ${fmt(finalAmount,2)} ${_unit} — افتح حسابك للاطلاع`);
+        if(party)_sendCustomerPush(party,'حركة على حسابك',`سُجّل بذمّتك ${fmt(finalAmount,0)} دج (أخذتها عن ${c}) — افتح حسابك للاطلاع`);
     }
-    toast(gt730Bars&&gt730Bars.length>1?`✅ تم استلام ${gt730Bars.length} سبيكة`:'✅ تم الحفظ بنجاح');
+    toast(party
+        ? `✅ تم: خُصم ${fmt(finalAmount,0)} دج من ${c} وأُضيف لدين ${party}`
+        : (gt730Bars&&gt730Bars.length>1?`✅ تم استلام ${gt730Bars.length} سبيكة`:'✅ تم الحفظ بنجاح'));
 };
 
 /* ═══════════ DOLLAR ═══════════ */

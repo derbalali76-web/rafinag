@@ -1,4 +1,4 @@
-window.FB_JS_VER='v404';
+window.FB_JS_VER='v406';
 /* ═══════════ FIREBASE ═══════════ */
 const _fbConfig={
     apiKey:"AIzaSyDevHwoNCKXGm-G8GJc_Z5eZwcSPuQS9wI",
@@ -607,16 +607,30 @@ function _applyEvt(st,evt){
         }
 
         case 'GT':{
+            /* «من أخذه» (d.party): حقل جديد — تحويل دَين بالدينار لا يمسّ الخزنة.
+               الأحداث القديمة بلا d.party تعمل تماماً كما كانت. */
             if(d.gtType==='give'){
                 applyBars();
-                if(d.m!=='ذهب 730'&&d.m!=='ذهب 24')st.B[d.m]=(st.B[d.m]||0)-d.finalAmount;
+                if(d.m!=='ذهب 730'&&d.m!=='ذهب 24'&&!d.party)st.B[d.m]=(st.B[d.m]||0)-d.finalAmount;
                 /* تسليم 24: ما لم تغطّه السبائك الفيزيائية يُخصم من الافتراضي vg24 */
                 if(d.m==='ذهب 24'&&(d.v24Out||0)>0)st.B.vg24=Math.max(0,(st.B.vg24||0)-d.v24Out);
                 stUpdDebt(d.c,d.m,d.finalAmount);
+                if(d.party)stUpdDebt(d.party,d.m,-d.finalAmount);
             }else{
                 applyBars();
-                if(d.m!=='ذهب 730'&&d.m!=='ذهب 24')st.B[d.m]=(st.B[d.m]||0)+d.finalAmount;
+                if(d.m!=='ذهب 730'&&d.m!=='ذهب 24'&&!d.party)st.B[d.m]=(st.B[d.m]||0)+d.finalAmount;
                 stUpdDebt(d.c,d.m,-d.finalAmount);
+                /* من أخذه: يُضاف المبلغ لدينه (أخذ المال بدل الدافع) */
+                if(d.party)stUpdDebt(d.party,d.m,d.finalAmount);
+            }
+            /* سطر سجل لـ«من أخذه» كي تظهر العملية في حسابه أيضاً */
+            if(d.party){
+                st.ops.push({
+                    c:d.party, t:'أخذ عن '+d.c, m:d.m, a:d.finalAmount,
+                    _ts:(disp.op&&disp.op._ts)||evt.ts||Date.now(),
+                    dt:(disp.op&&disp.op.dt)||'',
+                    akhdFrom:d.c, id:evt.id+'_pty'
+                });
             }
             /* فاتورة وصل القبض (v141) — كانت تُبثّ ولا تُلتقط هنا */
             if(disp.invoice)st.invoices.unshift(disp.invoice);
@@ -1008,7 +1022,10 @@ function _applyEvt(st,evt){
         }
 
         case 'BAR_ADD':
-        case 'BAR_REMOVE':{
+        case 'BAR_REMOVE':
+        case 'MELT':{
+            /* MELT (تذويب): barsRemove = السبائك المحددة تخرج، barsAdd = السبيكة
+               الناتجة الواحدة تدخل. applyBars يعالج الاثنين. لا يمسّ أي حساب آخر. */
             applyBars();
             break;
         }

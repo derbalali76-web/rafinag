@@ -59,7 +59,7 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-messaging-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.2.0/crypto-js.min.js"></script>
-    <link rel="stylesheet" href="style.css?v=404">
+    <link rel="stylesheet" href="style.css?v=406">
     <script>
     /* منع وميض نافذة الدخول: إن كانت الجلسة محفوظة، نخفيها قبل أول رسم */
     (function(){try{
@@ -871,6 +871,14 @@
         <option value="ذهب 24">💎 ذهب 24</option>
         <option value="دولار">💲 دولار</option>
     </select>
+    <!-- من أخذه؟ (اختياري) — يظهر في الاستلام بالدينار فقط. المبلغ لا يدخل الخزنة:
+         يُخصم من دين الدافع ويُضاف لدين «من أخذه» (تحويل دَين). -->
+    <div id="gtPartyRow" style="display:none">
+        <input type="text" id="gtParty" placeholder="🔄 من أخذه؟ (اختياري – اسم زبون آخر)">
+        <div id="gtPartyHint" style="font-size:.7rem;color:var(--t3);margin:.2rem .2rem .1rem;line-height:1.5">
+            المبلغ يُخصم من دين الأول ويُضاف لدين «من أخذه» – لا يدخل الخزنة.
+        </div>
+    </div>
     <div class="frow">
         <div class="fg"><label id="gtAmountLabel">الكمية / المبلغ</label>
             <input type="text" inputmode="decimal" id="gtAmount" placeholder="🔢 الكمية"
@@ -1264,14 +1272,14 @@
 
 
 <!-- ═══ ملفات JS ═══ -->
-<script src="firebase.js?v=404"></script>
-<script src="app.js?v=404"></script>
-<script src="assistant.js?v=404"></script>
-<script src="inventory.js?v=404"></script>
-<script src="invoice.js?v=404"></script>
-<script src="raffinage.js?v=404"></script>
-<script src="workshops.js?v=404"></script>
-<script src="auth.js?v=404"></script>
+<script src="firebase.js?v=406"></script>
+<script src="app.js?v=406"></script>
+<script src="assistant.js?v=406"></script>
+<script src="inventory.js?v=406"></script>
+<script src="invoice.js?v=406"></script>
+<script src="raffinage.js?v=406"></script>
+<script src="workshops.js?v=406"></script>
+<script src="auth.js?v=406"></script>
 
 
 
