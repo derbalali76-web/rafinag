@@ -1,4 +1,4 @@
-window.RAF_JS_VER='v406';
+window.RAF_JS_VER='v407';
 /* ═══════════ RAFFINAGE ═══════════ */
 let rafRows=4;
 const _rafSentIds=new Set();
@@ -516,10 +516,14 @@ window.saveCustomerRaf=async function(){
         if(typeof _sendCustomerPush==='function')_sendCustomerPush(c,'تصحيح فاتورة','عُدِّلت فاتورتك — افتح حسابك للاطلاع');
         return;
     }
+    /* مخزون 24 إجمالي غير مجزّأ: نخصم خالص الفاتورة (أو اللانقو) بالوزن من المجموع
+       (سحب سائل) لا من سبيكة بعينها — فيبقى الخصم صحيحاً حتى لو أُلغيت لاحقاً
+       العملية التي أدخلت تلك السبيكة (درس فاتورة سمير يوسفي). */
     let barsRemove24=[],barUpdates24=[];
+    let _raf24Out=0;                 /* الجزء الفيزيائي المخصوم بالوزن من الإجمالي */
+    window._lanqoOut24=0;
     if(!settled&&lanqoPhys>0){
-        const r=_pickBarsToRemove('24',lanqoPhys);
-        barsRemove24=r.barsRemove;barUpdates24=r.barUpdates;window._lanqoOut24=r.out24||0;
+        _raf24Out=lanqoPhys;         /* اللانقو الفيزيائي يُخصم من الإجمالي */
     }
     let settledVirt=0;
     if(settled){
@@ -530,14 +534,7 @@ window.saveCustomerRaf=async function(){
             return toast(`⚠️ رصيد 24 غير كافٍ — متاح: ${fmt(physSum+virt,2)} غ (سبائك ${fmt(physSum,2)} + بيع ${fmt(virt,2)}) · مطلوب: ${fmt(eq24,2)} غ`,'error');
         const physOut=Math.min(eq24,physSum);
         settledVirt=parseFloat((eq24-physOut).toFixed(4));
-        /* استهلاك الجزء الفيزيائي — من الأحدث للأقدم */
-        let rem=physOut;
-        const src=[...g24].sort((a,b)=>((b._ts||0)-(a._ts||0)));
-        for(let i=0;i<src.length&&rem>0.001;i++){
-            const bar=src[i];
-            if(bar.w<=rem+0.001){barsRemove24.push(bar.id);rem-=bar.w;}
-            else{barUpdates24.push({id:bar.id,pool:'24',prevW:bar.w,newW:parseFloat((bar.w-rem).toFixed(4))});rem=0;}
-        }
+        _raf24Out=physOut;           /* خالص الفاتورة الفيزيائي يُخصم من الإجمالي */
     }
     const rid='RAF-'+uid();
     const nowStr=new Date().toLocaleDateString('fr-FR',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
@@ -555,7 +552,7 @@ window.saveCustomerRaf=async function(){
         {mode:'customer',settled,c,rid,rows,totalSentW:totalW,eq24,feeRate,fee:totalFee,
          sawared,lanqo,
          v24Out:((settled?settledVirt:lanqoVirt)||undefined),
-         barsAdd730,barsRemove24,barUpdates24,...((window._lanqoOut24||0)>0?{out24:window._lanqoOut24}:{})},
+         barsAdd730,barsRemove24,barUpdates24,...(_raf24Out>0?{out24:_raf24Out}:{})},
         {
             rafInvoice:_raf,
             bars:Object.keys(dispBars).length?dispBars:undefined,
