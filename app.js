@@ -1,4 +1,4 @@
-window.APP_JS_VER='v408';
+window.APP_JS_VER='v409';
 /* ═══════════ STATE ═══════════ */
 let B={دينار:0,'ذهب 730':0,'ذهب 24':0,دولار:0,vg730:0,vg24:0};
 let ops=[],invoices=[],debts=[],loans=[],rafInvoices=[],dollInvoices=[],dubaiInvoices=[];
@@ -2773,6 +2773,23 @@ window.exportDebtsPdf=function(){
     }catch(e){}
     const dt=new Date().toLocaleDateString('fr-FR');
     const mpCol=(monthProfit==null?'#888':(monthProfit>=0?'#16a34a':'#dc2626'));
+    /* مكوّنات الفائدة للعرض التفصيلي في الدفتر (مطابق لنافذة الفائدة الشهرية):
+       رافيناج + بيع/شراء + لابارت. الإجمالي = _pdfGross (قبل المصاريف). */
+    let _pfRaf=0,_pfTrade=0,_pfLapG=0,_pfLapDz=0;
+    try{
+        if(_profitMk){
+            _pfRaf=(rafInvoices||[]).filter(r=>_profitMonthKey(r.dt)===_profitMk).reduce((s,r)=>s+(r.fee||0),0);
+            const _l=(window._calcMonthLapart?window._calcMonthLapart(_profitMk):{grams:0,dz:0});
+            _pfLapG=_l.grams||0; _pfLapDz=_l.dz||0;
+            if(_pdfGross!=null)_pfTrade=_pdfGross-_pfRaf-_pfLapDz;
+        }
+    }catch(e){}
+    const _miniCard=(lbl,val,col,sub)=>'<div style="background:#fff;border:1.5px solid #ddd;border-radius:12px;padding:9px;text-align:center"><div style="font-size:10px;color:#666;font-weight:800;margin-bottom:3px">'+lbl+'</div><div style="font-size:14px;font-weight:900;color:'+col+'">'+val+'</div>'+(sub?'<div style="font-size:9px;color:#999;margin-top:2px">'+sub+'</div>':'')+'</div>';
+    const _profitBreakdown=(monthProfit==null?'':'<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px">'
+        +_miniCard('🛒 فائدة البيع والشراء',(_pfTrade>=0?'+':'−')+fmt(Math.abs(_pfTrade),0)+' دج',(_pfTrade>=0?'#16a34a':'#dc2626'),'')
+        +_miniCard('🔥 فائدة الرافيناج',fmt(_pfRaf,0)+' دج','#b45309','')
+        +_miniCard('⚖️ فائدة لابارت',(_pfLapDz>=0?'+':'−')+fmt(Math.abs(_pfLapDz),0)+' دج',(_pfLapDz>=0?'#16a34a':'#dc2626'),fmt(_pfLapG,2)+' غ')
+        +'</div>');
     const bigCard=(label,val,sub,color)=>'<div style="background:'+color+'12;border:1.5px solid '+color+';border-radius:12px;padding:11px 13px;text-align:center"><div style="font-size:11px;color:#555;font-weight:800;margin-bottom:4px">'+label+'</div><div style="font-size:17px;font-weight:900;color:'+color+';line-height:1.2">'+val+'</div>'+(sub?'<div style="font-size:10px;color:#888;font-weight:700;margin-top:3px">'+sub+'</div>':'')+'</div>';
     /* صفوف مضغوطة (padding صغير + خط أصغر) كي يدخل الدفتر في ~4 صفحات */
     const _pad=rows.length>110?'2px 3px':rows.length>70?'3px 4px':'5px';
@@ -2787,6 +2804,7 @@ window.exportDebtsPdf=function(){
         +bigCard('\ud83d\udcb5 \u0645\u062c\u0645\u0648\u0639 \u0627\u0644\u062f\u064a\u0646\u0627\u0631',fmt(_bk.raw_din||0,0)+' \u062f\u062c','','#d97706')
         +'</div>'
         +'<div style="background:'+mpCol+'12;border:1.5px solid '+mpCol+';border-radius:12px;padding:11px;text-align:center;margin-bottom:12px"><div style="font-size:11px;color:#555;font-weight:800;margin-bottom:4px">\ud83d\udcc8 '+_profitMonthLbl+' (\u0635\u0627\u0641\u064a\u0629)</div><div style="font-size:20px;font-weight:900;color:'+mpCol+'">'+(monthProfit==null?'\u2014':((monthProfit>=0?'+':'\u2212')+fmt(Math.abs(monthProfit),0)+' \u062f\u062c'))+'</div>'+(_pdfExpTotal>0?'<div style="font-size:10px;color:#888;font-weight:700;margin-top:3px">\u0627\u0644\u0641\u0627\u0626\u062f\u0629 '+fmt(_pdfGross,0)+' \u2212 \u0645\u0635\u0627\u0631\u064a\u0641 '+fmt(_pdfExpTotal,0)+'</div>':'')+'</div>'
+        +_profitBreakdown
         +(_pdfExpTotal>0?'<div style="background:#dc262612;border:1.5px solid #dc2626;border-radius:12px;padding:11px;text-align:center;margin-bottom:12px"><div style="font-size:11px;color:#555;font-weight:800;margin-bottom:4px">\ud83d\udcb8 \u0645\u0635\u0627\u0631\u064a\u0641 \u0627\u0644\u0634\u0647\u0631</div><div style="font-size:18px;font-weight:900;color:#dc2626">\u2212 '+fmt(_pdfExpTotal,0)+' \u062f\u062c</div>'+(_pdfExpUsd>0?'<div style="font-size:10px;color:#888;margin-top:3px">\u062f\u064a\u0646\u0627\u0631 '+fmt(_pdfExpDz,0)+' + \u062f\u0648\u0644\u0627\u0631 '+fmt(_pdfExpUsd,0)+'$</div>':'')+'</div>':'')
         +(histRows?('<div style="margin-bottom:12px"><div style="font-size:11px;color:#666;font-weight:800;margin-bottom:5px;text-align:right">\ud83d\udcc5 \u0623\u0631\u0628\u0627\u062d \u0627\u0644\u0623\u0634\u0647\u0631 \u0627\u0644\u0633\u0627\u0628\u0642\u0629</div><table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="background:#f3f4f6"><th style="border:1px solid #ddd;padding:6px">\u0627\u0644\u0634\u0647\u0631</th><th style="border:1px solid #ddd;padding:6px">\u0627\u0644\u0631\u0628\u062d</th></tr></thead><tbody>'+histRows+'</tbody></table></div>'):'')
         +'<table style="width:100%;border-collapse:collapse;font-size:'+(rows.length>110?'8.5px':rows.length>70?'10px':'12px')+'"><thead><tr style="background:#1a1a1a;color:#fff;text-align:center"><th style="padding:7px;border:1px solid #555">\u0627\u0644\u0632\u0628\u0648\u0646</th><th style="padding:7px;border:1px solid #555">\u062f\u064a\u0646\u0627\u0631</th><th style="padding:7px;border:1px solid #555">\u062f\u0648\u0644\u0627\u0631</th><th style="padding:7px;border:1px solid #555">\u0630\u0647\u0628 730</th><th style="padding:7px;border:1px solid #555">\u0630\u0647\u0628 24</th></tr></thead><tbody>'+rowsHtml
