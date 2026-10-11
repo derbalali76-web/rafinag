@@ -1,4 +1,4 @@
-window.APP_JS_VER='v407';
+window.APP_JS_VER='v408';
 /* ═══════════ STATE ═══════════ */
 let B={دينار:0,'ذهب 730':0,'ذهب 24':0,دولار:0,vg730:0,vg24:0};
 let ops=[],invoices=[],debts=[],loans=[],rafInvoices=[],dollInvoices=[],dubaiInvoices=[];
@@ -4986,6 +4986,20 @@ window._monthlyAssetProfit=function(){
     }catch(e){return null;}
 };
 
+/* فائدة لابارت لشهر: مجموع لابارت جلسات الورشتين (غرام صافٍ 1000) × سعر الذهب.
+   لابارت صافٍ (عيار 1000) فيُقوَّم مثل ذهب 24: غرام × (1000/730) × سعر الذهب
+   (نفس اصطلاح تقييم الذهب في مجموع الأصول). سعر الذهب من الإعدادات. */
+window._calcMonthLapart=function(mk){
+    try{
+        let g=0;
+        ['workshop1','workshop2'].forEach(ws=>{
+            const arr=(typeof _wsSessOf==='function')?_wsSessOf(ws):[];
+            (arr||[]).forEach(s=>{ if((typeof _wsMonthKey==='function'?_wsMonthKey(s.date):null)===mk) g+=(s.lapart||0); });
+        });
+        const _gp=(typeof goldPrice!=='undefined'?goldPrice:0)||0;
+        return { grams:g, dz: g*(1000/730)*_gp };
+    }catch(e){ return {grams:0,dz:0}; }
+};
 /* حساب الفائدة الشهرية — مستقلة (تُستعمل في تصدير الديون وغيره) */
 window._calcMonthProfit=function(mk){
     try{
@@ -5013,7 +5027,8 @@ window._calcMonthProfit=function(mk){
             const matchedW=Math.min(sellW,buyW);
             trade=(sellDz/sellW-buyDz/buyW)*matchedW;
         }
-        return rafFee+trade;
+        const _lapDz=(window._calcMonthLapart?window._calcMonthLapart(mk).dz:0)||0;
+        return rafFee+trade+_lapDz;
     }catch(e){return null;}
 };
 
@@ -5057,13 +5072,15 @@ window.openProfitModal=function(sel){
         avgS=sellDz/sellW; avgB=buyDz/buyW;
         trade=matchedW*(avgS-avgB);
     }
+    /* فائدة لابارت الشهر (ورشات) محسوبة بسعر الذهب من الإعدادات */
+    const _lap=(window._calcMonthLapart?window._calcMonthLapart(mk):{grams:0,dz:0});
     const sells=sellDz,buys=buyDz,dubaiDz=0;   /* للتوافق مع الأسطر أدناه */
     /* مصاريف الشهر (دينار + دولار محوّلاً) تُخصم من الفائدة */
     let _expDz=0,_expUsd=0;
     try{ if(typeof window._monthExpenses==='function'){ const _e=window._monthExpenses(mk); _expDz=_e.dz||0; _expUsd=_e.usd||0; } }catch(e){}
     const _drNow=(typeof dollarRate!=='undefined'?dollarRate:0)||0;
     const _expTotal=_expDz + _expUsd*_drNow;
-    const grossProfit=rafFee+trade;         /* الفائدة قبل المصاريف */
+    const grossProfit=rafFee+trade+(_lap.dz||0);   /* الفائدة قبل المصاريف (+ لابارت) */
     const total=grossProfit - _expTotal;    /* الصافي بعد خصم المصاريف */
     const F=v=>Math.round(v).toLocaleString('fr-FR');
     let m=document.getElementById('profitModal'); if(m)m.remove();
@@ -5093,6 +5110,11 @@ window.openProfitModal=function(sel){
                 <div style="font-family:monospace;font-weight:900;font-size:1.05rem;color:var(--g600)">${F(rafFee)} دج</div>
                 <div style="font-size:.6rem;color:var(--t3);margin-top:.25rem">مجموع الأجرة</div>
             </div>
+        </div>
+        <div style="border:1.5px solid rgba(217,119,6,.4);border-radius:12px;padding:.7rem;text-align:center;margin-top:.6rem">
+            <div style="font-size:.66rem;font-weight:800;color:var(--t3);margin-bottom:.3rem">⚖️ فائدة لابارت (الورشات)</div>
+            <div style="font-family:monospace;font-weight:900;font-size:1.05rem;color:${(_lap.dz||0)>=0?'var(--gr)':'var(--rd)'}">${F(_lap.dz||0)} دج</div>
+            <div style="font-size:.6rem;color:var(--t3);margin-top:.25rem">${fmt(_lap.grams||0,2)}غ × (1000/730) × سعر الذهب ${F(_gpNow)}</div>
         </div>
         <div style="border:1.5px solid ${_expTotal>0?'#dc2626':'var(--border)'};border-radius:12px;padding:.7rem;text-align:center;margin-top:.6rem">
             <div style="font-size:.66rem;font-weight:800;color:var(--t3);margin-bottom:.3rem">💸 مصاريف الشهر (تُخصم)</div>
