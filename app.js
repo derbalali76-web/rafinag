@@ -1,4 +1,4 @@
-window.APP_JS_VER='v409';
+window.APP_JS_VER='v411';
 /* ═══════════ STATE ═══════════ */
 let B={دينار:0,'ذهب 730':0,'ذهب 24':0,دولار:0,vg730:0,vg24:0};
 let ops=[],invoices=[],debts=[],loans=[],rafInvoices=[],dollInvoices=[],dubaiInvoices=[];
@@ -905,7 +905,7 @@ window.toggleGTKarat=()=>{
        تحويل دَين — لا يدخل الخزنة. */
     const pr=document.getElementById('gtPartyRow');
     if(pr){
-        const show=(gtType==='take'&&m==='دينار');
+        const show=(gtType==='take');   /* «من أخذه» لكل الاختيارات: دينار/دولار/ذهب 24/ذهب 730 */
         pr.style.display=show?'block':'none';
         if(!show){const pe=document.getElementById('gtParty'); if(pe)pe.value='';}
     }
@@ -1042,10 +1042,11 @@ window.saveGT=()=>{
         ? gt730Bars.reduce((s,b)=>s+b.w*b.k/730,0)
         : (isG730?(a*k)/730:a);
     const note=document.getElementById('gtNote').value.trim();
-    /* «من أخذه؟» — اختياري، للاستلام بالدينار فقط. تحويل دَين لا يمسّ الخزنة:
-       يُخصم من دين الدافع (c) ويُضاف لدين «من أخذه» (party). */
+    /* «من أخذه؟» — اختياري، للاستلام بكل الاختيارات (دينار/دولار/ذهب 24/ذهب 730).
+       تحويل دَين لا يمسّ الخزنة ولا المخزون: يُخصم من دين الدافع (c) ويُضاف لدين
+       «من أخذه» (party) بنفس العملة/الوزن. */
     let party='';
-    if(gtType==='take'&&m==='دينار'){
+    if(gtType==='take'){
         party=(document.getElementById('gtParty')?.value||'').trim();
         if(party&&party===c)return toast('⚠️ «من أخذه» يجب أن يكون زبوناً آخر غير الدافع','error');
     }
@@ -1081,8 +1082,12 @@ window.saveGT=()=>{
             _v24Out=r.shortfall||0;   /* ما لم تغطّه السبائك ← يُخصم من vg24 */
         }
     }else{
-        if(isG730){ gt730Bars.forEach(b=>{ barsAdd.push({id:uid(),pool:'730',w:b.w,k:b.k}); }); }
-        else if(isG24){const bid=uid();barsAdd.push({id:bid,pool:'24',w:a,k:1000});}
+        /* مع «من أخذه» (party): تحويل دَين فقط — الذهب لا يدخل المخزون.
+           بلا party: الاستلام العادي يُدخِل السبائك للمخزون. */
+        if(!party){
+            if(isG730){ gt730Bars.forEach(b=>{ barsAdd.push({id:uid(),pool:'730',w:b.w,k:b.k}); }); }
+            else if(isG24){const bid=uid();barsAdd.push({id:bid,pool:'24',w:a,k:1000});}
+        }
     }
     const dispBars={};
     barsAdd.forEach(b=>{
@@ -1093,7 +1098,7 @@ window.saveGT=()=>{
     });
     /* قبض سبائك 730 ← فاتورة وصل في الأرشيف (نفس الحدث — حذفه يسقطها) */
     let _recvInv;
-    if(gtType==='take'&&isG730&&gt730Bars.length){
+    if(gtType==='take'&&isG730&&gt730Bars.length&&!party){
         _recvInv={id:'INV-'+uid(),c,t:'buy',recv:true,ps:'full',dt,
             items:gt730Bars.map(b=>({w:b.w,k:b.k,is1000:false,price:0,total:0})),
             tp:0,akhd:0,prevBal:getCustBal(c,'دينار')};
@@ -1127,11 +1132,12 @@ window.saveGT=()=>{
         const _unit=m==='دينار'?'دج':(m==='دولار'?'$':'غ');
         const _act=gtType==='give'?'أعطيناك':'استلمنا منك';
         _sendCustomerPush(c,'حركة على حسابك',`${_act} ${fmt(finalAmount,2)} ${_unit} — افتح حسابك للاطلاع`);
-        if(party)_sendCustomerPush(party,'حركة على حسابك',`سُجّل بذمّتك ${fmt(finalAmount,0)} دج (أخذتها عن ${c}) — افتح حسابك للاطلاع`);
+        if(party)_sendCustomerPush(party,'حركة على حسابك',`سُجّل بذمّتك ${fmt(finalAmount,2)} ${_unit} (أخذتها عن ${c}) — افتح حسابك للاطلاع`);
     }
-    toast(party
-        ? `✅ تم: خُصم ${fmt(finalAmount,0)} دج من ${c} وأُضيف لدين ${party}`
-        : (gt730Bars&&gt730Bars.length>1?`✅ تم استلام ${gt730Bars.length} سبيكة`:'✅ تم الحفظ بنجاح'));
+    {const _u=m==='دينار'?'دج':(m==='دولار'?'$':'غ');
+     toast(party
+        ? `✅ تم: خُصم ${fmt(finalAmount,2)} ${_u} من ${c} وأُضيف لدين ${party}`
+        : (gt730Bars&&gt730Bars.length>1?`✅ تم استلام ${gt730Bars.length} سبيكة`:'✅ تم الحفظ بنجاح'));}
 };
 
 /* ═══════════ DOLLAR ═══════════ */
@@ -2321,7 +2327,7 @@ window.sendCustomerLog=()=>{
             <td style="font-size:.78rem">${o.dt||''}</td>
             <td><span style="background:${clr};color:#fff;padding:.1rem .45rem;border-radius:4px;font-size:.72rem;white-space:nowrap">${o.t}</span></td>
             <td style="font-size:.78rem">${o.m||''}</td>
-            <td style="font-weight:700;color:${clr};white-space:nowrap">${out?'−':'+'}${(o.a||0).toLocaleString('fr-FR',{maximumFractionDigits:2})} ${unit}</td>
+            <td style="font-weight:700;color:${clr};white-space:nowrap">${out?'−':'+'}${(o.a||0).toLocaleString('fr-FR',{minimumFractionDigits:0,maximumFractionDigits:(o.m==='دينار'||o.m==='دولار')?0:2})} ${unit}</td>
             ${detailCell}
         </tr>`;
     }).join('');
@@ -2342,7 +2348,7 @@ ${_custDebts.map(({m,v})=>{
     const border=owed?'#86efac':'#fca5a5';
     return`<div style="flex:1;min-width:140px;background:${bg};border:2px solid ${border};border-radius:8px;padding:.6rem .8rem;text-align:center">
         <div style="font-size:.72rem;color:#666;margin-bottom:.2rem">${m}</div>
-        <div style="font-size:1.25rem;font-weight:900;color:${clr}">${Math.abs(v).toLocaleString('fr-FR',{maximumFractionDigits:2})} ${unit}</div>
+        <div style="font-size:1.25rem;font-weight:900;color:${clr}">${Math.abs(v).toLocaleString('fr-FR',{minimumFractionDigits:0,maximumFractionDigits:(m==='دينار'||m==='دولار')?0:2})} ${unit}</div>
         <div style="font-size:.7rem;font-weight:700;color:${clr};margin-top:.15rem">${lbl}</div>
     </div>`;
 }).join('')}
@@ -2407,7 +2413,7 @@ function buildCustomerLogHtml(c,custOps){
             const lbl=owed?'يدين لنا':'ندين له';
             return`<td style="width:${100/balances.length}%;padding:8px;background:${bg};
                 border:2px solid ${border};border-radius:6px;text-align:center;vertical-align:middle">
-                <div style="font-size:18px;font-weight:900;color:${col};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${f(Math.abs(v),2)} ${_units[m]}</div>
+                <div style="font-size:18px;font-weight:900;color:${col};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${f(Math.abs(v),(m==='دينار'||m==='دولار')?0:2)} ${_units[m]}</div>
                 <div style="font-size:11px;color:#555;margin-top:2px">${m}</div>
                 <div style="font-size:11px;font-weight:700;color:${col}">${lbl}</div>
             </td>`;}).join('')
@@ -2436,7 +2442,7 @@ function buildCustomerLogHtml(c,custOps){
                        +((o.diffG&&o.diffD)?' · ':'')
                        +(o.diffD?`${o.diffD>0?'+':'−'}${f(Math.abs(o.diffD),0)} DZD`:'')
                        ||'✏️ تصحيح')
-                    : `${amtSign}${f(o.a,2)} ${unit}`}</td>
+                    : `${amtSign}${f(o.a,(o.m==='دينار'||o.m==='دولار')?0:2)} ${unit}`}</td>
             <td style="padding:7px 6px;font-size:11px;border-bottom:1px solid #e5e7eb">${detailHtml}</td>
         </tr>`;}).join('');
 
@@ -2584,7 +2590,7 @@ function renderDebts(){
         })
         .map(([n,v])=>`<tr>
             <td><strong class="debt-cust-link" onclick="showCustomerLog('${n.replace(/'/g,"\\'")}')" style="cursor:pointer;color:var(--g600);text-decoration:underline;text-underline-offset:3px" title="عرض سجل ${n}">${n}</strong></td>
-            <td>${fD(v.di,0,'Da')}</td><td>${fD(v.do,2,'$')}</td>
+            <td>${fD(v.di,0,'Da')}</td><td>${fD(v.do,0,'$')}</td>
             <td>${fD(v.g7,2,'غ (730)')}</td><td>${fD(v.g2,2,'غ (24)')}</td>
             <td><button class="btn-settle" onclick="openSettle('${n.replace(/'/g,"\\'")}')">✅ تصفية</button></td>
         </tr>`).join('');
@@ -2691,7 +2697,7 @@ function renderDebts(){
         })
         .map(([n,v])=>`<tr>
             <td><strong class="debt-cust-link" onclick="showCustomerLog('${n.replace(/'/g,"\\'")}')" style="cursor:pointer;color:var(--g600);text-decoration:underline;text-underline-offset:3px" title="عرض سجل ${n}">${n}</strong></td>
-            <td>${fD(v.di,0,'Da')}</td><td>${fD(v.do,2,'$')}</td>
+            <td>${fD(v.di,0,'Da')}</td><td>${fD(v.do,0,'$')}</td>
             <td>${fD(v.g7,2,'غ (730)')}</td><td>${fD(v.g2,2,'غ (24)')}</td>
             <td><button class="btn-settle" onclick="openSettle('${n.replace(/'/g,"\\'")}')">✅ تصفية</button></td>
         </tr>`).join('');
@@ -2793,7 +2799,7 @@ window.exportDebtsPdf=function(){
     const bigCard=(label,val,sub,color)=>'<div style="background:'+color+'12;border:1.5px solid '+color+';border-radius:12px;padding:11px 13px;text-align:center"><div style="font-size:11px;color:#555;font-weight:800;margin-bottom:4px">'+label+'</div><div style="font-size:17px;font-weight:900;color:'+color+';line-height:1.2">'+val+'</div>'+(sub?'<div style="font-size:10px;color:#888;font-weight:700;margin-top:3px">'+sub+'</div>':'')+'</div>';
     /* صفوف مضغوطة (padding صغير + خط أصغر) كي يدخل الدفتر في ~4 صفحات */
     const _pad=rows.length>110?'2px 3px':rows.length>70?'3px 4px':'5px';
-    const rowsHtml=rows.map((e,idx)=>{const n=e[0],v=e[1];return '<tr style="text-align:center;background:'+(idx%2?'#f9f9f9':'#fff')+'"><td style="border:1px solid #ccc;padding:'+_pad+';font-weight:800;text-align:right">'+n+'</td><td style="border:1px solid #ccc;padding:'+_pad+'">'+fV(v.di,0)+'</td><td style="border:1px solid #ccc;padding:'+_pad+'">'+fV(v.do,2)+'</td><td style="border:1px solid #ccc;padding:'+_pad+'">'+fV(v.g7,2)+'</td><td style="border:1px solid #ccc;padding:'+_pad+'">'+fV(v.g2,2)+'</td></tr>';}).join('');
+    const rowsHtml=rows.map((e,idx)=>{const n=e[0],v=e[1];return '<tr style="text-align:center;background:'+(idx%2?'#f9f9f9':'#fff')+'"><td style="border:1px solid #ccc;padding:'+_pad+';font-weight:800;text-align:right">'+n+'</td><td style="border:1px solid #ccc;padding:'+_pad+'">'+fV(v.di,0)+'</td><td style="border:1px solid #ccc;padding:'+_pad+'">'+fV(v.do,0)+'</td><td style="border:1px solid #ccc;padding:'+_pad+'">'+fV(v.g7,2)+'</td><td style="border:1px solid #ccc;padding:'+_pad+'">'+fV(v.g2,2)+'</td></tr>';}).join('');
     const html='<div style="direction:rtl;font-family:Tajawal,sans-serif;padding:14px;color:#1a1a1a">'
         +'<div style="text-align:center;margin-bottom:12px"><div style="font-size:22px;font-weight:900;color:#b45309">\ud83d\udcd2 \u062f\u0641\u062a\u0631 \u0627\u0644\u062f\u064a\u0648\u0646</div><div style="font-size:12px;color:#888">'+dt+'</div></div>'
         +'<div style="background:linear-gradient(135deg,#b45309,#d97706);border-radius:14px;padding:14px;text-align:center;margin-bottom:11px;color:#fff"><div style="font-size:12px;font-weight:800;opacity:.9;margin-bottom:4px">\ud83d\udc8e \u0645\u062c\u0645\u0648\u0639 \u0627\u0644\u0623\u0635\u0648\u0644 \u0627\u0644\u0625\u062c\u0645\u0627\u0644\u064a</div><div style="font-size:26px;font-weight:900">'+fmt(totalAssets,0)+' \u062f\u062c</div></div>'
@@ -2808,7 +2814,7 @@ window.exportDebtsPdf=function(){
         +(_pdfExpTotal>0?'<div style="background:#dc262612;border:1.5px solid #dc2626;border-radius:12px;padding:11px;text-align:center;margin-bottom:12px"><div style="font-size:11px;color:#555;font-weight:800;margin-bottom:4px">\ud83d\udcb8 \u0645\u0635\u0627\u0631\u064a\u0641 \u0627\u0644\u0634\u0647\u0631</div><div style="font-size:18px;font-weight:900;color:#dc2626">\u2212 '+fmt(_pdfExpTotal,0)+' \u062f\u062c</div>'+(_pdfExpUsd>0?'<div style="font-size:10px;color:#888;margin-top:3px">\u062f\u064a\u0646\u0627\u0631 '+fmt(_pdfExpDz,0)+' + \u062f\u0648\u0644\u0627\u0631 '+fmt(_pdfExpUsd,0)+'$</div>':'')+'</div>':'')
         +(histRows?('<div style="margin-bottom:12px"><div style="font-size:11px;color:#666;font-weight:800;margin-bottom:5px;text-align:right">\ud83d\udcc5 \u0623\u0631\u0628\u0627\u062d \u0627\u0644\u0623\u0634\u0647\u0631 \u0627\u0644\u0633\u0627\u0628\u0642\u0629</div><table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="background:#f3f4f6"><th style="border:1px solid #ddd;padding:6px">\u0627\u0644\u0634\u0647\u0631</th><th style="border:1px solid #ddd;padding:6px">\u0627\u0644\u0631\u0628\u062d</th></tr></thead><tbody>'+histRows+'</tbody></table></div>'):'')
         +'<table style="width:100%;border-collapse:collapse;font-size:'+(rows.length>110?'8.5px':rows.length>70?'10px':'12px')+'"><thead><tr style="background:#1a1a1a;color:#fff;text-align:center"><th style="padding:7px;border:1px solid #555">\u0627\u0644\u0632\u0628\u0648\u0646</th><th style="padding:7px;border:1px solid #555">\u062f\u064a\u0646\u0627\u0631</th><th style="padding:7px;border:1px solid #555">\u062f\u0648\u0644\u0627\u0631</th><th style="padding:7px;border:1px solid #555">\u0630\u0647\u0628 730</th><th style="padding:7px;border:1px solid #555">\u0630\u0647\u0628 24</th></tr></thead><tbody>'+rowsHtml
-        +'<tr style="text-align:center;background:#fef3c7;font-weight:900"><td style="border:2px solid #b45309;padding:7px;text-align:right">\u0627\u0644\u0625\u062c\u0645\u0627\u0644\u064a</td><td style="border:2px solid #b45309;padding:7px">'+fV(tot.di,0)+'</td><td style="border:2px solid #b45309;padding:7px">'+fV(tot.do,2)+'</td><td style="border:2px solid #b45309;padding:7px">'+fV(tot.g7,2)+'</td><td style="border:2px solid #b45309;padding:7px">'+fV(tot.g2,2)+'</td></tr>'
+        +'<tr style="text-align:center;background:#fef3c7;font-weight:900"><td style="border:2px solid #b45309;padding:7px;text-align:right">\u0627\u0644\u0625\u062c\u0645\u0627\u0644\u064a</td><td style="border:2px solid #b45309;padding:7px">'+fV(tot.di,0)+'</td><td style="border:2px solid #b45309;padding:7px">'+fV(tot.do,0)+'</td><td style="border:2px solid #b45309;padding:7px">'+fV(tot.g7,2)+'</td><td style="border:2px solid #b45309;padding:7px">'+fV(tot.g2,2)+'</td></tr>'
         +'</tbody></table>'
         +'<div style="margin-top:10px;font-size:10px;color:#888;text-align:center">\u0625\u064a\u062c\u0627\u0628\u064a (\u0623\u062e\u0636\u0631) = \u0627\u0644\u0632\u0628\u0648\u0646 \u0645\u062f\u064a\u0646 \u0644\u0643 &nbsp;|&nbsp; \u0633\u0627\u0644\u0628 (\u0623\u062d\u0645\u0631) = \u0623\u0646\u062a \u0627\u0644\u0645\u062f\u064a\u0646</div>'
         +'</div>';

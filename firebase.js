@@ -1,4 +1,4 @@
-window.FB_JS_VER='v409';
+window.FB_JS_VER='v411';
 /* ═══════════ FIREBASE ═══════════ */
 const _fbConfig={
     apiKey:"AIzaSyDevHwoNCKXGm-G8GJc_Z5eZwcSPuQS9wI",
@@ -538,7 +538,7 @@ function _applyEvt(st,evt){
         /* تصحيح رجعي شامل: أي عملية معها فاتورة/وصل ولا تحمل رابطه → اربطه من الحدث نفسه.
            يشمل وصولات قبض 730 القديمة (GT / SETTLE_730_REC) فيفتحها الزبون بالنقر. */
         if(!_op.iid&&disp.invoice&&disp.invoice.id)_op.iid=disp.invoice.id;
-        else if(!_op.iid&&evt.type==='GT'&&d.gtType==='take'&&d.m==='ذهب 730'&&(d.realW>0||d.finalAmount>0))_op.iid='INV-'+evt.id;
+        else if(!_op.iid&&evt.type==='GT'&&d.gtType==='take'&&d.m==='ذهب 730'&&!d.party&&(d.realW>0||d.finalAmount>0))_op.iid='INV-'+evt.id;
         if(!_op.rid&&disp.rafInvoice&&disp.rafInvoice.id)_op.rid=disp.rafInvoice.id;
         if(!_op.did&&disp.dollInvoice&&disp.dollInvoice.id)_op.did=disp.dollInvoice.id;
         /* تصحيح رجعي: أحداث SETTLE_GSM القديمة لم تحمل تفاصيل البيع في op — نبنيها من data */
@@ -634,7 +634,7 @@ function _applyEvt(st,evt){
             }
             /* فاتورة وصل القبض (v141) — كانت تُبثّ ولا تُلتقط هنا */
             if(disp.invoice)st.invoices.unshift(disp.invoice);
-            else if(d.gtType==='take'&&d.m==='ذهب 730'&&(d.realW>0||d.finalAmount>0)){
+            else if(d.gtType==='take'&&d.m==='ذهب 730'&&!d.party&&(d.realW>0||d.finalAmount>0)){
                 /* توليد رجعي: قبضات 730 قديمة سُجّلت قبل ميزة الوصل — نبني وصلها من data */
                 const _bl=(disp.op&&disp.op.barsList&&disp.op.barsList.length)
                     ? disp.op.barsList

@@ -709,7 +709,7 @@ function renderCustomerPortal(){
     if(cards){
         let htmlc=card('الرصيد (دينار)',dD,'دج',0)+card('الرصيد (ذهب)',dG,'غ',2);
         if(Math.abs(dG7)>0.001)htmlc+=card('ذهب 730',dG7,'غ',2);
-        if(Math.abs(dU)>0.001)htmlc+=card('دولار',dU,'$',2);
+        if(Math.abs(dU)>0.001)htmlc+=card('دولار',dU,'$',0);
         cards.innerHTML=htmlc;
     }
 
@@ -780,7 +780,7 @@ function renderCustomerPortal(){
             const dv=_isFix
                 ? (o.diffD?fmt(Math.abs(o.diffD),0)+' دج':'—')
                 : ((o.fee&&o.fee>0)?fmt(o.fee,0)+' دج'
-                :(!isG?fmt(Math.abs(o.a||0),(o.m==='دولار')?2:0)+((o.m==='دولار')?' $':' دج'):'—'));
+                :(!isG?fmt(Math.abs(o.a||0),0)+((o.m==='دولار')?' $':' دج'):'—'));
             const _hasInv=!!(o.rid||o.iid||o.did);
             return `<tr style="border-bottom:1px solid var(--border);cursor:${_hasInv?'pointer':'default'}" ${_hasInv?`onclick="(function(){const _o=window._cpOpsMap&&window._cpOpsMap['${o.id}'];if(_o)cpOpenOpInvoice(_o);})()"`:''}>
                 <td style="padding:.55rem .3rem;text-align:center;font-family:monospace;font-size:.64rem;color:var(--t3)">${o.dt||''}${_hasInv?'<div style=\'font-size:.55rem;color:#0ea5e9;margin-top:2px\'>👁 عرض</div>':''}</td>
