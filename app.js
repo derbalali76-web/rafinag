@@ -1,4 +1,4 @@
-window.APP_JS_VER='v411';
+window.APP_JS_VER='v413';
 /* ═══════════ STATE ═══════════ */
 let B={دينار:0,'ذهب 730':0,'ذهب 24':0,دولار:0,vg730:0,vg24:0};
 let ops=[],invoices=[],debts=[],loans=[],rafInvoices=[],dollInvoices=[],dubaiInvoices=[];
@@ -4340,6 +4340,56 @@ window.waDubai=(id)=>{
 /* delDubai مُعرَّفة في firebase.js */
 
 /* ═══════════ NAVIGATION ═══════════ */
+/* ═══════════ زر الرجوع في الهاتف (Android/Median) ═══════════
+   لا زر داخل التطبيق — زر الرجوع في الهاتف هو من يتولّى التنقّل للخلف.
+   نمسك ضغطة الرجوع عبر History: كل ضغطة تُغلق طبقة واحدة بالأولوية:
+   قائمة اقتراحات ← نافذة تمويه ← نافذة ملء شاشة ← نافذة منبثقة ← الرجوع للرئيسية.
+   وفي الرئيسية بلا نوافذ: لا نُمسك الضغطة، فيخرج التطبيق (سلوك Median الافتراضي). */
+window._backStep=function(){
+    try{
+        const ac=document.querySelector('.ac-box');
+        if(ac&&ac.style.display==='block'){ ac.style.display='none'; return true; }
+        const panic=document.getElementById('panicOverlay');
+        if(panic&&panic.classList.contains('show')){ if(typeof _panicReturn==='function')_panicReturn(); else panic.classList.remove('show'); return true; }
+        for(const id of ['internalViewModal','profitModal','g24AuditModal']){ const el=document.getElementById(id); if(el){ el.remove(); return true; } }
+        const ovs=[...document.querySelectorAll('.modal-overlay.active')];
+        if(ovs.length){ const top=ovs[ovs.length-1]; if(top.id&&typeof closeModal==='function')closeModal(top.id); else top.classList.remove('active'); return true; }
+        const act=(document.querySelector('.page.active')||{}).id||'';
+        if(window._roleLock!=='customer'&&act&&act!=='page-home'){ if(typeof switchPage==='function')switchPage('home'); return true; }
+    }catch(e){}
+    return false;
+};
+(function(){
+    /* نُفعّل المسك في التطبيق المثبّت/Median فقط — في متصفّح عادي يبقى زر الرجوع كالعادة */
+    const _nativeShell = !!(window.median||window.gonative)
+        || /median|gonative|; wv/i.test(navigator.userAgent||'')
+        || navigator.standalone===true
+        || (window.matchMedia&&window.matchMedia('(display-mode: standalone)').matches);
+    if(!_nativeShell) return;
+    let _trapped=false,_raf=0;
+    function _backable(){
+        try{
+            const ac=document.querySelector('.ac-box'); if(ac&&ac.style.display==='block')return true;
+            const pn=document.getElementById('panicOverlay'); if(pn&&pn.classList.contains('show'))return true;
+            if(['internalViewModal','profitModal','g24AuditModal'].some(id=>document.getElementById(id)))return true;
+            if(document.querySelector('.modal-overlay.active'))return true;
+            const act=(document.querySelector('.page.active')||{}).id||'';
+            if(window._roleLock!=='customer'&&act&&act!=='page-home')return true;
+        }catch(e){}
+        return false;
+    }
+    function _trap(){ if(_trapped)return; try{ history.pushState({_gpBack:1},''); _trapped=true; }catch(e){} }
+    function _sync(){ if(_backable())_trap(); }
+    window.addEventListener('popstate',function(){
+        _trapped=false;
+        try{ window._backStep&&window._backStep(); }catch(e){}
+        /* بقي ما نرجع منه؟ أعد المسك. وإلا (الرئيسية بلا نوافذ) اترك الضغطة التالية تخرج التطبيق */
+        if(_backable())_trap();
+    });
+    const _obs=new MutationObserver(function(){ if(_raf)return; _raf=requestAnimationFrame(function(){ _raf=0; _sync(); }); });
+    function _start(){ try{ _obs.observe(document.body,{subtree:true,attributes:true,attributeFilter:['class'],childList:true}); }catch(e){} _sync(); }
+    if(document.readyState!=='loading')_start(); else document.addEventListener('DOMContentLoaded',_start);
+})();
 window.switchPage=(p)=>{
     /* تقييد الأدوار: العامل ورشته فقط، الزبون بوابته فقط */
     if(window._roleLock==='worker'&&p!=='workshops')p='workshops';
@@ -4411,7 +4461,7 @@ async function fetchSpotPrice(){
 
 /* ═══ إكمال تلقائي مخصّص للأسماء — بديل datalist لا يعيق كتابة اسم جديد على الهاتف ═══ */
 (function(){
-    let _acEl=null,_acInp=null;
+    let _acEl=null,_acInp=null,_picked=false;
     function _acNames(){
         try{ return [...new Set([
             ...((typeof debts!=='undefined'?debts:[])||[]).map(d=>d.c),
@@ -4437,6 +4487,7 @@ async function fetchSpotPrice(){
     function _hide(){ if(_acEl)_acEl.style.display='none'; }
     /* قائمة صغيرة (اقتراحان كحدّ أقصى) أسفل الحقل — لا تغطّي الكتابة ولا تسرق التركيز */
     function _show(inp){
+        if(_picked){ _hide(); return; }   /* بعد اختيار اسم من القائمة: لا تُعِد فتحها */
         const v=(inp.value||'').trim().toLowerCase(); const box=_box();
         if(!v){ _hide(); return; }
         const all=_acNames();
@@ -4445,7 +4496,12 @@ async function fetchSpotPrice(){
         m=m.slice(0,2);
         if(!m.length){ _hide(); return; }
         box.innerHTML=m.map(n=>`<div class="ac-item">${String(n).replace(/</g,'&lt;')}</div>`).join('');
-        Array.from(box.children).forEach((el,k)=>{ el.onmousedown=ev=>{ ev.preventDefault(); inp.value=m[k]; _hide(); inp.dispatchEvent(new Event('input',{bubbles:true})); }; });
+        Array.from(box.children).forEach((el,k)=>{
+            /* اختيار اسم: يعمل باللمس والنقر — يملأ الحقل ويُخفي القائمة فوراً (لا يُعاد فتحها) */
+            const _pick=ev=>{ ev.preventDefault(); ev.stopPropagation(); _picked=true; inp.value=m[k]; inp.dispatchEvent(new Event('input',{bubbles:true})); _hide(); setTimeout(()=>{_picked=false;},0); };
+            el.addEventListener('mousedown',_pick);
+            el.addEventListener('touchstart',_pick,{passive:false});
+        });
         const r=inp.getBoundingClientRect();
         box.style.left=r.left+'px'; box.style.top=(r.bottom+2)+'px'; box.style.width=r.width+'px'; box.style.display='block';
         _acInp=inp;
@@ -4456,7 +4512,7 @@ async function fetchSpotPrice(){
         inp.addEventListener('focus',()=>_show(inp));
         inp.addEventListener('blur',()=>{ setTimeout(_hide,160); _snapName(inp); });
     }
-    function init(){ ['invCustomer','rafCustomer','loanCustomer','sellCustomer','gtCustomer','dollarCustomer','dollarParty','expCustomer','sendLogCustomer','shipOffice','dubaiOffice'].forEach(_attach); }
+    function init(){ ['invCustomer','rafCustomer','loanCustomer','sellCustomer','gtCustomer','gtParty','dollarCustomer','dollarParty','expCustomer','sendLogCustomer','shipOffice','dubaiOffice'].forEach(_attach); }
     window._acAttach=_attach;
     if(document.readyState!=='loading') init(); else document.addEventListener('DOMContentLoaded',init);
     setTimeout(init,800);
