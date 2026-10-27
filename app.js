@@ -1,4 +1,4 @@
-window.APP_JS_VER='v415';
+window.APP_JS_VER='v416';
 /* ═══════════ STATE ═══════════ */
 let B={دينار:0,'ذهب 730':0,'ذهب 24':0,دولار:0,vg730:0,vg24:0};
 let ops=[],invoices=[],debts=[],loans=[],rafInvoices=[],dollInvoices=[],dubaiInvoices=[];
@@ -2051,11 +2051,24 @@ window.saveDubai=()=>{
 });
 
 /* ═══ تفاصيل العملية (helper مشترك بين السجل والفاتورة) ═══ */
-/* عرض سطر «تحويل وارد» عند الهدف: «أعطيت» (أحمر) إن كان الرصيد المحوَّل موجباً (أحمر)،
-   و«استلمت» (أخضر) إن كان سالباً. عرض فقط — لا يمسّ أي حساب. */
-window._xferDisp=function(o){ const red=!!(o&&o.xferPos); return { label:red?'أعطيت':'استلمت', out:red }; };
-/* هل هذا القيد سطر «تحويل وارد» يحتاج عرض أعطيت/استلمت؟ */
-window._isXferIn=function(o){ return !!(o&&o.xferFrom&&(o.t==='تحويل وارد'||o.t==='تحويل بشحن وارد')); };
+/* عرض سطور التحويل (عرض فقط — لا يمسّ أي حساب):
+   • الهدف (تحويل وارد): يُستبدل الاسم بـ«أعطيت» (أحمر) إن كان الرصيد المحوَّل موجباً (أحمر)،
+     و«استلمت» (أخضر) إن كان سالباً.
+   • المصدر (تحويل لزبون): يبقى الاسم، لكن يظهر بالأحمر مع «−» إن حوّل رصيداً موجباً (أحمر)،
+     وبالأخضر مع «+» إن كان الرصيد سالباً.
+   يُرجِع {out:هل إشارة «−»، label:الاسم المعروض، red:اللون أحمر} أو null لغير التحويلات. */
+window._xferRowDir=function(o){
+    if(!o)return null;
+    if(o.xferFrom && (o.t==='تحويل وارد'||o.t==='تحويل بشحن وارد')){
+        const red=!!o.xferPos;
+        return { out:red, label:(red?'أعطيت':'استلمت'), red:red };
+    }
+    if(o.xferTo && (o.t==='تحويل لزبون'||o.t==='تحويل بشحن')){
+        const red=(o.xferSign>0);   /* حوّل رصيداً موجباً (أحمر) ← خروج من حسابه = − أحمر */
+        return { out:red, label:o.t, red:red };
+    }
+    return null;
+};
 function opDetailLines(o,cust){
     const f=(n,d=2)=>fmt(n||0,d);
     const lines=[];
@@ -2251,8 +2264,9 @@ function renderLog(){
     const _logSlice=fl.slice(0,window._logShow);
     list.innerHTML=_logSlice.map((o,_li)=>{
         let out=outTypes.has(o.t), _dispT=o.t;
-        if(_isXferIn(o)){ const _xd=_xferDisp(o); out=_xd.out; _dispT=_xd.label; }   /* تحويل وارد → أعطيت/استلمت */
-        const bg=colors[o.t]||(out?'var(--rd)':'var(--gr)');
+        const _xr=_xferRowDir(o);
+        if(_xr){ out=_xr.out; _dispT=_xr.label; }   /* تحويلات: إشارة/لون حسب اتجاه الرصيد */
+        const bg=_xr?(_xr.red?'var(--rd)':'var(--gr)'):(colors[o.t]||(out?'var(--rd)':'var(--gr)'));
         const unit=o.m==='دينار'?'DZD':o.m==='دولار'?'USD':'g';
         const dlines=opDetailLines(o);
         const detailHtml=dlines.length
@@ -2324,10 +2338,11 @@ window.sendCustomerLog=()=>{
     const now=new Date().toLocaleDateString('ar-DZ',{year:'numeric',month:'long',day:'numeric'});
 
     const rows=custOps.map((o,i)=>{
+        const _xr=_xferRowDir(o);
         let out=outTypes.has(o.t), _dispT=o.t;
-        if(_isXferIn(o)){ const _xd=_xferDisp(o); out=_xd.out; _dispT=_xd.label; }
+        if(_xr){ out=_xr.out; _dispT=_xr.label; }
         const unit=o.m==='دينار'?'DZD':o.m==='دولار'?'$':'g';
-        const clr=_isXferIn(o)?(out?'#ef4444':'#22c55e'):(typeColors[o.t]||(out?'#ef4444':'#22c55e'));
+        const clr=_xr?(_xr.red?'#ef4444':'#22c55e'):(typeColors[o.t]||(out?'#ef4444':'#22c55e'));
         const dlines=opDetailLines(o);
         const detailCell=dlines.length
             ?`<td style="font-size:.72rem;color:#555;line-height:1.8">${dlines.map(l=>`<span style="display:block">${l}</span>`).join('')}</td>`
@@ -2432,12 +2447,13 @@ function buildCustomerLogHtml(c,custOps){
 
     /* صفوف الجدول */
     const rows=custOps.map((o,i)=>{
+        const _xr=_xferRowDir(o);
         let out=outTypes.has(o.t), _dispT=o.t;
-        if(_isXferIn(o)){ const _xd=_xferDisp(o); out=_xd.out; _dispT=_xd.label; }
+        if(_xr){ out=_xr.out; _dispT=_xr.label; }
         const unit=o.m==='دينار'?'DZD':o.m==='دولار'?'$':'g';
         const amtColor=out?'#dc2626':'#16a34a';
         const amtSign=out?'−':'+';
-        const tc=_isXferIn(o)?amtColor:(tColor[o.t]||'#374151');
+        const tc=_xr?amtColor:(tColor[o.t]||'#374151');
         const bg=i%2===0?'#fff':'#fafaf7';
         const dlines=opDetailLines(o);
         const detailHtml=dlines.length
