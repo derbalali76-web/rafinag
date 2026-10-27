@@ -1,4 +1,4 @@
-window.FB_JS_VER='v414';
+window.FB_JS_VER='v415';
 /* ═══════════ FIREBASE ═══════════ */
 const _fbConfig={
     apiKey:"AIzaSyDevHwoNCKXGm-G8GJc_Z5eZwcSPuQS9wI",
@@ -623,10 +623,12 @@ function _applyEvt(st,evt){
                 /* من أخذه: يُضاف المبلغ لدينه (أخذ المال بدل الدافع) */
                 if(d.party)stUpdDebt(d.party,d.m,d.finalAmount);
             }
-            /* سطر سجل لـ«من أخذه» كي تظهر العملية في حسابه أيضاً */
+            /* سطر سجل لـ«من أخذه» كي تظهر العملية في حسابه أيضاً.
+               العرض يتبع اتجاه رصيد الآخذ: زيادة الدين (استلام) → «أعطيت» (أحمر)،
+               نقصانه (تسليم) → «استلمت» (أخضر). عرض فقط — لا يمسّ أي حساب. */
             if(d.party){
                 st.ops.push({
-                    c:d.party, t:'أخذ عن '+d.c, m:d.m, a:d.finalAmount,
+                    c:d.party, t:(d.gtType==='take'?'أعطيت':'استلمت'), m:d.m, a:d.finalAmount,
                     _ts:(disp.op&&disp.op._ts)||evt.ts||Date.now(),
                     dt:(disp.op&&disp.op.dt)||'',
                     akhdFrom:d.c, id:evt.id+'_pty'
@@ -1073,6 +1075,7 @@ function _applyEvt(st,evt){
                     _ts:(disp.op&&disp.op._ts)||evt.ts||Date.now(),
                     dt:(disp.op&&disp.op.dt)||'',
                     xferFrom: d.from, xferInType: d.dstType,
+                    xferPos: (d.dstDelta>0),   /* اتجاه الرصيد المحوَّل: موجب=أحمر (أعطيت)، سالب=أخضر (استلمت) — عرض فقط */
                     xferFeeTo: (d.feeTo>0?d.feeTo:0),   /* أجرة يدفعها المستلِم — تظهر في سجله */
                     id: evt.id+'_in'
                 });
@@ -1095,7 +1098,7 @@ function _applyEvt(st,evt){
                     c:d.to, t:'تحويل بشحن وارد', m:'ذهب 24', a:d.recv,
                     _ts:(disp.op&&disp.op._ts)||evt.ts||Date.now(),
                     dt:(disp.op&&disp.op.dt)||'',
-                    xferFrom:d.from, id:evt.id+'_in'
+                    xferFrom:d.from, xferPos:(sg>0), id:evt.id+'_in'
                 });
             }
             break;

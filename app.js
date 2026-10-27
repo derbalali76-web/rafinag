@@ -1,4 +1,4 @@
-window.APP_JS_VER='v414';
+window.APP_JS_VER='v415';
 /* ═══════════ STATE ═══════════ */
 let B={دينار:0,'ذهب 730':0,'ذهب 24':0,دولار:0,vg730:0,vg24:0};
 let ops=[],invoices=[],debts=[],loans=[],rafInvoices=[],dollInvoices=[],dubaiInvoices=[];
@@ -2051,6 +2051,11 @@ window.saveDubai=()=>{
 });
 
 /* ═══ تفاصيل العملية (helper مشترك بين السجل والفاتورة) ═══ */
+/* عرض سطر «تحويل وارد» عند الهدف: «أعطيت» (أحمر) إن كان الرصيد المحوَّل موجباً (أحمر)،
+   و«استلمت» (أخضر) إن كان سالباً. عرض فقط — لا يمسّ أي حساب. */
+window._xferDisp=function(o){ const red=!!(o&&o.xferPos); return { label:red?'أعطيت':'استلمت', out:red }; };
+/* هل هذا القيد سطر «تحويل وارد» يحتاج عرض أعطيت/استلمت؟ */
+window._isXferIn=function(o){ return !!(o&&o.xferFrom&&(o.t==='تحويل وارد'||o.t==='تحويل بشحن وارد')); };
 function opDetailLines(o,cust){
     const f=(n,d=2)=>fmt(n||0,d);
     const lines=[];
@@ -2120,6 +2125,9 @@ function opDetailLines(o,cust){
         lines.push(`🔁 تحويل وارد من: ${o.xferFrom}`);
         lines.push(`📥 المبلغ: ${_xa(o.a,o.m)}`);
         if(o.xferFeeTo)   lines.push(`💸 أجرة التحويل (عليك): ${f(o.xferFeeTo,0)} دج`);
+    }
+    if(o.akhdFrom){
+        lines.push(`🔁 أخذها عن: ${o.akhdFrom}`);
     }
     if(o.crossKarat)      lines.push(`🔄 تسوية 730 بـ24 — دُفع: ${f(o.paid24||0,3)} غ ذهب 24`);
     if(o.fromInv)         lines.push(cust?`📦 استلمت ${f(Math.abs(o.a)||0,3)} غ ذهب 24 (خصماً من دينك)`:`📦 سلّمنا ${f(Math.abs(o.a)||0,3)} غ ذهب 24 من المخزون (خصماً من دينه)`);
@@ -2242,7 +2250,8 @@ function renderLog(){
     const _logTotal=fl.length;
     const _logSlice=fl.slice(0,window._logShow);
     list.innerHTML=_logSlice.map((o,_li)=>{
-        const out=outTypes.has(o.t);
+        let out=outTypes.has(o.t), _dispT=o.t;
+        if(_isXferIn(o)){ const _xd=_xferDisp(o); out=_xd.out; _dispT=_xd.label; }   /* تحويل وارد → أعطيت/استلمت */
         const bg=colors[o.t]||(out?'var(--rd)':'var(--gr)');
         const unit=o.m==='دينار'?'DZD':o.m==='دولار'?'USD':'g';
         const dlines=opDetailLines(o);
@@ -2253,7 +2262,7 @@ function renderLog(){
             <div class="log-avatar" style="background:${bg};margin-top:.15rem">${(o.c||'?').substring(0,2)}</div>
             <span style="flex:1;min-width:0">
                 <strong style="font-size:.84rem;font-weight:900">${o.c||''}</strong>
-                <br><small style="color:var(--t2);font-size:.68rem;font-weight:700">${o.dt||''} · <span style="color:${bg};font-weight:800">${o.t||''}</span></small>${detailHtml}
+                <br><small style="color:var(--t2);font-size:.68rem;font-weight:700">${o.dt||''} · <span style="color:${bg};font-weight:800">${_dispT||''}</span></small>${detailHtml}
             </span>
             <span style="color:${o.t==='تصحيح فاتورة'?'var(--g600)':(out?'var(--rd)':'var(--gr)')};font-weight:900;font-size:clamp(.86rem,1.8vw,1.05rem);white-space:nowrap;margin-top:.1rem;font-family:'Tajawal',monospace,sans-serif">
                 ${o.t==='تصحيح فاتورة'
@@ -2315,9 +2324,10 @@ window.sendCustomerLog=()=>{
     const now=new Date().toLocaleDateString('ar-DZ',{year:'numeric',month:'long',day:'numeric'});
 
     const rows=custOps.map((o,i)=>{
-        const out=outTypes.has(o.t);
+        let out=outTypes.has(o.t), _dispT=o.t;
+        if(_isXferIn(o)){ const _xd=_xferDisp(o); out=_xd.out; _dispT=_xd.label; }
         const unit=o.m==='دينار'?'DZD':o.m==='دولار'?'$':'g';
-        const clr=typeColors[o.t]||(out?'#ef4444':'#22c55e');
+        const clr=_isXferIn(o)?(out?'#ef4444':'#22c55e'):(typeColors[o.t]||(out?'#ef4444':'#22c55e'));
         const dlines=opDetailLines(o);
         const detailCell=dlines.length
             ?`<td style="font-size:.72rem;color:#555;line-height:1.8">${dlines.map(l=>`<span style="display:block">${l}</span>`).join('')}</td>`
@@ -2325,7 +2335,7 @@ window.sendCustomerLog=()=>{
         return`<tr style="background:${i%2?'#f9f7f0':'#fff'}">
             <td style="color:#999;font-size:.75rem">${custOps.length-i}</td>
             <td style="font-size:.78rem">${o.dt||''}</td>
-            <td><span style="background:${clr};color:#fff;padding:.1rem .45rem;border-radius:4px;font-size:.72rem;white-space:nowrap">${o.t}</span></td>
+            <td><span style="background:${clr};color:#fff;padding:.1rem .45rem;border-radius:4px;font-size:.72rem;white-space:nowrap">${_dispT}</span></td>
             <td style="font-size:.78rem">${o.m||''}</td>
             <td style="font-weight:700;color:${clr};white-space:nowrap">${out?'−':'+'}${(o.a||0).toLocaleString('fr-FR',{minimumFractionDigits:0,maximumFractionDigits:(o.m==='دينار'||o.m==='دولار')?0:2})} ${unit}</td>
             ${detailCell}
@@ -2422,11 +2432,12 @@ function buildCustomerLogHtml(c,custOps){
 
     /* صفوف الجدول */
     const rows=custOps.map((o,i)=>{
-        const out=outTypes.has(o.t);
+        let out=outTypes.has(o.t), _dispT=o.t;
+        if(_isXferIn(o)){ const _xd=_xferDisp(o); out=_xd.out; _dispT=_xd.label; }
         const unit=o.m==='دينار'?'DZD':o.m==='دولار'?'$':'g';
         const amtColor=out?'#dc2626':'#16a34a';
         const amtSign=out?'−':'+';
-        const tc=tColor[o.t]||'#374151';
+        const tc=_isXferIn(o)?amtColor:(tColor[o.t]||'#374151');
         const bg=i%2===0?'#fff':'#fafaf7';
         const dlines=opDetailLines(o);
         const detailHtml=dlines.length
@@ -2435,7 +2446,7 @@ function buildCustomerLogHtml(c,custOps){
         return`<tr style="background:${bg};cursor:pointer" onclick="window._custLogRowNet&&window._custLogRowNet('${(c||'').replace(/'/g,"\\'")}',${i})">
             <td style="padding:7px 5px;text-align:center;color:#9ca3af;font-size:12px;border-bottom:1px solid #e5e7eb">${custOps.length-i}</td>
             <td style="padding:7px 6px;font-size:11px;color:#374151;border-bottom:1px solid #e5e7eb;white-space:nowrap">${o.dt||'—'}</td>
-            <td style="padding:7px 6px;font-size:12px;font-weight:700;color:${tc};border-bottom:1px solid #e5e7eb">${o.t||'—'}</td>
+            <td style="padding:7px 6px;font-size:12px;font-weight:700;color:${tc};border-bottom:1px solid #e5e7eb">${_dispT||'—'}</td>
             <td style="padding:7px 6px;font-size:13px;font-weight:900;color:${o.t==='تصحيح فاتورة'?'#0d9488':amtColor};border-bottom:1px solid #e5e7eb;white-space:nowrap">${
                 o.t==='تصحيح فاتورة'
                     ? ((o.diffG?`${o.diffG>0?'+':'−'}${f(Math.abs(o.diffG),2)} g`:'')
