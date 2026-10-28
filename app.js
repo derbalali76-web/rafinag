@@ -1,4 +1,4 @@
-window.APP_JS_VER='v422';
+window.APP_JS_VER='v423';
 /* ═══════════ STATE ═══════════ */
 let B={دينار:0,'ذهب 730':0,'ذهب 24':0,دولار:0,vg730:0,vg24:0};
 let ops=[],invoices=[],debts=[],loans=[],rafInvoices=[],dollInvoices=[],dubaiInvoices=[];
@@ -2070,8 +2070,9 @@ window._xferRowDir=function(o){
         return { out:red, label:(red?'أعطيت':'استلمت'), red:red };
     }
     if(o.xferTo && (o.t==='تحويل لزبون'||o.t==='تحويل بشحن')){
-        const red=(o.xferSign>0);   /* حوّل رصيداً موجباً (أحمر) ← خروج من حسابه = − أحمر */
-        return { out:red, label:o.t, red:red };
+        /* التحويل لزبون آخر = خروج ذهب من حساب هذا الزبون → أحمر دائماً مع «−»
+           (بغضّ النظر عن اتجاه رصيده: دين أو له). */
+        return { out:true, label:o.t, red:true };
     }
     return null;
 };
