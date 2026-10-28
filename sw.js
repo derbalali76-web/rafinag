@@ -5,7 +5,7 @@ const NS = (() => { try {
   return String(seg).toLowerCase().replace(/[^a-z0-9_-]/g,'');
 } catch(e){ return 'root'; } })();
 const CACHE_PREFIX = 'goldpro@' + NS + '-';
-const CACHE = CACHE_PREFIX + 'v416';
+const CACHE = CACHE_PREFIX + 'v420';
 const ASSETS = [
   './','./index.html',
   './style.css?v=416',

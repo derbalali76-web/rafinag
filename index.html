@@ -59,7 +59,7 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-messaging-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.2.0/crypto-js.min.js"></script>
-    <link rel="stylesheet" href="style.css?v=416">
+    <link rel="stylesheet" href="style.css?v=420">
     <script>
     /* منع وميض نافذة الدخول: إن كانت الجلسة محفوظة، نخفيها قبل أول رسم */
     (function(){try{
@@ -536,6 +536,11 @@
                     <span id="rafArchiveCount" style="font-size:.58rem;background:#c2410c;color:#fff;padding:.1rem .5rem;border-radius:1rem">0</span>
                 </div>
                 <div id="rafSummary"></div>
+                <div style="display:flex;gap:.4rem;margin:.4rem 0">
+                    <button id="rafFltAll"  onclick="setRafFilter('all')"    style="flex:1;padding:.4rem;border-radius:8px;border:1.5px solid #c2410c;background:#c2410c;color:#fff;font-weight:800;font-family:Tajawal,sans-serif;font-size:.75rem;cursor:pointer">الكل</button>
+                    <button id="rafFltPaid" onclick="setRafFilter('paid')"   style="flex:1;padding:.4rem;border-radius:8px;border:1.5px solid #16a34a;background:transparent;color:#16a34a;font-weight:800;font-family:Tajawal,sans-serif;font-size:.75rem;cursor:pointer">✅ خالص</button>
+                    <button id="rafFltDebt" onclick="setRafFilter('unpaid')" style="flex:1;padding:.4rem;border-radius:8px;border:1.5px solid #dc2626;background:transparent;color:#dc2626;font-weight:800;font-family:Tajawal,sans-serif;font-size:.75rem;cursor:pointer">🔖 غير خالص</button>
+                </div>
                 <div id="rafArchiveList"></div>
             </div>
             <div class="arch-sec" id="archSec-doll">
@@ -1272,14 +1277,14 @@
 
 
 <!-- ═══ ملفات JS ═══ -->
-<script src="firebase.js?v=416"></script>
-<script src="app.js?v=416"></script>
-<script src="assistant.js?v=416"></script>
-<script src="inventory.js?v=416"></script>
-<script src="invoice.js?v=416"></script>
-<script src="raffinage.js?v=416"></script>
-<script src="workshops.js?v=416"></script>
-<script src="auth.js?v=416"></script>
+<script src="firebase.js?v=420"></script>
+<script src="app.js?v=420"></script>
+<script src="assistant.js?v=420"></script>
+<script src="inventory.js?v=420"></script>
+<script src="invoice.js?v=420"></script>
+<script src="raffinage.js?v=420"></script>
+<script src="workshops.js?v=420"></script>
+<script src="auth.js?v=420"></script>
 
 
 

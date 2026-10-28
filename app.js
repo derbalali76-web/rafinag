@@ -1,4 +1,4 @@
-window.APP_JS_VER='v416';
+window.APP_JS_VER='v420';
 /* ═══════════ STATE ═══════════ */
 let B={دينار:0,'ذهب 730':0,'ذهب 24':0,دولار:0,vg730:0,vg24:0};
 let ops=[],invoices=[],debts=[],loans=[],rafInvoices=[],dollInvoices=[],dubaiInvoices=[];
@@ -2057,6 +2057,12 @@ window.saveDubai=()=>{
    • المصدر (تحويل لزبون): يبقى الاسم، لكن يظهر بالأحمر مع «−» إن حوّل رصيداً موجباً (أحمر)،
      وبالأخضر مع «+» إن كان الرصيد سالباً.
    يُرجِع {out:هل إشارة «−»، label:الاسم المعروض، red:اللون أحمر} أو null لغير التحويلات. */
+/* اسم مختصر لعرض نوع العملية (عرض فقط):
+   «رافيناج زبون (خالصة)» → «رافيناج خالص» · «رافيناج زبون (دين)» → «رافيناج غير خالص». */
+window._shortOpType=function(t){ t=t||'';
+    if(t==='رافيناج زبون (خالصة)')return 'رافيناج (خالص)';
+    if(t==='رافيناج زبون (دين)')return 'رافيناج (غير خالص)';
+    return t; };
 window._xferRowDir=function(o){
     if(!o)return null;
     if(o.xferFrom && (o.t==='تحويل وارد'||o.t==='تحويل بشحن وارد')){
@@ -2266,6 +2272,7 @@ function renderLog(){
         let out=outTypes.has(o.t), _dispT=o.t;
         const _xr=_xferRowDir(o);
         if(_xr){ out=_xr.out; _dispT=_xr.label; }   /* تحويلات: إشارة/لون حسب اتجاه الرصيد */
+        _dispT=_shortOpType(_dispT);                 /* رافيناج زبون (دين/خالصة) → رافيناج */
         const bg=_xr?(_xr.red?'var(--rd)':'var(--gr)'):(colors[o.t]||(out?'var(--rd)':'var(--gr)'));
         const unit=o.m==='دينار'?'DZD':o.m==='دولار'?'USD':'g';
         const dlines=opDetailLines(o);
@@ -2341,6 +2348,7 @@ window.sendCustomerLog=()=>{
         const _xr=_xferRowDir(o);
         let out=outTypes.has(o.t), _dispT=o.t;
         if(_xr){ out=_xr.out; _dispT=_xr.label; }
+        _dispT=_shortOpType(_dispT);
         const unit=o.m==='دينار'?'DZD':o.m==='دولار'?'$':'g';
         const clr=_xr?(_xr.red?'#ef4444':'#22c55e'):(typeColors[o.t]||(out?'#ef4444':'#22c55e'));
         const dlines=opDetailLines(o);
@@ -2450,6 +2458,7 @@ function buildCustomerLogHtml(c,custOps){
         const _xr=_xferRowDir(o);
         let out=outTypes.has(o.t), _dispT=o.t;
         if(_xr){ out=_xr.out; _dispT=_xr.label; }
+        _dispT=_shortOpType(_dispT);
         const unit=o.m==='دينار'?'DZD':o.m==='دولار'?'$':'g';
         const amtColor=out?'#dc2626':'#16a34a';
         const amtSign=out?'−':'+';
@@ -3686,6 +3695,19 @@ window._confirmReceive730=function(){
 /* ═══════════ ARCHIVE ═══════════ */
 let _archiveFilter='all';
 window.setArchiveFilter=(f)=>{ _archiveFilter=f; renderArchive(); };
+/* فلتر الرافيناج: الكل / خالص / غير خالص */
+window._rafFilter='all';
+window.setRafFilter=(m)=>{
+    window._rafFilter=m;
+    window._archShow=50;
+    const btns={all:document.getElementById('rafFltAll'),paid:document.getElementById('rafFltPaid'),unpaid:document.getElementById('rafFltDebt')};
+    const clr={all:'#c2410c',paid:'#16a34a',unpaid:'#dc2626'};
+    Object.keys(btns).forEach(k=>{ const b=btns[k]; if(!b)return;
+        if(k===m){ b.style.background=clr[k]; b.style.color='#fff'; }
+        else{ b.style.background='transparent'; b.style.color=clr[k]; }
+    });
+    if(typeof renderArchive==='function')renderArchive();
+};
 window._dubaiFilter='all';
 window.setDubaiFilter=(m)=>{
     window._dubaiFilter=m;
@@ -3840,7 +3862,10 @@ function renderArchive(){
         </div>`).join('')+_archMore('archiveList',goldList.length)):empty;
     /* أرشيف الرافيناج */
     document.getElementById('rafArchiveCount').textContent=rafInvoices.length;
-    const _rafL=_byC(rafInvoices);
+    let _rafL=_byC(rafInvoices);
+    /* فلتر خالص/غير خالص (الزبون فقط — فواتير المصفّي بلا حالة تبقى في «الكل») */
+    if(window._rafFilter==='paid')        _rafL=_rafL.filter(r=>r.settled===true);
+    else if(window._rafFilter==='unpaid') _rafL=_rafL.filter(r=>r.settled===false);
     (function(){
         const box=document.getElementById('rafSummary'); if(!box)return;
         let totEq=0,totFee=0;
@@ -3851,7 +3876,7 @@ function renderArchive(){
         <div class="saved-card">
             <div>
                 <strong>${r.c}</strong>
-                <span style="color:#c2410c;font-weight:800;margin-right:.25rem">🔥 خالص</span>
+                ${r.settled===true?'<span style="color:#16a34a;font-weight:800;margin-right:.25rem">✅ خالص</span>':(r.settled===false?'<span style="color:#dc2626;font-weight:800;margin-right:.25rem">🔖 غير خالص</span>':'<span style="color:#c2410c;font-weight:800;margin-right:.25rem">🔥 رافيناج</span>')}
                 <span style="color:var(--g600);font-weight:900">${fmt(r.eq24||0,2)} غ</span>
                 <small style="color:var(--t2);display:block">${r.dt} · ${r.rows.length} قطعة · رافيناج: ${fmt(r.sentW||0,2)} غ</small>
                 ${(r.eq24>0&&r.fee>0)?`<small style="color:var(--t3);display:block;font-size:.66rem">🏷️ الأجرة: ${fmt(r.fee,0)} دج · ${fmt(r.fee/r.eq24,0)} دج/غ خالص</small>`:''}
