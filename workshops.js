@@ -497,25 +497,31 @@ function reconcileBars(adminBars,workerBars){
     return {miss,missW};
 }
 window.wsReconcile=function(){
-    /* المطابقة تبني سبائك العامل مباشرة من أحداث السحابة (لا الحالة المحلية التي
-       قد تكون ناقصة عند الأدمين) — يضمن أنها تعكس ما حفظه العامل بالضبط.
-       نجلب مرة كل 10 ثوانٍ كحدّ (منع الضغط المتكرر المكلف). */
+    /* المطابقة تُحفَظ على الجهاز وتُعاد استعمالها — لا تجلب من السحابة في كل ضغطة:
+        • سبائك العامل تُبنى من _allEvents المحفوظ محلياً (والمحدّث عبر المستمع الحيّ).
+        • نُخزّن النتيجة في window._wsCloudWorkerBars ونُعيد استعمالها كما هي ما دام:
+            (أ) لا أحداث محلية جديدة منذ آخر بناء، و(ب) تحقّقنا من السحابة خلال 60 ثانية.
+          فالضغطات المتكررة = قراءة محلية فورية بلا أي تنزيل.
+        • نجلب (تزايدياً وضئيلاً جداً عبر orderByChild('ts').startAt — نفس الفهرسة
+          .indexOn:"ts" المنشورة) فقط إذا ظهرت أحداث جديدة (كتسجيلك للحساب) أو مرّت
+          60 ثانية (ضمان عدم فوات سبائك عامل جديدة). لا مستمعات جديدة (لا تسرّب). */
+    const _maxTs=()=>(typeof _allEvents!=='undefined'&&_allEvents)?_allEvents.reduce((m,e)=>(e&&e.ts>m?e.ts:m),0):0;
+    const _cur=_maxTs();
     const _now=Date.now();
-    const _stale = !window._wsLastRecFetch || (_now-window._wsLastRecFetch>10000);
-    if(navigator.onLine && _stale && typeof _baseRef!=='undefined' && _baseRef){
+    const _build=()=>{ try{ window._wsCloudWorkerBars=_wsWorkerBarsFromEvents((typeof _allEvents!=='undefined'&&_allEvents)?_allEvents:[]); window._wsRecBuiltMax=_maxTs(); }catch(e){ window._wsCloudWorkerBars=null; } _doReconcile(); };
+    const _localChanged   = (window._wsRecBuiltMax!==_cur);
+    const _checkedRecently= window._wsLastRecFetch && (_now-window._wsLastRecFetch<60000);
+    /* المحفوظ صالح → استعمله بلا جلب */
+    if(window._wsCloudWorkerBars && !_localChanged && _checkedRecently){ _doReconcile(); return; }
+    if(navigator.onLine && typeof _baseRef!=='undefined' && _baseRef){
         window._wsLastRecFetch=_now;
-        toast('⏳ جلب أحدث سبائك العامل…','info');
-        _baseRef.child('events').once('value',function(snap){
-            const data=snap.val()||{};
-            const arr=Object.keys(data).map(k=>data[k]).filter(Boolean);
-            try{ if(typeof _mergeRemoteEvents==='function')_mergeRemoteEvents(data); _reproject(); }catch(e){}
-            /* ابنِ سبائك العامل من السحابة مباشرة للمطابقة */
-            window._wsCloudWorkerBars=_wsWorkerBarsFromEvents(arr);
-            _doReconcile();
-        },function(){ window._wsCloudWorkerBars=null; _doReconcile(); });
+        _baseRef.child('events').orderByChild('ts').startAt(_cur).once('value',function(snap){
+            try{ if(typeof _mergeRemoteEvents==='function')_mergeRemoteEvents(snap.val()||{}); else _reproject(); }catch(e){}
+            _build();
+        },function(){ try{ _reproject(); }catch(e){} _build(); });
     }else{
         try{ _reproject(); }catch(e){}
-        _doReconcile();
+        _build();
     }
 };
 /* يبني سبائك العامل لكل ورشة من قائمة أحداث (نفس منطق _applyEvt، مرتّب بـts+id) */

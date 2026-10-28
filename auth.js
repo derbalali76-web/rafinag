@@ -782,11 +782,17 @@ function renderCustomerPortal(){
                 : ((o.fee&&o.fee>0)?fmt(o.fee,0)+' دج'
                 :(!isG?fmt(Math.abs(o.a||0),0)+((o.m==='دولار')?' $':' دج'):'—'));
             const _hasInv=!!(o.rid||o.iid||o.did);
+            /* لون الصف عند الزبون: التحويل أحمر (خروج من حسابه)، الرافيناج أخضر — عرض فقط */
+            let _rc='var(--g600)';
+            const _xr=(typeof _xferRowDir==='function')?_xferRowDir(o):null;
+            if(_xr){ _rc=_xr.red?'var(--rd)':'var(--gr)'; }
+            else if((o.t||'').indexOf('رافيناج')===0){ _rc='var(--gr)'; }
+            const _lbl=(typeof window._shortOpType==='function'?window._shortOpType(_custPerspective(o.t)):_custPerspective(o.t))||'—';
             return `<tr style="border-bottom:1px solid var(--border);cursor:${_hasInv?'pointer':'default'}" ${_hasInv?`onclick="(function(){const _o=window._cpOpsMap&&window._cpOpsMap['${o.id}'];if(_o)cpOpenOpInvoice(_o);})()"`:''}>
                 <td style="padding:.55rem .3rem;text-align:center;font-family:monospace;font-size:.64rem;color:var(--t3)">${o.dt||''}${_hasInv?'<div style=\'font-size:.55rem;color:#0ea5e9;margin-top:2px\'>👁 عرض</div>':''}</td>
-                <td style="padding:.55rem .3rem;text-align:center"><span style="display:inline-block;background:rgba(217,119,6,.12);border:1px solid rgba(217,119,6,.35);color:var(--g600);border-radius:8px;padding:.15rem .5rem;font-size:.66rem;font-weight:800">${_custPerspective(o.t)||'—'}</span>${(()=>{const dl=(o.xferTo?['🔁 تحويل إلى: '+o.xferTo]:(o.xferFrom?['🔁 تحويل وارد من: '+o.xferFrom]:((typeof opDetailLines==='function')?opDetailLines(o,true):[])));return dl.length?`<div style="margin-top:.25rem;font-size:.62rem;font-weight:700;color:var(--t2);line-height:1.7;text-align:right">${dl.join('<br>')}</div>`:'';})()}</td>
-                <td style="padding:.55rem .3rem;text-align:center;font-family:monospace;font-weight:800;color:var(--g600)">${gv}</td>
-                <td style="padding:.55rem .3rem;text-align:center;font-family:monospace;font-weight:900">${dv}</td>
+                <td style="padding:.55rem .3rem;text-align:center"><span style="display:inline-block;background:rgba(217,119,6,.12);border:1px solid rgba(217,119,6,.35);color:var(--g600);border-radius:8px;padding:.15rem .5rem;font-size:.66rem;font-weight:800">${_lbl}</span>${(()=>{const dl=(o.xferTo?['🔁 تحويل إلى: '+o.xferTo]:(o.xferFrom?['🔁 تحويل وارد من: '+o.xferFrom]:((typeof opDetailLines==='function')?opDetailLines(o,true):[])));return dl.length?`<div style="margin-top:.25rem;font-size:.62rem;font-weight:700;color:var(--t2);line-height:1.7;text-align:right">${dl.join('<br>')}</div>`:'';})()}</td>
+                <td style="padding:.55rem .3rem;text-align:center;font-family:monospace;font-weight:800;color:${_rc}">${gv}</td>
+                <td style="padding:.55rem .3rem;text-align:center;font-family:monospace;font-weight:900;color:${_rc}">${dv}</td>
             </tr>`;}).join('')}
         </tbody></table></div></div>`
         :'<div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:1.6rem;text-align:center;color:var(--t3);font-weight:700">لا توجد معاملات بعد.</div>';
@@ -1070,7 +1076,7 @@ window._partnerEnableNotifs=async function(){
     }catch(e){ toast('تعذّر التفعيل: '+(e&&e.code||''),'error'); }
 };
 window._sendPartnerPush=async function(title,body){
-    try{ await _db.ref('goldpro/_push').push({phone:'ali',title:title||'GoldPro',body:body||'',ts:Date.now()}); }catch(e){}
+    return;   /* الإشعارات معطّلة — دالة OneSignal محذوفة؛ لا نكتب في _push (توفير وتنظيف) */
 };
 
 /* إرسال إشعار لزبون باسمه (من جهاز المسؤول) — يكتب طلباً تلتقطه الدالة السحابية */
@@ -1141,6 +1147,7 @@ document.addEventListener('visibilitychange',()=>{
 })();
 
 window._sendCustomerPush=async function(custName,title,body){
+    return;   /* الإشعارات معطّلة — دالة OneSignal محذوفة؛ لا نكتب في _push ولا نقرأ قائمة الزبائن (توفير تنزيل) */
     try{
         /* تطبيع عربي: الهمزات والتاء المربوطة والألف المقصورة والتشكيل والتطويل
            — اختلاف كتابة الاسم كان يمنع العثور على رقم الزبون فلا يصله إشعار. */
