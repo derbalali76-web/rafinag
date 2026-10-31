@@ -1,4 +1,4 @@
-window.APP_JS_VER='v423';
+window.APP_JS_VER='v424';
 /* ═══════════ STATE ═══════════ */
 let B={دينار:0,'ذهب 730':0,'ذهب 24':0,دولار:0,vg730:0,vg24:0};
 let ops=[],invoices=[],debts=[],loans=[],rafInvoices=[],dollInvoices=[],dubaiInvoices=[];
@@ -334,7 +334,7 @@ function _periodSummary(fromTs,toTs){
             case 'مصاريف': if(o.m==='دولار')expUSD+=a; else expDZD+=a; break;
         }
     });
-    const expUSDtoDZD=expUSD*(dollarRate||0);
+    const expUSDtoDZD=expUSD*(dollarRate||0)/100;   /* الدولار يُقوَّم مثل مجموع الأصول: × السعر ÷ 100 */
     const net=(dubaiDZD+sellGlocal)-(buyG+expDZD+expUSDtoDZD);
     return {buyG,sellGlocal,dubaiUSD,dubaiDZD,expDZD,expUSD,expUSDtoDZD,shipW,dubaiCount,buyCount,net};
 }
@@ -2792,7 +2792,7 @@ window.exportDebtsPdf=function(){
         if(_profitMk && typeof window._monthExpenses==='function'){
             const _e=window._monthExpenses(_profitMk); _pdfExpDz=_e.dz||0; _pdfExpUsd=_e.usd||0;
             const _drNow=(typeof dollarRate!=='undefined'?dollarRate:0)||0;
-            _pdfExpTotal=_pdfExpDz+_pdfExpUsd*_drNow;
+            _pdfExpTotal=_pdfExpDz+_pdfExpUsd*_drNow/100;   /* الدولار: × السعر ÷ 100 (مثل مجموع الأصول) */
             if(monthProfit!=null && _pdfExpTotal>0){ _pdfGross=monthProfit; monthProfit=monthProfit-_pdfExpTotal; }
         }
     }catch(e){}
@@ -5216,7 +5216,7 @@ window.openProfitModal=function(sel){
     let _expDz=0,_expUsd=0;
     try{ if(typeof window._monthExpenses==='function'){ const _e=window._monthExpenses(mk); _expDz=_e.dz||0; _expUsd=_e.usd||0; } }catch(e){}
     const _drNow=(typeof dollarRate!=='undefined'?dollarRate:0)||0;
-    const _expTotal=_expDz + _expUsd*_drNow;
+    const _expTotal=_expDz + _expUsd*_drNow/100;   /* الدولار: × السعر ÷ 100 (مثل مجموع الأصول) */
     const grossProfit=rafFee+trade+(_lap.dz||0);   /* الفائدة قبل المصاريف (+ لابارت) */
     const total=grossProfit - _expTotal;    /* الصافي بعد خصم المصاريف */
     const F=v=>Math.round(v).toLocaleString('fr-FR');
