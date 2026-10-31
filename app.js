@@ -1,4 +1,4 @@
-window.APP_JS_VER='v424';
+window.APP_JS_VER='v420';
 /* ═══════════ STATE ═══════════ */
 let B={دينار:0,'ذهب 730':0,'ذهب 24':0,دولار:0,vg730:0,vg24:0};
 let ops=[],invoices=[],debts=[],loans=[],rafInvoices=[],dollInvoices=[],dubaiInvoices=[];
@@ -334,7 +334,7 @@ function _periodSummary(fromTs,toTs){
             case 'مصاريف': if(o.m==='دولار')expUSD+=a; else expDZD+=a; break;
         }
     });
-    const expUSDtoDZD=expUSD*(dollarRate||0)/100;   /* الدولار يُقوَّم مثل مجموع الأصول: × السعر ÷ 100 */
+    const expUSDtoDZD=expUSD*(dollarRate||0);
     const net=(dubaiDZD+sellGlocal)-(buyG+expDZD+expUSDtoDZD);
     return {buyG,sellGlocal,dubaiUSD,dubaiDZD,expDZD,expUSD,expUSDtoDZD,shipW,dubaiCount,buyCount,net};
 }
@@ -2070,9 +2070,8 @@ window._xferRowDir=function(o){
         return { out:red, label:(red?'أعطيت':'استلمت'), red:red };
     }
     if(o.xferTo && (o.t==='تحويل لزبون'||o.t==='تحويل بشحن')){
-        /* التحويل لزبون آخر = خروج ذهب من حساب هذا الزبون → أحمر دائماً مع «−»
-           (بغضّ النظر عن اتجاه رصيده: دين أو له). */
-        return { out:true, label:o.t, red:true };
+        const red=(o.xferSign>0);   /* حوّل رصيداً موجباً (أحمر) ← خروج من حسابه = − أحمر */
+        return { out:red, label:o.t, red:red };
     }
     return null;
 };
@@ -2792,7 +2791,7 @@ window.exportDebtsPdf=function(){
         if(_profitMk && typeof window._monthExpenses==='function'){
             const _e=window._monthExpenses(_profitMk); _pdfExpDz=_e.dz||0; _pdfExpUsd=_e.usd||0;
             const _drNow=(typeof dollarRate!=='undefined'?dollarRate:0)||0;
-            _pdfExpTotal=_pdfExpDz+_pdfExpUsd*_drNow/100;   /* الدولار: × السعر ÷ 100 (مثل مجموع الأصول) */
+            _pdfExpTotal=_pdfExpDz+_pdfExpUsd*_drNow;
             if(monthProfit!=null && _pdfExpTotal>0){ _pdfGross=monthProfit; monthProfit=monthProfit-_pdfExpTotal; }
         }
     }catch(e){}
@@ -5216,7 +5215,7 @@ window.openProfitModal=function(sel){
     let _expDz=0,_expUsd=0;
     try{ if(typeof window._monthExpenses==='function'){ const _e=window._monthExpenses(mk); _expDz=_e.dz||0; _expUsd=_e.usd||0; } }catch(e){}
     const _drNow=(typeof dollarRate!=='undefined'?dollarRate:0)||0;
-    const _expTotal=_expDz + _expUsd*_drNow/100;   /* الدولار: × السعر ÷ 100 (مثل مجموع الأصول) */
+    const _expTotal=_expDz + _expUsd*_drNow;
     const grossProfit=rafFee+trade+(_lap.dz||0);   /* الفائدة قبل المصاريف (+ لابارت) */
     const total=grossProfit - _expTotal;    /* الصافي بعد خصم المصاريف */
     const F=v=>Math.round(v).toLocaleString('fr-FR');
