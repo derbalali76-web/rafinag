@@ -277,3 +277,37 @@ window.invFixAdd=function(){
     renderInvModal();
     toast(`🩹 ${_verb} تصحيحي ${fmt(Math.abs(w),2)} غ ${w<0?'من':'لـ'}مخزون ${pool}`,'success');
 };
+
+/* ═══════════ MELT (تذويب) — دمج السبائك المحددة في مخزون 730 بسبيكة واحدة ═══════════
+   تخرج السبائك المحددة وتدخل سبيكة واحدة مكانها. الوزن الإجمالي محفوظ،
+   والعيار = المتوسط المرجّح بالأوزان، فيبقى مكافئ 730 وقيمة الأصول كما هي.
+   لا يُمسّ أي زبون أو دين (MELT → applyBars فقط). */
+window.meltBars=function(){
+    const ids=[...(window._invSel||[])];
+    const sel=g730.filter(b=>ids.includes(b.id)&&(b.w||0)>0);
+    if(sel.length<2)return toast('حدّد سبيكتين على الأقل للتذويب','error');
+    const totW=sel.reduce((s,b)=>s+(b.w||0),0);
+    const sumWK=sel.reduce((s,b)=>s+(b.w||0)*(b.k||730),0);
+    if(!(totW>0))return toast('وزن غير صالح','error');
+    const newW=parseFloat(totW.toFixed(4));
+    const newK=parseFloat((sumWK/totW).toFixed(4));   /* عيار مرجّح — يحفظ مكافئ 730 */
+    const eq730=parseFloat((sumWK/730).toFixed(3));
+    if(!confirm(`🫗 تذويب ${sel.length} سبيكة في سبيكة واحدة:\n`+
+        `• الوزن الإجمالي: ${fmt(newW,2)} غ\n`+
+        `• العيار المرجّح: ${fmt(newK,1)}\n`+
+        `• مكافئ 730 (محفوظ): ${fmt(eq730,2)} غ\n\n`+
+        `تخرج السبائك المحددة وتدخل سبيكة واحدة مكانها. لا يُمسّ أي زبون أو دين.`))return;
+    const newId=uid();
+    const nowShort=new Date().toLocaleDateString('fr-FR');
+    const nowStr=new Date().toLocaleDateString('fr-FR',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
+    emitEvent('MELT',
+        {barsRemove:ids, barsAdd:[{id:newId,w:newW,k:newK,pool:'730'}]},
+        {op:{c:'النظام',t:'تذويب',m:'ذهب 730',a:eq730,_ts:Date.now(),dt:nowStr,
+             note:`تذويب ${sel.length} سبيكة → ${fmt(newW,2)}غ عيار ${fmt(newK,1)}`},
+         bars:{[newId]:{desc:'سبيكة مذوّبة',dt:nowShort,src:'تذويب'}}}
+    );
+    try{window._invSel.clear();}catch(e){}
+    renderInvModal();
+    if(window.wsUpdSel)try{wsUpdSel();}catch(e){}
+    toast(`🫗 تم تذويب ${sel.length} سبيكة في سبيكة ${fmt(newW,2)}غ (عيار ${fmt(newK,1)})`,'success');
+};

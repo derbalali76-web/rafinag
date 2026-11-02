@@ -497,28 +497,23 @@ function reconcileBars(adminBars,workerBars){
     return {miss,missW};
 }
 window.wsReconcile=function(){
-    /* المطابقة تُحفَظ على الجهاز وتُعاد استعمالها — لا تجلب من السحابة في كل ضغطة:
-        • سبائك العامل تُبنى من _allEvents المحفوظ محلياً (والمحدّث عبر المستمع الحيّ).
-        • نُخزّن النتيجة في window._wsCloudWorkerBars ونُعيد استعمالها كما هي ما دام:
-            (أ) لا أحداث محلية جديدة منذ آخر بناء، و(ب) تحقّقنا من السحابة خلال 60 ثانية.
-          فالضغطات المتكررة = قراءة محلية فورية بلا أي تنزيل.
-        • نجلب (تزايدياً وضئيلاً جداً عبر orderByChild('ts').startAt — نفس الفهرسة
-          .indexOn:"ts" المنشورة) فقط إذا ظهرت أحداث جديدة (كتسجيلك للحساب) أو مرّت
-          60 ثانية (ضمان عدم فوات سبائك عامل جديدة). لا مستمعات جديدة (لا تسرّب). */
-    const _maxTs=()=>(typeof _allEvents!=='undefined'&&_allEvents)?_allEvents.reduce((m,e)=>(e&&e.ts>m?e.ts:m),0):0;
-    const _cur=_maxTs();
-    const _now=Date.now();
-    const _build=()=>{ try{ window._wsCloudWorkerBars=_wsWorkerBarsFromEvents((typeof _allEvents!=='undefined'&&_allEvents)?_allEvents:[]); window._wsRecBuiltMax=_maxTs(); }catch(e){ window._wsCloudWorkerBars=null; } _doReconcile(); };
-    const _localChanged   = (window._wsRecBuiltMax!==_cur);
-    const _checkedRecently= window._wsLastRecFetch && (_now-window._wsLastRecFetch<60000);
-    /* المحفوظ صالح → استعمله بلا جلب */
-    if(window._wsCloudWorkerBars && !_localChanged && _checkedRecently){ _doReconcile(); return; }
+    /* المطابقة تجلب أحداث العامل حصراً عبر فهرسة النوع: كل ما يبدأ بـ WS_W.
+       • رخيصة: تنزّل أحداث العامل فقط (عشرات الكيلوبايت) لا كل الأحداث (~28م.ب).
+       • كاملة: تلتقط ما رُفع متأخراً بطابع زمني قديم — مثل القيود التي كانت عالقة
+         (PERMISSION_DENIED) ووصلت بعد إصلاح القواعد. الجلب القديم بـ ts.startAt(أحدث محلي)
+         كان يفوّتها لأن طابعها الزمني أقدم من أحدث حدث محلي عندك — وهذا سبب
+         «أحياناً يجلب الكل وأحياناً لا». لا مستمعات جديدة (لا تسرّب).
+       • يتطلّب نشر الفهرسة: "events": { ".indexOn": ["ts","type"] } — وإلا يلجأ
+         Firebase لفرز العميل فيُنزّل كل الأحداث (تكلفة). */
+    const _build=()=>{ try{ window._wsCloudWorkerBars=_wsWorkerBarsFromEvents((typeof _allEvents!=='undefined'&&_allEvents)?_allEvents:[]); window._wsRecBuiltMax=(typeof _allEvents!=='undefined'&&_allEvents)?_allEvents.reduce((m,e)=>(e&&e.ts>m?e.ts:m),0):0; }catch(e){ window._wsCloudWorkerBars=null; } _doReconcile(); };
+    if(window._wsReconBusy)return;   /* امنع جلبين متزامنين عند الضغط السريع */
     if(navigator.onLine && typeof _baseRef!=='undefined' && _baseRef){
-        window._wsLastRecFetch=_now;
-        _baseRef.child('events').orderByChild('ts').startAt(_cur).once('value',function(snap){
+        window._wsReconBusy=true;
+        const _done=()=>{ window._wsReconBusy=false; };
+        _baseRef.child('events').orderByChild('type').startAt('WS_W').endAt('WS_W').once('value',function(snap){
             try{ if(typeof _mergeRemoteEvents==='function')_mergeRemoteEvents(snap.val()||{}); else _reproject(); }catch(e){}
-            _build();
-        },function(){ try{ _reproject(); }catch(e){} _build(); });
+            _done(); _build();
+        },function(){ _done(); try{ _reproject(); }catch(e){} _build(); });
     }else{
         try{ _reproject(); }catch(e){}
         _build();
