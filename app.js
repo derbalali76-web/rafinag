@@ -1,4 +1,4 @@
-window.APP_JS_VER='v426';
+window.APP_JS_VER='v427';
 /* ═══════════ STATE ═══════════ */
 let B={دينار:0,'ذهب 730':0,'ذهب 24':0,دولار:0,vg730:0,vg24:0};
 let ops=[],invoices=[],debts=[],loans=[],rafInvoices=[],dollInvoices=[],dubaiInvoices=[];
@@ -2099,7 +2099,8 @@ function opDetailLines(o,cust){
         }
     } else if(t==='شحن'){
         if(o.sp) lines.push(`💲 السعر: ${o.sp} $/100غ`);
-        if(o.rc) lines.push(`📦 المستلم: ${f(o.rc,2)} غ`);
+        /* الرقم الرئيس صار المستلَم؛ نعرض هنا المشحون (الخام قبل خصم 1‰) */
+        if(o.rc!=null && o.a) lines.push(`🚢 المشحون: ${f(o.a,2)} غ`);
     } else if(t==='رافيناج'){
         if(o.sentW) lines.push(`⚖️ المرسل: ${f(o.sentW,2)} غ 730`);
         if(o.rec24!=null) lines.push(`✨ المستلم: ${f(o.rec24,2)} غ 24 خالص`);
@@ -2276,6 +2277,9 @@ function renderLog(){
         _dispT=_shortOpType(_dispT);                 /* رافيناج زبون (دين/خالصة) → رافيناج */
         const bg=_xr?(_xr.red?'var(--rd)':'var(--gr)'):(colors[o.t]||(out?'var(--rd)':'var(--gr)'));
         const unit=o.m==='دينار'?'DZD':o.m==='دولار'?'USD':'g';
+        /* شحن: الرقم الرئيس = المستلَم (rc، وهو ما يُحرّك الرصيد)، والمشحون يظهر في التفاصيل.
+           حسابياً دون تغيير — الرصيد يستعمل rc أصلاً. القديمة بلا rc تبقى على a. */
+        const _amt=(o.t==='شحن'&&o.rc!=null)?Number(o.rc):(o.a||0);
         const dlines=opDetailLines(o);
         const detailHtml=dlines.length
             ?dlines.map(l=>`<br><span style="color:var(--t2);font-size:.7rem;font-weight:600;line-height:1.6">${l}</span>`).join('')
@@ -2289,7 +2293,7 @@ function renderLog(){
             <span style="color:${o.t==='تصحيح فاتورة'?'var(--g600)':(out?'var(--rd)':'var(--gr)')};font-weight:900;font-size:clamp(.86rem,1.8vw,1.05rem);white-space:nowrap;margin-top:.1rem;font-family:'Tajawal',monospace,sans-serif">
                 ${o.t==='تصحيح فاتورة'
                     ?(o.diffG?`${o.diffG>0?'+':'−'}${fmt(Math.abs(o.diffG),2)} g`:(o.diffD?`${fmt(Math.abs(o.diffD),0)} DZD`:'✏️ تصحيح'))
-                    :`${out?'−':'+'}${fmt(o.a||0, o.m==='دينار'?0:2)} ${unit}`}
+                    :`${out?'−':'+'}${fmt(_amt, o.m==='دينار'?0:2)} ${unit}`}
             </span>
             <button class="btn-pdf" onclick="showOpInvoice('${o.id}')" style="background:rgba(14,165,233,.12);color:#0ea5e9;margin-top:.1rem" title="عرض الفاتورة"><i class="fas fa-file-invoice"></i></button>
             <button class="btndel" onclick="delOp('${o.id}')" style="margin-top:.1rem"><i class="fas fa-trash-alt"></i></button>
