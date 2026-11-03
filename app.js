@@ -1,4 +1,4 @@
-window.APP_JS_VER='v428';
+window.APP_JS_VER='v429';
 /* ═══════════ STATE ═══════════ */
 let B={دينار:0,'ذهب 730':0,'ذهب 24':0,دولار:0,vg730:0,vg24:0};
 let ops=[],invoices=[],debts=[],loans=[],rafInvoices=[],dollInvoices=[],dubaiInvoices=[];
@@ -5308,10 +5308,28 @@ window.showCustomerLog=function(c){
     m.style.cssText='position:fixed;inset:0;z-index:2147483100;background:rgba(0,0,0,.75);display:flex;flex-direction:column;padding:0';
     m.innerHTML=`<div style="flex:0 0 auto;display:flex;justify-content:space-between;align-items:center;background:var(--card);padding:.6rem .9rem;border-bottom:1px solid var(--border)">
             <strong style="font-family:Tajawal,sans-serif;color:var(--g600)">📒 سجل ${c}</strong>
-            <button onclick="document.getElementById('custLogModal').remove()" style="border:none;background:rgba(239,68,68,.12);color:#ef4444;border-radius:8px;width:34px;height:34px;font-weight:900;cursor:pointer">✕</button>
+            <div style="display:flex;gap:.4rem;align-items:center">
+                <button onclick="sendLogWA('${(c||'').replace(/'/g,"\\'")}')" style="border:none;background:#25D366;color:#fff;border-radius:8px;padding:0 .85rem;height:34px;font-weight:900;cursor:pointer;font-family:Tajawal,sans-serif;font-size:.8rem;display:flex;align-items:center;gap:.35rem"><i class="fab fa-whatsapp"></i> إرسال</button>
+                <button onclick="document.getElementById('custLogModal').remove()" style="border:none;background:rgba(239,68,68,.12);color:#ef4444;border-radius:8px;width:34px;height:34px;font-weight:900;cursor:pointer">✕</button>
+            </div>
         </div>
         <div style="flex:1;overflow:auto;background:#fff">${html}</div>`;
     document.body.appendChild(m);
+};
+
+/* إرسال السجل المعروض (كما هو، بما فيه الشحن) PDF إلى واتساب مباشرة */
+window.sendLogWA=async(c)=>{
+    c=(c||'').trim();
+    if(!c)return toast('لا زبون','error');
+    const custOps=ops.filter(o=>o.c===c);
+    if(!custOps.length)return toast('لا عمليات لهذا الزبون','info');
+    if(typeof html2pdf==='undefined')return toast('مكتبة PDF غير محمّلة','error');
+    toast('⏳ جاري إنشاء السجل…','info');
+    const fname=`سجل_${c.replace(/\s+/g,'_')}.pdf`;
+    try{
+        const blob=await html2pdf().set(_logPdfOpts(c)).from(buildCustomerLogHtml(c,custOps)).outputPdf('blob');
+        _showShareCard(blob,fname,`سجل معاملات ${c}`);
+    }catch(e){ toast('❌ خطأ في توليد PDF: '+(e&&e.message||e),'error'); }
 };
 
 
