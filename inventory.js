@@ -289,25 +289,66 @@ window.meltBars=function(){
     const totW=sel.reduce((s,b)=>s+(b.w||0),0);
     const sumWK=sel.reduce((s,b)=>s+(b.w||0)*(b.k||730),0);
     if(!(totW>0))return toast('وزن غير صالح','error');
-    const newW=parseFloat(totW.toFixed(4));
-    const newK=parseFloat((sumWK/totW).toFixed(4));   /* عيار مرجّح — يحفظ مكافئ 730 */
-    const eq730=parseFloat((sumWK/730).toFixed(3));
-    if(!confirm(`🫗 تذويب ${sel.length} سبيكة في سبيكة واحدة:\n`+
-        `• الوزن الإجمالي: ${fmt(newW,2)} غ\n`+
-        `• العيار المرجّح: ${fmt(newK,1)}\n`+
-        `• مكافئ 730 (محفوظ): ${fmt(eq730,2)} غ\n\n`+
-        `تخرج السبائك المحددة وتدخل سبيكة واحدة مكانها. لا يُمسّ أي زبون أو دين.`))return;
+    const defW=parseFloat(totW.toFixed(2));
+    const defK=parseFloat((sumWK/totW).toFixed(1));   /* العيار المرجّح كقيمة مبدئية */
+    const eq730=sumWK/730;
+    window._meltCtx={ids:ids.slice(),count:sel.length};
+    let m=document.getElementById('meltModal'); if(m)m.remove();
+    m=document.createElement('div'); m.id='meltModal';
+    m.style.cssText='position:fixed;inset:0;z-index:2147483200;background:rgba(0,0,0,.72);display:flex;align-items:center;justify-content:center;padding:1rem';
+    m.innerHTML=`<div style="background:var(--card);border:1.5px solid #b45309;border-radius:16px;max-width:360px;width:100%;box-shadow:0 14px 50px rgba(0,0,0,.55);padding:1.1rem;font-family:Tajawal,sans-serif">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.7rem">
+            <h3 style="margin:0;font-size:.95rem;color:#b45309">🫗 تذويب ${sel.length} سبيكة</h3>
+            <button onclick="document.getElementById('meltModal').remove()" style="border:none;background:rgba(239,68,68,.12);color:#ef4444;border-radius:8px;width:32px;height:32px;font-weight:900;cursor:pointer">✕</button>
+        </div>
+        <div style="font-size:.72rem;color:var(--t3);background:var(--card2);border-radius:10px;padding:.5rem .7rem;margin-bottom:.8rem;line-height:1.8">
+            المجموع المحدّد: <b style="color:var(--t)">${fmt(totW,2)} غ</b> · مكافئ 730: <b style="color:var(--t)">${fmt(eq730,2)} غ</b><br>
+            <span>القيم أدناه مبدئية — عدّلها بالوزن والعيار الحقيقيين بعد الصهر.</span>
+        </div>
+        <label style="display:block;font-size:.72rem;font-weight:800;color:var(--t2);margin-bottom:.25rem">⚖️ الوزن الجديد (غ)</label>
+        <input id="meltW" type="number" inputmode="decimal" step="any" value="${defW}" oninput="window._meltPrev&&_meltPrev()"
+            style="width:100%;box-sizing:border-box;margin-bottom:.7rem;padding:.6rem .7rem;border-radius:10px;border:1.5px solid var(--border);background:var(--card2);color:var(--t);font-family:Tajawal,monospace;font-weight:900;font-size:1rem;text-align:center">
+        <label style="display:block;font-size:.72rem;font-weight:800;color:var(--t2);margin-bottom:.25rem">🔢 العيار الجديد</label>
+        <input id="meltK" type="number" inputmode="decimal" step="any" value="${defK}" oninput="window._meltPrev&&_meltPrev()"
+            style="width:100%;box-sizing:border-box;margin-bottom:.6rem;padding:.6rem .7rem;border-radius:10px;border:1.5px solid var(--border);background:var(--card2);color:var(--t);font-family:Tajawal,monospace;font-weight:900;font-size:1rem;text-align:center">
+        <div id="meltPrev" style="text-align:center;font-size:.72rem;color:var(--t3);margin-bottom:.8rem;min-height:1em"></div>
+        <button onclick="confirmMelt()" style="width:100%;padding:.75rem;border:none;border-radius:11px;background:#b45309;color:#fff;font-weight:900;font-family:Tajawal,sans-serif;font-size:.9rem;cursor:pointer">🫗 تأكيد التذويب</button>
+    </div>`;
+    document.body.appendChild(m);
+    window._meltPrev=function(){
+        const w=parseFloat(document.getElementById('meltW').value)||0;
+        const k=parseFloat(document.getElementById('meltK').value)||0;
+        const e=document.getElementById('meltPrev'); if(!e)return;
+        e.innerHTML=(w>0&&k>0)
+            ?`الناتج: <b style="color:var(--g600)">${fmt(w,2)} غ</b> عيار <b style="color:var(--g600)">${fmt(k,1)}</b> · مكافئ 730: <b style="color:var(--g600)">${fmt(w*k/730,2)} غ</b>`
+            :'<span style="color:var(--rd)">أدخل وزناً وعياراً صحيحين</span>';
+    };
+    _meltPrev();
+    setTimeout(()=>{const e=document.getElementById('meltW');if(e){e.focus();e.select();}},200);
+};
+
+window.confirmMelt=function(){
+    const ctx=window._meltCtx;
+    if(!ctx||!ctx.ids||!ctx.ids.length)return toast('انتهت صلاحية التحديد — أعد المحاولة','error');
+    const newW=parseFloat(document.getElementById('meltW').value);
+    const newK=parseFloat(document.getElementById('meltK').value);
+    if(isNaN(newW)||newW<=0)return toast('وزن غير صالح','error');
+    if(isNaN(newK)||newK<=0||newK>1000)return toast('عيار غير صالح (1–1000)','error');
+    const ids=ctx.ids, count=ctx.count||ids.length;
+    const eq730=parseFloat((newW*newK/730).toFixed(3));
     const newId=uid();
     const nowShort=new Date().toLocaleDateString('fr-FR');
     const nowStr=new Date().toLocaleDateString('fr-FR',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
     emitEvent('MELT',
-        {barsRemove:ids, barsAdd:[{id:newId,w:newW,k:newK,pool:'730'}]},
+        {barsRemove:ids, barsAdd:[{id:newId,w:parseFloat(newW.toFixed(4)),k:parseFloat(newK.toFixed(4)),pool:'730'}]},
         {op:{c:'النظام',t:'تذويب',m:'ذهب 730',a:eq730,_ts:Date.now(),dt:nowStr,
-             note:`تذويب ${sel.length} سبيكة → ${fmt(newW,2)}غ عيار ${fmt(newK,1)}`},
+             note:`تذويب ${count} سبيكة → ${fmt(newW,2)}غ عيار ${fmt(newK,1)}`},
          bars:{[newId]:{desc:'سبيكة مذوّبة',dt:nowShort,src:'تذويب'}}}
     );
+    window._meltCtx=null;
+    const mm=document.getElementById('meltModal'); if(mm)mm.remove();
     try{window._invSel.clear();}catch(e){}
     renderInvModal();
     if(window.wsUpdSel)try{wsUpdSel();}catch(e){}
-    toast(`🫗 تم تذويب ${sel.length} سبيكة في سبيكة ${fmt(newW,2)}غ (عيار ${fmt(newK,1)})`,'success');
+    toast(`🫗 تم تذويب ${count} سبيكة في سبيكة ${fmt(newW,2)}غ (عيار ${fmt(newK,1)})`,'success');
 };
