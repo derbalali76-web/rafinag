@@ -286,69 +286,80 @@ window.meltBars=function(){
     const ids=[...(window._invSel||[])];
     const sel=g730.filter(b=>ids.includes(b.id)&&(b.w||0)>0);
     if(sel.length<2)return toast('حدّد سبيكتين على الأقل للتذويب','error');
-    const totW=sel.reduce((s,b)=>s+(b.w||0),0);
-    const sumWK=sel.reduce((s,b)=>s+(b.w||0)*(b.k||730),0);
-    if(!(totW>0))return toast('وزن غير صالح','error');
-    const defW=parseFloat(totW.toFixed(2));
-    const defK=parseFloat((sumWK/totW).toFixed(1));   /* العيار المرجّح كقيمة مبدئية */
-    const eq730=sumWK/730;
-    window._meltCtx={ids:ids.slice(),count:sel.length};
+    const sumW=sel.reduce((s,b)=>s+(b.w||0),0);
+    const sumPure=sel.reduce((s,b)=>s+(b.w||0)*(b.k||0)/1000,0);   /* الذهب الصافي المُدخَل */
+    window._meltCtx={ids:sel.map(b=>b.id),count:sel.length,sumW:sumW,sumPure:sumPure};
     let m=document.getElementById('meltModal'); if(m)m.remove();
-    m=document.createElement('div'); m.id='meltModal';
-    m.style.cssText='position:fixed;inset:0;z-index:2147483200;background:rgba(0,0,0,.72);display:flex;align-items:center;justify-content:center;padding:1rem';
-    m.innerHTML=`<div style="background:var(--card);border:1.5px solid #b45309;border-radius:16px;max-width:360px;width:100%;box-shadow:0 14px 50px rgba(0,0,0,.55);padding:1.1rem;font-family:Tajawal,sans-serif">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.7rem">
-            <h3 style="margin:0;font-size:.95rem;color:#b45309">🫗 تذويب ${sel.length} سبيكة</h3>
-            <button onclick="document.getElementById('meltModal').remove()" style="border:none;background:rgba(239,68,68,.12);color:#ef4444;border-radius:8px;width:32px;height:32px;font-weight:900;cursor:pointer">✕</button>
+    m=document.createElement('div'); m.id='meltModal'; m.className='modal-overlay';
+    m.onclick=(e)=>{ if(e.target===m)closeModal('meltModal'); };
+    m.innerHTML=`<div class="modal" style="max-width:420px">
+        <div class="modal-handle"></div>
+        <h3 style="font-size:.95rem">🔥 تذويب سبائك</h3>
+        <div style="font-size:.78rem;color:var(--t2);background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:.55rem;margin-bottom:.6rem;max-height:30vh;overflow:auto;line-height:1.9">
+            عدد السبائك: <strong>${sel.length}</strong> · مجموع الوزن: <strong>${fmt(sumW,2)} غ</strong><br>
+            ${sel.map(b=>`• ${fmt(b.w,2)}غ عيار ${fmt(b.k||0,1)}`).join('<br>')}
         </div>
-        <div style="font-size:.72rem;color:var(--t3);background:var(--card2);border-radius:10px;padding:.5rem .7rem;margin-bottom:.8rem;line-height:1.8">
-            المجموع المحدّد: <b style="color:var(--t)">${fmt(totW,2)} غ</b> · مكافئ 730: <b style="color:var(--t)">${fmt(eq730,2)} غ</b><br>
-            <span>القيم أدناه مبدئية — عدّلها بالوزن والعيار الحقيقيين بعد الصهر.</span>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem">
+            <div>
+                <label style="font-size:.72rem;color:var(--t2);display:block;margin-bottom:.2rem">الميزان الجديد (غ)</label>
+                <input id="meltW" type="text" inputmode="decimal" value="${fmt(sumW,2).replace(/\s/g,'')}" placeholder="الوزن" oninput="window._meltDiff&&_meltDiff()"
+                    style="padding:.6rem;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;box-sizing:border-box;text-align:center;background:var(--card);color:var(--t);width:100%;font-weight:800">
+            </div>
+            <div>
+                <label style="font-size:.72rem;color:var(--t2);display:block;margin-bottom:.2rem">العيار الجديد</label>
+                <input id="meltK" type="text" inputmode="decimal" value="${sel[0]&&sel[0].k||730}" placeholder="العيار" oninput="window._meltDiff&&_meltDiff()"
+                    style="padding:.6rem;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;box-sizing:border-box;text-align:center;background:var(--card);color:var(--t);width:100%;font-weight:800">
+            </div>
         </div>
-        <label style="display:block;font-size:.72rem;font-weight:800;color:var(--t2);margin-bottom:.25rem">⚖️ الوزن الجديد (غ)</label>
-        <input id="meltW" type="number" inputmode="decimal" step="any" value="${defW}" oninput="window._meltPrev&&_meltPrev()"
-            style="width:100%;box-sizing:border-box;margin-bottom:.7rem;padding:.6rem .7rem;border-radius:10px;border:1.5px solid var(--border);background:var(--card2);color:var(--t);font-family:Tajawal,monospace;font-weight:900;font-size:1rem;text-align:center">
-        <label style="display:block;font-size:.72rem;font-weight:800;color:var(--t2);margin-bottom:.25rem">🔢 العيار الجديد</label>
-        <input id="meltK" type="number" inputmode="decimal" step="any" value="${defK}" oninput="window._meltPrev&&_meltPrev()"
-            style="width:100%;box-sizing:border-box;margin-bottom:.6rem;padding:.6rem .7rem;border-radius:10px;border:1.5px solid var(--border);background:var(--card2);color:var(--t);font-family:Tajawal,monospace;font-weight:900;font-size:1rem;text-align:center">
-        <div id="meltPrev" style="text-align:center;font-size:.72rem;color:var(--t3);margin-bottom:.8rem;min-height:1em"></div>
-        <button onclick="confirmMelt()" style="width:100%;padding:.75rem;border:none;border-radius:11px;background:#b45309;color:#fff;font-weight:900;font-family:Tajawal,sans-serif;font-size:.9rem;cursor:pointer">🫗 تأكيد التذويب</button>
+        <div id="meltDiff" style="margin-top:.6rem;background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:.5rem .65rem;font-size:.74rem;line-height:1.9"></div>
+        <div style="font-size:.68rem;color:var(--t3);margin:.45rem 0 .2rem">العيار ≥ 999 يدخل مخزون 24، وإلا مخزون 730.</div>
+        <div class="mactions" style="margin-top:.6rem">
+            <button class="bgy" onclick="closeModal('meltModal')">إلغاء</button>
+            <button class="bg" onclick="confirmMelt()" style="background:#ea580c;color:#fff">🔥 تذويب</button>
+        </div>
     </div>`;
     document.body.appendChild(m);
-    window._meltPrev=function(){
-        const w=parseFloat(document.getElementById('meltW').value)||0;
-        const k=parseFloat(document.getElementById('meltK').value)||0;
-        const e=document.getElementById('meltPrev'); if(!e)return;
-        e.innerHTML=(w>0&&k>0)
-            ?`الناتج: <b style="color:var(--g600)">${fmt(w,2)} غ</b> عيار <b style="color:var(--g600)">${fmt(k,1)}</b> · مكافئ 730: <b style="color:var(--g600)">${fmt(w*k/730,2)} غ</b>`
-            :'<span style="color:var(--rd)">أدخل وزناً وعياراً صحيحين</span>';
+    m.classList.add('active');
+    window._meltDiff=function(){
+        const ctx=window._meltCtx; const box=document.getElementById('meltDiff'); if(!ctx||!box)return;
+        const num=v=>parseFloat(String(v||'').replace(/\s/g,'').replace(',','.'));
+        const w=num((document.getElementById('meltW')||{}).value), k=num((document.getElementById('meltK')||{}).value);
+        if(!(w>0)||!(k>0)){ box.innerHTML='<span style="color:var(--t3)">أدخل الوزن والعيار لعرض الفرق</span>'; return; }
+        const outPure=w*k/1000;
+        const dW=w-ctx.sumW, dP=outPure-ctx.sumPure;
+        const col=v=>v>0.0005?'var(--gr)':(v<-0.0005?'var(--rd)':'var(--t2)');
+        const sg=v=>v>0.0005?'+':(v<-0.0005?'−':'');
+        box.innerHTML=
+            `قبل: <b style="color:var(--t)">${fmt(ctx.sumW,2)}غ</b> · صافٍ <b style="color:var(--t)">${fmt(ctx.sumPure,2)}غ</b><br>`+
+            `بعد: <b style="color:var(--t)">${fmt(w,2)}غ</b> · صافٍ <b style="color:var(--t)">${fmt(outPure,2)}غ</b><br>`+
+            `الفرق — الوزن: <b style="color:${col(dW)}">${sg(dW)}${fmt(Math.abs(dW),2)}غ</b> · الذهب الصافي: <b style="color:${col(dP)}">${sg(dP)}${fmt(Math.abs(dP),2)}غ</b>`;
     };
-    _meltPrev();
-    setTimeout(()=>{const e=document.getElementById('meltW');if(e){e.focus();e.select();}},200);
+    _meltDiff();
+    setTimeout(()=>{const e=document.getElementById('meltW');if(e){e.focus();e.select();}},300);
 };
 
 window.confirmMelt=function(){
     const ctx=window._meltCtx;
-    if(!ctx||!ctx.ids||!ctx.ids.length)return toast('انتهت صلاحية التحديد — أعد المحاولة','error');
-    const newW=parseFloat(document.getElementById('meltW').value);
-    const newK=parseFloat(document.getElementById('meltK').value);
-    if(isNaN(newW)||newW<=0)return toast('وزن غير صالح','error');
-    if(isNaN(newK)||newK<=0||newK>1000)return toast('عيار غير صالح (1–1000)','error');
+    if(!ctx||!ctx.ids||!ctx.ids.length)return toast('لا سبائك محدَّدة — أعد التحديد','error');
+    const num=v=>parseFloat(String(v||'').replace(/\s/g,'').replace(',','.'));
+    const w=num(document.getElementById('meltW').value), k=num(document.getElementById('meltK').value);
+    if(!(w>0))return toast('أدخل وزناً صالحاً','error');
+    if(!(k>0)||k>1000)return toast('أدخل عياراً صالحاً','error');
     const ids=ctx.ids, count=ctx.count||ids.length;
-    const eq730=parseFloat((newW*newK/730).toFixed(3));
+    const newPool=(k>=999)?'24':'730';   /* عيار صافٍ → مخزون 24، وإلا 730 */
     const newId=uid();
-    const nowShort=new Date().toLocaleDateString('fr-FR');
+    const dt=new Date().toLocaleDateString('fr-FR');
     const nowStr=new Date().toLocaleDateString('fr-FR',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
     emitEvent('MELT',
-        {barsRemove:ids, barsAdd:[{id:newId,w:parseFloat(newW.toFixed(4)),k:parseFloat(newK.toFixed(4)),pool:'730'}]},
-        {op:{c:'النظام',t:'تذويب',m:'ذهب 730',a:eq730,_ts:Date.now(),dt:nowStr,
-             note:`تذويب ${count} سبيكة → ${fmt(newW,2)}غ عيار ${fmt(newK,1)}`},
-         bars:{[newId]:{desc:'سبيكة مذوّبة',dt:nowShort,src:'تذويب'}}}
+        {barsRemove:ids, barsAdd:[{id:newId,pool:newPool,w:parseFloat(w.toFixed(4)),k:parseFloat(k.toFixed(2))}], meltCount:count},
+        {bars:{[newId]:{desc:'تذويب',dt,src:'تذويب'}},
+         op:{c:'النظام',t:'تذويب سبائك',m:newPool==='24'?'ذهب 24':'ذهب 730',a:w,_ts:Date.now(),dt:nowStr,note:`${count} سبائك → ${fmt(w,2)}غ عيار ${fmt(k,1)}`}}
     );
     window._meltCtx=null;
-    const mm=document.getElementById('meltModal'); if(mm)mm.remove();
     try{window._invSel.clear();}catch(e){}
+    closeModal('meltModal');
+    const mm=document.getElementById('meltModal'); if(mm)mm.remove();
     renderInvModal();
     if(window.wsUpdSel)try{wsUpdSel();}catch(e){}
-    toast(`🫗 تم تذويب ${count} سبيكة في سبيكة ${fmt(newW,2)}غ (عيار ${fmt(newK,1)})`,'success');
+    toast('🔥 تم التذويب — سبيكة جديدة في المخزون','success');
 };
