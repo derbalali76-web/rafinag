@@ -1,4 +1,4 @@
-window.APP_JS_VER='v427';
+window.APP_JS_VER='v428';
 /* ═══════════ STATE ═══════════ */
 let B={دينار:0,'ذهب 730':0,'ذهب 24':0,دولار:0,vg730:0,vg24:0};
 let ops=[],invoices=[],debts=[],loans=[],rafInvoices=[],dollInvoices=[],dubaiInvoices=[];
@@ -2465,6 +2465,8 @@ function buildCustomerLogHtml(c,custOps){
         if(_xr){ out=_xr.out; _dispT=_xr.label; }
         _dispT=_shortOpType(_dispT);
         const unit=o.m==='دينار'?'DZD':o.m==='دولار'?'$':'g';
+        /* شحن: الرقم الرئيس = المستلَم (rc)، والمشحون في التفاصيل — عرض فقط */
+        const _amt=(o.t==='شحن'&&o.rc!=null)?Number(o.rc):(o.a||0);
         const amtColor=out?'#dc2626':'#16a34a';
         const amtSign=out?'−':'+';
         const tc=_xr?amtColor:(tColor[o.t]||'#374151');
@@ -2483,7 +2485,7 @@ function buildCustomerLogHtml(c,custOps){
                        +((o.diffG&&o.diffD)?' · ':'')
                        +(o.diffD?`${o.diffD>0?'+':'−'}${f(Math.abs(o.diffD),0)} DZD`:'')
                        ||'✏️ تصحيح')
-                    : `${amtSign}${f(o.a,(o.m==='دينار'||o.m==='دولار')?0:2)} ${unit}`}</td>
+                    : `${amtSign}${f(_amt,(o.m==='دينار'||o.m==='دولار')?0:2)} ${unit}`}</td>
             <td style="padding:7px 6px;font-size:11px;border-bottom:1px solid #e5e7eb">${detailHtml}</td>
         </tr>`;}).join('');
 
