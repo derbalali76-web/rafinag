@@ -1,4 +1,4 @@
-window.APP_JS_VER='v432';
+window.APP_JS_VER='v433';
 /* ═══════════ STATE ═══════════ */
 let B={دينار:0,'ذهب 730':0,'ذهب 24':0,دولار:0,vg730:0,vg24:0};
 let ops=[],invoices=[],debts=[],loans=[],rafInvoices=[],dollInvoices=[],dubaiInvoices=[];
@@ -2105,7 +2105,7 @@ function opDetailLines(o,cust){
         if(o.sentW) lines.push(`⚖️ المرسل: ${f(o.sentW,2)} غ 730`);
         if(o.rec24!=null) lines.push(`✨ المستلم: ${f(o.rec24,2)} غ 24 خالص`);
         if(o.fee) lines.push(`💸 الأجرة: ${f(o.fee,0)} دج`);
-    } else if(t==='بيع دبي'){
+    } else if(t==='بيع دبي'||t==='شراء دبي'){
         if(o.sentW) lines.push(`⚖️ الوزن: ${f(o.sentW,2)} غ 24`);
         if(o.sp)    lines.push(`📺 سعر الشاشة: ${f(o.sp,2)} $/أوقية`);
         if(o.disc)  lines.push(`🏷️ الخصم: ${f(o.disc,2)} $/أوقية`);
