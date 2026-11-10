@@ -1,4 +1,4 @@
-window.APP_JS_VER='v433';
+window.APP_JS_VER='v434';
 /* ═══════════ STATE ═══════════ */
 let B={دينار:0,'ذهب 730':0,'ذهب 24':0,دولار:0,vg730:0,vg24:0};
 let ops=[],invoices=[],debts=[],loans=[],rafInvoices=[],dollInvoices=[],dubaiInvoices=[];
@@ -534,6 +534,8 @@ function openSettings(){
     if(ap)ap.style.display=isAdmin?'block':'none';
     if(isAdmin){renderUsersList();if(typeof renderCustAccounts==='function')renderCustAccounts();}
     try{ const vi=document.getElementById('visionKeyInput'); if(vi)vi.value=_getVisionKey(); }catch(e){}
+    /* قسم تيليجرام — للأدمين فقط */
+    try{ const tb=document.getElementById('tgCfgBlock'); if(tb){ tb.style.display=isAdmin?'block':'none'; if(isAdmin&&typeof tgFillCfg==='function')tgFillCfg(); } }catch(e){}
     document.getElementById('settingsModal').classList.add('active');
     setTimeout(()=>document.getElementById('settingGoldPrice').focus(),320);
 }

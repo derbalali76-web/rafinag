@@ -1,4 +1,4 @@
-window.FB_JS_VER='v433';
+window.FB_JS_VER='v434';
 /* ═══════════ FIREBASE ═══════════ */
 const _fbConfig={
     apiKey:"AIzaSyDevHwoNCKXGm-G8GJc_Z5eZwcSPuQS9wI",
@@ -1898,6 +1898,96 @@ function _autoBackupTick(){
 }
 setInterval(_autoBackupTick,60*60*1000);                  /* فحص كل ساعة */
 setTimeout(_autoBackupTick,90*1000);                      /* وبعد دقيقة ونصف من الفتح */
+
+/* ═══════════ الإرسال التلقائي للنسخة إلى تيليجرام (الأدمين فقط) — كما في تطبيق حقو ═══════════
+   النسخة = متجر الأحداث كاملاً (منه تُبنى كل الأرصدة والفواتير)، تُرسَل كملف JSON
+   إلى محادثة البوت الخاصة بك عبر Telegram Bot API. كل ساعتين ما دام التطبيق مفتوحاً وفيه نت. */
+const TG_EVERY=2*60*60*1000;   /* كل ساعتين */
+let _tgBusy=false,_tgBusyAt=0;
+function tgKey(){return 'gp12_tg_'+(_currentUser||'admin');}
+function tgGet(){ try{return JSON.parse(localStorage.getItem(tgKey())||'{}')||{};}catch(e){return {};} }
+function tgSet(t){ try{localStorage.setItem(tgKey(),JSON.stringify(t||{}));}catch(e){} }
+function tgPayload(){
+    const d=new Date(),p=n=>String(n).padStart(2,'0');
+    const name=`GoldPro_${(_currentUser||'admin')}_${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}.json`;
+    const out=JSON.stringify({events:_allEvents,_exported:Date.now(),_user:(_currentUser||'admin'),_plain:true},null,2);
+    return {name,blob:new Blob([out],{type:'application/json'})};
+}
+window.tgFillCfg=function(){
+    const t=tgGet();
+    const S=(id,v)=>{const e=document.getElementById(id);if(e)e.value=v||'';};
+    S('tgToken',t.token); S('tgChat',t.chat);
+    const on=document.getElementById('tgOn'); if(on)on.checked=!!t.on;
+    const st=document.getElementById('tgStatus');
+    if(st){ let s=t.last?('آخر إرسال: '+new Date(t.last).toLocaleString('ar')):'لم تُرسَل نسخة بعد';
+        if(t.err)s+=' · ⚠️ '+t.err; st.textContent=s; }
+};
+window.tgSaveCfg=function(){
+    if(window._roleLock||_currentUser!=='admin')return toast('للمسؤول فقط','error');
+    const t=tgGet();
+    t.token=((document.getElementById('tgToken')||{}).value||'').trim();
+    t.chat=((document.getElementById('tgChat')||{}).value||'').trim();
+    t.on=!!(document.getElementById('tgOn')||{}).checked;
+    tgSet(t); tgFillCfg();
+    toast('💾 حُفظ إعداد تيليجرام'+(t.on?' — التلقائي مفعّل':''),'success');
+};
+async function tgSend(auto){
+    if(window._roleLock||_currentUser!=='admin')return {ok:false,msg:'للمسؤول فقط'};
+    const t=tgGet();
+    if(!t.token||!t.chat)return {ok:false,msg:'أكمل إعداد تيليجرام'};
+    if(!navigator.onLine)return {ok:false,msg:'لا يوجد اتصال بالإنترنت'};
+    if(!_allEvents||!_allEvents.length)return {ok:false,msg:'لا توجد بيانات'};
+    const {name,blob}=tgPayload();
+    const cap=`نسخة GoldPro — ${new Date().toLocaleString('ar')}\nعدد الأحداث: ${_allEvents.length}${auto?' (تلقائي)':''}`;
+    const fd=new FormData();
+    fd.append('chat_id',t.chat); fd.append('caption',cap); fd.append('document',blob,name);
+    const ctl=(typeof AbortController!=='undefined')?new AbortController():null;
+    const to=setTimeout(()=>{try{ctl&&ctl.abort();}catch(e){}},120000);
+    try{
+        const r=await fetch(`https://api.telegram.org/bot${t.token}/sendDocument`,{method:'POST',body:fd,signal:ctl?ctl.signal:undefined});
+        clearTimeout(to); const j=await r.json();
+        if(j.ok){ t.last=Date.now(); t.err=''; tgSet(t); return {ok:true,msg:'أُرسلت النسخة إلى تيليجرام'}; }
+        t.err=j.description||'فشل الإرسال'; tgSet(t); return {ok:false,msg:'تيليجرام: '+t.err};
+    }catch(e){ clearTimeout(to); t.err='تعذّر الاتصال'; tgSet(t); return {ok:false,msg:'تعذّر الاتصال بتيليجرام'}; }
+}
+window.tgSendNow=async function(){
+    toast('⏳ جارٍ الإرسال إلى تيليجرام...','info');
+    const r=await tgSend(false);
+    toast((r.ok?'✅ ':'⚠️ ')+r.msg, r.ok?'success':'error');
+    try{tgFillCfg();}catch(e){}
+};
+window.tgDetect=async function(){
+    const tok=((document.getElementById('tgToken')||{}).value||'').trim();
+    if(!tok)return toast('أدخل رمز البوت أولاً','error');
+    toast('🔍 جارٍ البحث عن المحادثة...','info');
+    try{
+        const r=await fetch(`https://api.telegram.org/bot${tok}/getUpdates`);
+        const j=await r.json();
+        if(!j.ok)return toast('رمز البوت غير صحيح','error');
+        const ids=[...new Set((j.result||[]).map(u=>{const m=u.message||u.channel_post||u.edited_message;return m&&m.chat&&m.chat.id;}).filter(x=>x!=null))];
+        if(!ids.length)return toast('أرسل رسالة «مرحبا» للبوت أولاً ثم أعد الاكتشاف','error');
+        const e=document.getElementById('tgChat'); if(e)e.value=String(ids[ids.length-1]);
+        toast('✅ وُجد رقم المحادثة','success');
+    }catch(e){ toast('تعذّر الاتصال بتيليجرام','error'); }
+};
+function tgCheck(){
+    try{
+        if(window._roleLock||_currentUser!=='admin')return;
+        const t=tgGet();
+        if(!t.on||!t.token||!t.chat)return;
+        if(!navigator.onLine)return;
+        if(typeof _unsyncedIds!=='undefined'&&_unsyncedIds.size>0)return;   /* لا نرسل نسخة ناقصة */
+        if(!_allEvents||!_allEvents.length)return;
+        if(_tgBusy&&Date.now()-_tgBusyAt>5*60*1000)_tgBusy=false;           /* حارس: لا يبقى مشغولاً للأبد */
+        if(_tgBusy)return;
+        if(t.last&&Date.now()-t.last<TG_EVERY)return;
+        _tgBusy=true;_tgBusyAt=Date.now();
+        setTimeout(async()=>{ try{ const r=await tgSend(true); if(r.ok)toast('✈️ نسخة أُرسلت إلى تيليجرام','success'); }catch(e){} finally{ _tgBusy=false; } },1500);
+    }catch(e){}
+}
+setInterval(tgCheck,5*60*1000);     /* فحص كل 5 دقائق */
+setTimeout(tgCheck,100*1000);       /* وبعد ~1.5 دقيقة من الفتح */
+try{ document.addEventListener('visibilitychange',()=>{ if(!document.hidden)tgCheck(); }); }catch(e){}
 
 function importData(e){
     const file=e.target.files[0];if(!file)return;

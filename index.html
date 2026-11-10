@@ -59,7 +59,7 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-messaging-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.2.0/crypto-js.min.js"></script>
-    <link rel="stylesheet" href="style.css?v=433">
+    <link rel="stylesheet" href="style.css?v=434">
     <script>
     /* منع وميض نافذة الدخول: إن كانت الجلسة محفوظة، نخفيها قبل أول رسم */
     (function(){try{
@@ -1198,6 +1198,27 @@
         <label><i class="fas fa-dollar-sign" style="color:var(--gr)"></i> سعر الدولار (دج/$)</label>
         <input type="number" inputmode="decimal" id="settingDollarRate" step="any" min="1">
     </div>
+    <div id="tgCfgBlock" style="display:none;border:1.5px solid #229ED9;background:rgba(34,158,217,.06);border-radius:12px;padding:.7rem;margin-bottom:.8rem">
+        <div style="font-weight:900;color:#229ED9;font-size:.85rem;margin-bottom:.15rem">✈️ نسخة تلقائية إلى تيليجرام</div>
+        <div style="font-size:.68rem;color:var(--t3);margin-bottom:.55rem">تُرسَل نسخة كاملة من بياناتك كل ساعتين إلى محادثة البوت الخاصة بك (ما دام التطبيق مفتوحاً وفيه إنترنت).</div>
+        <label style="font-size:.72rem;color:var(--t2);display:block;margin-bottom:.2rem">رمز البوت (Bot Token)</label>
+        <input id="tgToken" type="text" placeholder="123456789:AAH..." autocomplete="off"
+            style="width:100%;box-sizing:border-box;padding:.5rem;border:1.5px solid var(--border);border-radius:8px;background:var(--card);color:var(--t);font-family:monospace;font-size:.76rem;margin-bottom:.5rem">
+        <label style="font-size:.72rem;color:var(--t2);display:block;margin-bottom:.2rem">رقم المحادثة (Chat ID)</label>
+        <div style="display:flex;gap:.4rem;margin-bottom:.55rem">
+            <input id="tgChat" type="text" placeholder="اضغط اكتشاف" autocomplete="off"
+                style="flex:1;min-width:0;box-sizing:border-box;padding:.5rem;border:1.5px solid var(--border);border-radius:8px;background:var(--card);color:var(--t);font-family:monospace;font-size:.76rem">
+            <button onclick="tgDetect()" style="border:none;background:#229ED9;color:#fff;border-radius:8px;padding:0 .8rem;font-weight:800;font-family:Tajawal,sans-serif;font-size:.76rem;cursor:pointer;white-space:nowrap">🔍 اكتشاف</button>
+        </div>
+        <label style="display:flex;align-items:center;gap:.5rem;font-size:.8rem;color:var(--t2);cursor:pointer;margin-bottom:.55rem">
+            <input id="tgOn" type="checkbox" style="width:18px;height:18px;accent-color:#229ED9"> تفعيل الإرسال التلقائي كل ساعتين
+        </label>
+        <div style="display:flex;gap:.4rem">
+            <button onclick="tgSaveCfg()" style="flex:1;border:none;background:#229ED9;color:#fff;border-radius:8px;padding:.5rem;font-weight:800;font-family:Tajawal,sans-serif;font-size:.78rem;cursor:pointer">💾 حفظ الإعداد</button>
+            <button onclick="tgSendNow()" style="flex:1;border:1.5px solid #229ED9;background:transparent;color:#229ED9;border-radius:8px;padding:.5rem;font-weight:800;font-family:Tajawal,sans-serif;font-size:.78rem;cursor:pointer">📤 إرسال الآن</button>
+        </div>
+        <div id="tgStatus" style="font-size:.7rem;color:var(--t3);margin-top:.5rem;text-align:center"></div>
+    </div>
     <div class="mactions">
         <button class="bgy" onclick="closeModal('settingsModal')">إلغاء</button>
         <button class="bg" onclick="saveSettings()">💾 حفظ</button>
@@ -1277,14 +1298,14 @@
 
 
 <!-- ═══ ملفات JS ═══ -->
-<script src="firebase.js?v=433"></script>
-<script src="app.js?v=433"></script>
-<script src="assistant.js?v=433"></script>
-<script src="inventory.js?v=433"></script>
-<script src="invoice.js?v=433"></script>
-<script src="raffinage.js?v=433"></script>
-<script src="workshops.js?v=433"></script>
-<script src="auth.js?v=433"></script>
+<script src="firebase.js?v=434"></script>
+<script src="app.js?v=434"></script>
+<script src="assistant.js?v=434"></script>
+<script src="inventory.js?v=434"></script>
+<script src="invoice.js?v=434"></script>
+<script src="raffinage.js?v=434"></script>
+<script src="workshops.js?v=434"></script>
+<script src="auth.js?v=434"></script>
 
 
 
