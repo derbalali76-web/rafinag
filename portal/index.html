@@ -1,0 +1,206 @@
+<!doctype html>
+<html dir="rtl" lang="ar">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>بوابة الزبون — GoldPro</title>
+<meta name="theme-color" content="#b45309">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="بوابة الزبون">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#eef1f5;--card:#ffffff;--card2:#f5f7fa;--t:#1f2937;--t2:#475569;--t3:#9aa6b4;
+  --border:#e3e8ef;--g600:#b45309;--gr:#16a34a;--rd:#dc2626;--acc:#d97706;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0f141b;--card:#161d27;--card2:#1c2531;--t:#e8edf3;--t2:#aeb9c7;--t3:#6b7787;
+    --border:#263141;--g600:#f59e0b;--gr:#34d399;--rd:#f87171;--acc:#f59e0b;
+  }
+}
+*{box-sizing:border-box;font-family:'Tajawal',sans-serif;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--t);min-height:100%}
+body{padding:0;max-width:680px;margin:0 auto}
+.hd{display:flex;align-items:center;justify-content:space-between;gap:.5rem;padding:.9rem 1rem;background:linear-gradient(135deg,#b45309,#92400e);color:#fff;position:sticky;top:0;z-index:5}
+.hd .brand{font-weight:900;font-size:1.05rem;display:flex;align-items:center;gap:.4rem}
+.hd .sub{font-size:.68rem;opacity:.85;font-weight:700}
+.hd button{border:none;background:rgba(255,255,255,.18);color:#fff;border-radius:9px;padding:.4rem .7rem;font-weight:800;font-family:inherit;font-size:.78rem;cursor:pointer}
+.wrap{padding:1rem}
+.cards{display:grid;grid-template-columns:1fr 1fr;gap:.6rem;margin-bottom:1rem}
+.bcard{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:14px 12px;text-align:center}
+.bcard .ti{font-size:.72rem;color:var(--t3);font-weight:800;margin-bottom:5px}
+.bcard .vv{font-size:1.4rem;font-weight:900;font-family:monospace}
+.bcard .ll{font-size:.72rem;font-weight:800;margin-top:3px}
+.sec-title{font-size:.8rem;font-weight:900;color:var(--t2);margin:.2rem 0 .6rem}
+table{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--border);border-radius:12px;overflow:hidden}
+th{padding:.55rem .4rem;font-size:.66rem;color:var(--t3);background:var(--card2);font-weight:800}
+td{padding:.55rem .3rem;text-align:center;font-size:.72rem;border-bottom:1px solid var(--border)}
+.pill{display:inline-block;background:rgba(217,119,6,.12);border:1px solid rgba(217,119,6,.35);color:var(--g600);border-radius:8px;padding:.15rem .5rem;font-size:.66rem;font-weight:800}
+.det{margin-top:.25rem;font-size:.62rem;font-weight:700;color:var(--t2);line-height:1.7;text-align:right}
+.mono{font-family:monospace}
+.empty{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:1.6rem;text-align:center;color:var(--t3);font-weight:700}
+/* login */
+.login{max-width:360px;margin:9vh auto 0;padding:1.4rem 1.2rem;background:var(--card);border:1px solid var(--border);border-radius:18px;box-shadow:0 18px 50px rgba(0,0,0,.12)}
+.login h1{font-size:1.1rem;text-align:center;margin:.2rem 0 .1rem;color:var(--g600)}
+.login p{text-align:center;color:var(--t3);font-size:.76rem;margin:0 0 1rem}
+.login label{font-size:.74rem;color:var(--t2);font-weight:800;display:block;margin-bottom:.25rem}
+.login input{width:100%;box-sizing:border-box;padding:.65rem;border:1.5px solid var(--border);border-radius:10px;background:var(--card2);color:var(--t);font-family:inherit;font-size:1rem;margin-bottom:.8rem;text-align:center;font-weight:700}
+.login button{width:100%;padding:.75rem;border:none;border-radius:11px;background:#b45309;color:#fff;font-weight:900;font-family:inherit;font-size:.95rem;cursor:pointer}
+.err{display:none;background:rgba(239,68,68,.1);color:var(--rd);border:1px solid rgba(239,68,68,.3);border-radius:9px;padding:.5rem;font-size:.76rem;text-align:center;font-weight:700;margin-bottom:.7rem}
+.banner{display:none;background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.4);color:var(--acc);border-radius:10px;padding:.5rem .7rem;font-size:.72rem;font-weight:800;text-align:center;margin-bottom:.8rem}
+.foot{text-align:center;color:var(--t3);font-size:.62rem;padding:1.2rem 0 1.6rem}
+</style>
+</head>
+<body>
+<div id="loginView">
+  <div class="login">
+    <h1>🪙 بوابة الزبون</h1>
+    <p>ادخل إلى حسابك لمتابعة رصيدك ومعاملاتك</p>
+    <div id="loginErr" class="err"></div>
+    <label>رقم الهاتف</label>
+    <input id="phone" type="tel" inputmode="numeric" placeholder="05xxxxxxxx" autocomplete="username">
+    <label>كلمة المرور</label>
+    <input id="pw" type="password" placeholder="••••••" autocomplete="current-password">
+    <button id="loginBtn" onclick="doLogin()">دخول</button>
+  </div>
+  <div class="foot">GoldPro — نظام الرافيناج</div>
+</div>
+
+<div id="appView" style="display:none">
+  <div class="hd">
+    <div>
+      <div class="brand">🪙 <span id="custName">—</span></div>
+      <div class="sub">بوابة الزبون · GoldPro</div>
+    </div>
+    <button onclick="doLogout()">خروج</button>
+  </div>
+  <div class="wrap">
+    <div id="offlineBanner" class="banner">⚠️ غير متصل — تعرض آخر بيانات محفوظة</div>
+    <div id="cards" class="cards"></div>
+    <div class="sec-title">📒 سجل المعاملات</div>
+    <div id="body"></div>
+    <div class="foot">آخر تحديث: <span id="updAt">—</span></div>
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script>
+const CFG={
+  apiKey:"AIzaSyDevHwoNCKXGm-G8GJc_Z5eZwcSPuQS9wI",
+  authDomain:"rafinag-157d2.firebaseapp.com",
+  databaseURL:"https://rafinag-157d2-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId:"rafinag-157d2",
+  storageBucket:"rafinag-157d2.firebasestorage.app",
+  messagingSenderId:"335646681403",
+  appId:"1:335646681403:web:0b58e844426e0055b86f1e"
+};
+const FB_DOMAIN='@goldpro.local', PW_SUFFIX='__GoldPro$ok', PORTAL='goldpro/_portal';
+let _db,_auth,_phone='',_ref=null,_cb=null;
+try{ firebase.initializeApp(CFG); _db=firebase.database(); _auth=firebase.auth(); }catch(e){}
+
+function fmt(n,d){ n=Number(n)||0; const s=n.toLocaleString('en-US',{minimumFractionDigits:d||0,maximumFractionDigits:d||0}); return s.replace(/,/g,' '); }
+function showErr(m){ const e=document.getElementById('loginErr'); e.textContent=m; e.style.display='block'; }
+
+async function doLogin(){
+  const phone=(document.getElementById('phone').value||'').replace(/[^0-9]/g,'');
+  const pw=(document.getElementById('pw').value||'').trim();
+  document.getElementById('loginErr').style.display='none';
+  if(phone.length<6)return showErr('أدخل رقم هاتف صحيحاً');
+  if(!pw)return showErr('أدخل كلمة المرور');
+  const btn=document.getElementById('loginBtn'); btn.disabled=true; btn.textContent='جارٍ الدخول…';
+  const email='c'+phone+FB_DOMAIN;
+  let ok=false;
+  try{ await _auth.signInWithEmailAndPassword(email,pw+PW_SUFFIX); ok=true; }
+  catch(e){ try{ await _auth.signInWithEmailAndPassword(email,pw); ok=true; }catch(e2){} }
+  btn.disabled=false; btn.textContent='دخول';
+  if(!ok)return showErr('رقم الهاتف أو كلمة المرور غير صحيحة');
+  try{localStorage.setItem('portal_phone',phone);}catch(e){}
+  _phone=phone; _start();
+}
+function doLogout(){
+  try{ if(_ref&&_cb)_ref.off('value',_cb); }catch(e){}
+  try{localStorage.removeItem('portal_phone');}catch(e){}
+  try{localStorage.removeItem('portal_data_'+_phone);}catch(e){}
+  _auth.signOut().finally(()=>location.reload());
+}
+
+function _cacheKey(){return 'portal_data_'+_phone;}
+function _start(){
+  document.getElementById('loginView').style.display='none';
+  document.getElementById('appView').style.display='block';
+  /* اعرض المحفوظ فوراً (أوفلاين/سريع) */
+  try{ const c=JSON.parse(localStorage.getItem(_cacheKey())||'null'); if(c)render(c); }catch(e){}
+  if(_ref&&_cb){try{_ref.off('value',_cb);}catch(e){}}
+  _ref=_db.ref(PORTAL+'/'+_phone);
+  _cb=_ref.on('value',s=>{
+    const v=s.val();
+    document.getElementById('offlineBanner').style.display='none';
+    if(v){ try{localStorage.setItem(_cacheKey(),JSON.stringify(v));}catch(e){} render(v); }
+    else { render({name:'',bal:{},rows:[]}); }
+  },err=>{
+    document.getElementById('offlineBanner').style.display='block';
+  });
+}
+
+function lbl(v){ return v>0.001?'مطلوب منك':(v<-0.001?'لك':'مُسوّى'); }
+function clrV(v){ return v>0.001?'var(--rd)':(v<-0.001?'var(--gr)':'var(--t3)'); }
+const ROWCLR={acc:'var(--g600)',red:'var(--rd)',green:'var(--gr)'};
+
+function render(d){
+  d=d||{}; const bal=d.bal||{};
+  document.getElementById('custName').textContent=d.name||'حسابي';
+  /* بطاقات الرصيد */
+  const card=(ti,v,unit,dec)=>`<div class="bcard"><div class="ti">${ti}</div>
+    <div class="vv" style="color:${clrV(v)}">${fmt(Math.abs(v),dec)} <span style="font-size:.72rem">${unit}</span></div>
+    <div class="ll" style="color:${clrV(v)}">${lbl(v)}</div></div>`;
+  let ch=card('الرصيد (دينار)',bal.din||0,'دج',0)+card('الرصيد (ذهب)',bal.g24||0,'غ',2);
+  if(Math.abs(bal.g730||0)>0.001)ch+=card('ذهب 730',bal.g730,'غ',2);
+  if(Math.abs(bal.usd||0)>0.001)ch+=card('دولار',bal.usd,'$',0);
+  document.getElementById('cards').innerHTML=ch;
+  /* السجل */
+  const rows=d.rows||[];
+  const body=document.getElementById('body');
+  if(!rows.length){ body.innerHTML='<div class="empty">لا توجد معاملات بعد.</div>'; }
+  else{
+    body.innerHTML=`<table><thead><tr><th>التاريخ</th><th>النوع</th><th>الذهب</th><th>المبلغ</th></tr></thead><tbody>`+
+      rows.map(r=>{
+        const c=ROWCLR[r.clr]||'var(--g600)';
+        const det=(r.details&&r.details.length)?`<div class="det">${r.details.map(esc).join('<br>')}</div>`:'';
+        return `<tr>
+          <td class="mono" style="color:var(--t3);font-size:.64rem">${esc(r.dt||'')}</td>
+          <td><span class="pill">${esc(r.label||'—')}</span>${det}</td>
+          <td class="mono" style="font-weight:800;color:${c}">${esc(r.gv||'—')}</td>
+          <td class="mono" style="font-weight:900;color:${c}">${esc(r.dv||'—')}</td>
+        </tr>`;}).join('')+`</tbody></table>`;
+  }
+  const u=document.getElementById('updAt');
+  if(u)u.textContent=d.updatedAt?new Date(d.updatedAt).toLocaleString('ar'):'—';
+}
+function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+window.addEventListener('online',()=>{document.getElementById('offlineBanner').style.display='none';});
+window.addEventListener('offline',()=>{ if(document.getElementById('appView').style.display!=='none')document.getElementById('offlineBanner').style.display='block';});
+
+/* استعادة الجلسة تلقائياً */
+_auth&&_auth.onAuthStateChanged(u=>{
+  if(u){
+    let ph=''; try{ph=localStorage.getItem('portal_phone')||'';}catch(e){}
+    if(!ph){ const m=(u.email||'').match(/^c(\d+)@/); ph=m?m[1]:''; }
+    if(ph){ _phone=ph; _start(); }
+  }
+});
+try{ const _p=new URLSearchParams(location.search).get('p'); if(_p)document.getElementById('phone').value=_p.replace(/[^0-9]/g,''); }catch(e){}
+document.getElementById('pw').addEventListener('keydown',e=>{ if(e.key==='Enter')doLogin(); });
+/* تثبيت كتطبيق مستقل (PWA) — service worker خاص بالبوابة لا يتعارض مع التطبيق الرئيسي */
+if('serviceWorker' in navigator){ window.addEventListener('load',()=>{ navigator.serviceWorker.register('sw.js').catch(()=>{}); }); }
+</script>
+</body>
+</html>
