@@ -1,4 +1,4 @@
-window.FB_JS_VER='v437';
+window.FB_JS_VER='v438';
 /* ═══════════ FIREBASE ═══════════ */
 const _fbConfig={
     apiKey:"AIzaSyDevHwoNCKXGm-G8GJc_Z5eZwcSPuQS9wI",
@@ -2015,7 +2015,10 @@ function _custStatement(name){
         const _pt=_PORTAL_PERSP[o.t]||o.t;
         const label=(typeof window._shortOpType==='function'?window._shortOpType(_pt):_pt)||'—';
         const details=o.xferTo?['🔁 تحويل إلى: '+o.xferTo]:(o.xferFrom?['🔁 تحويل وارد من: '+o.xferFrom]:((typeof opDetailLines==='function')?opDetailLines(o,true):[]));
-        return {dt:o.dt||'',label,gv,dv,clr,details:(details||[]).slice(0,8)};
+        const inv=o.rid?('r_'+o.rid):(o.iid?('i_'+o.iid):(o.did?('d_'+o.did):''));
+        const row={dt:o.dt||'',label,gv,dv,clr,details:(details||[]).slice(0,8)};
+        if(inv)row.inv=inv.replace(/[.#$\[\]\/]/g,'_');
+        return row;
     });
     return {name,bal,rows,updatedAt:Date.now()};
 }
@@ -2039,9 +2042,36 @@ async function _publishPortals(force){
         });
         const phones=Object.keys(ups);
         for(const phone of phones){ try{ await _db.ref(_PORTAL_PATH+'/'+phone).set(ups[phone]); }catch(e){} }
+        /* الفواتير: كل فاتورة في عقدة منفصلة (_portalInv) تُحمَّل عند الضغط فقط —
+           لا تُنشر إلا الفاتورة التي تغيّرت (بصمة محفوظة محلياً). */
+        for(const phone of phones){ try{ await _publishPortalInvs(phone,ups[phone].rows||[]); }catch(e){} }
     }catch(e){}
 }
 window._publishPortals=_publishPortals;
+window._PORTAL_INV_PATH='goldpro/_portalInv';
+function _pHash(str){ let h=5381; for(let i=0;i<str.length;i++)h=((h<<5)+h+str.charCodeAt(i))|0; return (h>>>0).toString(36)+'_'+str.length; }
+function _portalInvHtml(key){
+    const kind=key.slice(0,2), id=key.slice(2);
+    const same=x=>String(x.id).replace(/[.#$\[\]\/]/g,'_')===id;
+    if(kind==='r_'){ const r=(typeof rafInvoices!=='undefined'?rafInvoices:[]).find(same); return r&&typeof buildRafHtml==='function'?buildRafHtml(r):''; }
+    if(kind==='i_'){ const v=(typeof invoices!=='undefined'?invoices:[]).find(same); return v&&typeof buildInvHtml==='function'?buildInvHtml(v):''; }
+    if(kind==='d_'){ const v=(typeof dollInvoices!=='undefined'?dollInvoices:[]).find(same); return v&&typeof buildDollHtml==='function'?buildDollHtml(v):''; }
+    return '';
+}
+async function _publishPortalInvs(phone,rows){
+    let sigs={}; try{ sigs=JSON.parse(localStorage.getItem('gp_portal_invsig')||'{}')||{}; }catch(e){}
+    const ups={}; let n=0;
+    rows.forEach(r=>{
+        if(!r.inv)return;
+        let html=''; try{ html=_portalInvHtml(r.inv)||''; }catch(e){ html=''; }
+        if(!html||html.length>300000)return;
+        const k=phone+'/'+r.inv, h=_pHash(html);
+        if(sigs[k]!==h){ ups[r.inv]={html,ts:Date.now()}; sigs[k]=h; n++; }
+    });
+    if(!n)return;
+    await _db.ref(window._PORTAL_INV_PATH+'/'+phone).update(ups);
+    try{ localStorage.setItem('gp_portal_invsig',JSON.stringify(sigs)); }catch(e){}
+}
 function _schedulePortalPublish(){ if(_portalTimer)return; _portalTimer=setTimeout(()=>{_portalTimer=null;_publishPortals(false);},8000); }
 window._schedulePortalPublish=_schedulePortalPublish;
 setInterval(()=>{ try{_publishPortals(false);}catch(e){} },90*1000);     /* ضمان دوري */
