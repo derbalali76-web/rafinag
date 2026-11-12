@@ -25,7 +25,9 @@ window.doLoginUnified=async function(){
     if(!u)return _showLoginErr('أدخل اسم المستخدم');
     if(/^[0-9]{6,}$/.test(u)){
         if(!pw)return _showLoginErr('أدخل كلمة المرور');
-        return doLoginCustomer(u,pw);                             /* رقم هاتف = زبون */
+        /* رقم هاتف = زبون → لا دخول للتطبيق الرسمي: يُرسل لبوابته (لا يقرأ أي بيانات للمحل) */
+        try{localStorage.setItem('gp12_role','customer');}catch(e){}
+        location.replace('portal/?p='+encodeURIComponent(u)); return;
     }
     if(_RAFPARTNERS[u])return doLoginPartner(u,pw);               /* شريك رافيناج (عرض) */
     if(_RAFEDITORS[u])return doLoginRafEditor(u,pw);             /* محرّر رافيناج (تسجيل) */
@@ -238,6 +240,8 @@ function _finishLogin(uname,pw,role,ws,custName){
     localStorage.setItem('gp12_role',role);
     if(ws)localStorage.setItem('gp12_ws',ws);else localStorage.removeItem('gp12_ws');
     if(custName)localStorage.setItem('gp12_cname',custName);else localStorage.removeItem('gp12_cname');
+    /* الزبون لا يستعمل التطبيق الرسمي: يُنقل فوراً إلى بوابته المعزولة */
+    if(role==='customer'){ try{location.replace('portal/');}catch(e){} return; }
     const _isMobile=/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
     if(!_isMobile&&document.documentElement.requestFullscreen&&!document.fullscreenElement)
         document.documentElement.requestFullscreen().catch(()=>{});

@@ -1,4 +1,4 @@
-window.FB_JS_VER='v434';
+window.FB_JS_VER='v437';
 /* ═══════════ FIREBASE ═══════════ */
 const _fbConfig={
     apiKey:"AIzaSyDevHwoNCKXGm-G8GJc_Z5eZwcSPuQS9wI",
@@ -1216,6 +1216,8 @@ function _reproject(){
     if(window._roleLock==='customer'&&typeof renderCustomerPortal==='function'){
         try{renderCustomerPortal();}catch(e){}
     }
+    /* نشر كشوف البوابة المنفصلة (الأدمين فقط، مؤجّل ومُخمَّد) */
+    try{ if(typeof _schedulePortalPublish==='function')_schedulePortalPublish(); }catch(e){}
 }
 
 /* ═══════════ تدقيق السيولة: دلتا كل حدث ورصيد جارٍ ═══════════ */
@@ -1988,6 +1990,62 @@ function tgCheck(){
 setInterval(tgCheck,5*60*1000);     /* فحص كل 5 دقائق */
 setTimeout(tgCheck,100*1000);       /* وبعد ~1.5 دقيقة من الفتح */
 try{ document.addEventListener('visibilitychange',()=>{ if(!document.hidden)tgCheck(); }); }catch(e){}
+
+/* ═══════════ نشر كشوف الزبائن لبوابة منفصلة آمنة (goldpro/_portal/<phone>) ═══════════
+   لكل زبون مسجَّل: نحسب كشفه (أرصدة + سجل جاهز للعرض) وننشره في عقدته الخاصة،
+   ولا يقرؤه إلا هو (قواعد Firebase). ننشر فقط ما تغيّر (بصمة) لتفادي الكتابة الزائدة.
+   يعمل على جهاز الأدمين فقط. البوابة صفحة مستقلة (portal.html) تقرأ عقدتها فقط. */
+window._PORTAL_PATH='goldpro/_portal';
+let _portalSigs={}, _portalCustCache=null, _portalCustAt=0, _portalTimer=null;
+const _PORTAL_PERSP={'أعطيت':'استلمت','استلمت':'أعطيت','بيع بسعر':'شراء بسعر','شراء بسعر':'بيع بسعر','بيع':'شراء','شراء':'بيع','شراء دولار':'بيع دولار','بيع دولار':'شراء دولار'};
+function _portalNorm(s){return (s||'').trim().replace(/\s+/g,' ');}
+function _custStatement(name){
+    const key=_portalNorm(name);
+    const _bal=tp=>(typeof debts!=='undefined'?debts:[]).filter(d=>_portalNorm(d.c)===key&&d.type===tp).reduce((s,d)=>s+(d.a||0),0);
+    const bal={din:_bal('دينار'),g24:_bal('ذهب 24'),g730:_bal('ذهب 730'),usd:_bal('دولار')};
+    const mine=(typeof ops!=='undefined'?ops:[]).filter(o=>_portalNorm(o.c)===key).slice(0,100);
+    const rows=mine.map(o=>{
+        const _isFix=(o.t==='تصحيح فاتورة');
+        const isG=!_isFix&&(o.m||'').includes('ذهب');
+        const gv=_isFix?(o.diffG?((o.diffG>0?'+':'−')+fmt(Math.abs(o.diffG),2)+' غ'):'—'):(isG?fmt(Math.abs(o.a||0),2)+' غ':'—');
+        const dv=_isFix?(o.diffD?fmt(Math.abs(o.diffD),0)+' دج':'—'):((o.fee&&o.fee>0)?fmt(o.fee,0)+' دج':(!isG?fmt(Math.abs(o.a||0),0)+((o.m==='دولار')?' $':' دج'):'—'));
+        let clr='acc';
+        const _xr=(typeof _xferRowDir==='function')?_xferRowDir(o):null;
+        if(_xr)clr=_xr.red?'red':'green'; else if((o.t||'').indexOf('رافيناج')===0)clr='green';
+        const _pt=_PORTAL_PERSP[o.t]||o.t;
+        const label=(typeof window._shortOpType==='function'?window._shortOpType(_pt):_pt)||'—';
+        const details=o.xferTo?['🔁 تحويل إلى: '+o.xferTo]:(o.xferFrom?['🔁 تحويل وارد من: '+o.xferFrom]:((typeof opDetailLines==='function')?opDetailLines(o,true):[]));
+        return {dt:o.dt||'',label,gv,dv,clr,details:(details||[]).slice(0,8)};
+    });
+    return {name,bal,rows,updatedAt:Date.now()};
+}
+async function _publishPortals(force){
+    try{
+        if(window._roleLock||_currentUser!=='admin')return;          /* الأدمين فقط */
+        if(!navigator.onLine||!_db)return;
+        if(typeof _unsyncedIds!=='undefined'&&_unsyncedIds.size>0&&!force)return;   /* لا ننشر كشفاً ناقصاً */
+        if(!_portalCustCache||Date.now()-_portalCustAt>5*60*1000){
+            const snap=await new Promise(r=>{const t=setTimeout(()=>r(null),8000);_db.ref(_CUSTS_PATH).once('value',s=>{clearTimeout(t);r(s.val());},()=>{clearTimeout(t);r(null);});});
+            if(snap){_portalCustCache=snap;_portalCustAt=Date.now();}
+        }
+        const custs=_portalCustCache||{};
+        const ups={};
+        Object.keys(custs).forEach(phone=>{
+            const nm=(custs[phone]&&custs[phone].name)||'';
+            if(!nm)return;
+            let st; try{st=_custStatement(nm);}catch(e){return;}
+            const sig=JSON.stringify([st.bal,st.rows]);
+            if(force||_portalSigs[phone]!==sig){ _portalSigs[phone]=sig; ups[phone]=st; }
+        });
+        const phones=Object.keys(ups);
+        for(const phone of phones){ try{ await _db.ref(_PORTAL_PATH+'/'+phone).set(ups[phone]); }catch(e){} }
+    }catch(e){}
+}
+window._publishPortals=_publishPortals;
+function _schedulePortalPublish(){ if(_portalTimer)return; _portalTimer=setTimeout(()=>{_portalTimer=null;_publishPortals(false);},8000); }
+window._schedulePortalPublish=_schedulePortalPublish;
+setInterval(()=>{ try{_publishPortals(false);}catch(e){} },90*1000);     /* ضمان دوري */
+setTimeout(()=>{ try{_publishPortals(true);}catch(e){} },25*1000);       /* نشر أولي بعد الإقلاع */
 
 function importData(e){
     const file=e.target.files[0];if(!file)return;

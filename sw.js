@@ -5,13 +5,13 @@ const NS = (() => { try {
   return String(seg).toLowerCase().replace(/[^a-z0-9_-]/g,'');
 } catch(e){ return 'root'; } })();
 const CACHE_PREFIX = 'goldpro@' + NS + '-';
-const CACHE = CACHE_PREFIX + 'v434';
+const CACHE = CACHE_PREFIX + 'v437';
 const ASSETS = [
   './','./index.html',
-  './style.css?v=434',
-  './firebase.js?v=434','./app.js?v=434','./assistant.js?v=434',
-  './inventory.js?v=434','./invoice.js?v=434','./raffinage.js?v=434',
-  './workshops.js?v=434','./auth.js?v=434',
+  './style.css?v=437',
+  './firebase.js?v=437','./app.js?v=437','./assistant.js?v=437',
+  './inventory.js?v=437','./invoice.js?v=437','./raffinage.js?v=437',
+  './workshops.js?v=437','./auth.js?v=437',
   './manifest.json',
   './icons/icon-192.png','./icons/icon-512.png',
   './icons/icon-512-maskable.png','./icons/icon-180.png',
@@ -39,6 +39,8 @@ self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return;
   const url = new URL(e.request.url);
   /* لا تعترض ملفات/نطاق الإشعارات — يجب أن تصل طازجة دائماً */
+  /* البوابة (portal/) لها service worker خاص — لا يعترضها التطبيق الرئيسي */
+  if (url.origin === self.location.origin && url.pathname.includes('/portal/')) return;
   if (url.pathname.includes('firebase-messaging-sw') ||
       url.pathname.includes('firebase-cloud-messaging-push-scope') ||
       url.pathname.endsWith('/sw.js') || url.pathname.endsWith('sw.js')) return;

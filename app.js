@@ -1,4 +1,4 @@
-window.APP_JS_VER='v434';
+window.APP_JS_VER='v437';
 /* ═══════════ STATE ═══════════ */
 let B={دينار:0,'ذهب 730':0,'ذهب 24':0,دولار:0,vg730:0,vg24:0};
 let ops=[],invoices=[],debts=[],loans=[],rafInvoices=[],dollInvoices=[],dubaiInvoices=[];
@@ -802,6 +802,81 @@ function net(){
     return din+dol+g730+g24;
 }
 function getCustBal(c,metal){return debts.filter(d=>d.c===c&&d.type===metal).reduce((s,d)=>s+(d.a||0),0)}
+
+/* ═══════════ تحويل ذهب البيع إلى رأس المال (حانوت) — كما في تطبيق السلعة ═══════════
+   المبلغ يُدخَل بوحدة 730 (كما في البطاقة)، يُحوَّل لمكافئ 24 (× 730 ÷ 1000)،
+   ثم يُسجَّل كدَين «ذهب 24» سالب على «حانوت» (رأس المال) — بلا أي مساس بالمخزون أو الخزنة.
+   أثره: ذهب البيع ينقص بنفس مبلغ الـ730 المحوَّل، ورصيد حانوت(24) يزداد سلباً. (الأدمين فقط) */
+function _goldSale730(){
+    const _bk=_netBuckets(); let _tb=0;
+    try{(window._tarbahList||[]).forEach(x=>{const w=parseFloat(String(x.weight||'').replace(/\s/g,'').replace(',','.'))||0;_tb+=(x.type==='sell'?-w:w);});}catch(e){}
+    return _bk.raw_730 + _bk.raw_24*(1000/730) + _tb;
+}
+window.openHanoutConvert=function(){
+    const isAdmin=_usersCache[_currentUser]&&_usersCache[_currentUser].isAdmin;
+    if(!isAdmin||window._roleLock)return;                 /* للمسؤول فقط — بصمت */
+    const total730=_goldSale730();
+    if(!(total730>0.001))return toast('لا يوجد ذهب بيع موجب للتحويل','info');
+    window._hanoutMax=total730;
+    let m=document.getElementById('hanoutModal'); if(m)m.remove();
+    m=document.createElement('div'); m.id='hanoutModal'; m.className='modal-overlay';
+    m.onclick=(e)=>{ if(e.target===m)closeModal('hanoutModal'); };
+    m.innerHTML=`<div class="modal" style="max-width:400px">
+        <div class="modal-handle"></div>
+        <h3 style="font-size:.95rem">🏦 تحويل ذهب البيع إلى رأس المال</h3>
+        <div style="font-size:.76rem;color:var(--t2);background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:.55rem;margin-bottom:.6rem;line-height:1.9">
+            ذهب البيع المتاح: <strong>${fmt(total730,2)} غ</strong> <span style="color:var(--t3)">(730)</span><br>
+            يُحوَّل لمكافئ 24 ثم يُسجَّل سالباً على رأس المال — لا يُمسّ المخزون.
+        </div>
+        <label style="font-size:.72rem;color:var(--t2);display:block;margin-bottom:.2rem">الطرف (رأس المال)</label>
+        <input id="hanoutParty" type="text" list="customersDatalist" value="حانوت" autocomplete="off"
+            style="width:100%;box-sizing:border-box;padding:.55rem;border:1.5px solid var(--border);border-radius:8px;background:var(--card);color:var(--t);font-family:Tajawal,sans-serif;font-weight:800;margin-bottom:.55rem">
+        <label style="font-size:.72rem;color:var(--t2);display:block;margin-bottom:.2rem">المبلغ المحوَّل (غ 730) — للكل أو جزء</label>
+        <input id="hanoutAmt" type="text" inputmode="decimal" value="${fmt(total730,2).replace(/\s/g,'')}" oninput="window._hanoutPrev&&_hanoutPrev()"
+            style="width:100%;box-sizing:border-box;padding:.55rem;border:1.5px solid var(--border);border-radius:8px;background:var(--card);color:var(--t);font-family:monospace;font-weight:900;text-align:center;font-size:1rem;margin-bottom:.5rem">
+        <div id="hanoutPrev" style="background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:.5rem .65rem;font-size:.74rem;line-height:1.9;margin-bottom:.6rem"></div>
+        <div class="mactions">
+            <button class="bgy" onclick="closeModal('hanoutModal')">إلغاء</button>
+            <button class="bg" onclick="confirmHanoutConvert()" style="background:#229ED9;color:#fff">🏦 تحويل</button>
+        </div>
+    </div>`;
+    document.body.appendChild(m);
+    m.classList.add('active');
+    window._hanoutPrev=function(){
+        const box=document.getElementById('hanoutPrev'); if(!box)return;
+        const a730=readNum('hanoutAmt');
+        const party=((document.getElementById('hanoutParty')||{}).value||'حانوت').trim()||'حانوت';
+        if(!(a730>0)){ box.innerHTML='<span style="color:var(--t3)">أدخل مبلغاً صحيحاً</span>'; return; }
+        const a24=a730*730/1000;
+        const cur=getCustBal(party,'ذهب 24');
+        const after=cur-a24;
+        box.innerHTML=
+            `مكافئ 24: <b style="color:var(--t)">${fmt(a24,2)} غ</b><br>`+
+            `ذهب البيع بعده: <b style="color:var(--t)">${fmt(window._hanoutMax-a730,2)} غ</b> (730)<br>`+
+            `رصيد ${party} (24): <b style="color:var(--t2)">${fmt(cur,2)}</b> → <b style="color:${after<-0.001?'var(--rd)':'var(--t)'}">${fmt(after,2)}</b>`;
+    };
+    _hanoutPrev();
+    setTimeout(()=>{const e=document.getElementById('hanoutAmt');if(e){e.focus();e.select();}},300);
+};
+window.confirmHanoutConvert=function(){
+    const isAdmin=_usersCache[_currentUser]&&_usersCache[_currentUser].isAdmin;
+    if(!isAdmin||window._roleLock)return toast('للمسؤول فقط','error');
+    const party=((document.getElementById('hanoutParty')||{}).value||'حانوت').trim()||'حانوت';
+    const a730=readNum('hanoutAmt');
+    if(!(a730>0))return toast('أدخل مبلغاً صحيحاً','error');
+    if(a730>(window._hanoutMax||0)+0.01)return toast('المبلغ أكبر من ذهب البيع المتاح','error');
+    const a24=Math.round(a730*730/1000*1000)/1000;        /* 730 → مكافئ 24 */
+    const nowStr=new Date().toLocaleDateString('fr-FR',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
+    const note=`تحويل ${fmt(a730,2)}غ (730) من ذهب البيع → ${fmt(a24,2)}غ (24) لرأس المال`;
+    emitEvent('GT',
+        {gtType:'take',c:party,m:'ذهب 24',finalAmount:a24,note,barsAdd:[],barsRemove:[],barUpdates:[]},
+        {op:{c:party,t:'تحويل لرأس المال',m:'ذهب 24',a:a24,_ts:Date.now(),dt:nowStr,note}}
+    );
+    closeModal('hanoutModal');
+    const mm=document.getElementById('hanoutModal'); if(mm)mm.remove();
+    updAll();save();
+    toast(`🏦 حُوِّل ${fmt(a730,2)}غ إلى رأس المال (${party} ${fmt(a24,2)}غ 24)`,'success');
+};
 
 /* ═══════════ UI ═══════════ */
 function upd(){

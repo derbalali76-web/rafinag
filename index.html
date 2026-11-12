@@ -37,6 +37,22 @@
         window.__GP_NS=NS;
     }catch(e){}})();
     </script>
+    <script>
+    /* الزبون لا يستعمل التطبيق الرسمي: أي فتح (حتى من أيقونة التطبيق المثبّت القديمة) يُحوَّل إلى البوابة */
+    (function(){try{
+        if(localStorage.getItem('gp12_role')==='customer'){
+            /* امسح أي نسخة محلية من بيانات المحل نزلت سابقاً على جهاز الزبون */
+            try{
+                var NSP=window.__GP_NS||'', rm=[];
+                for(var i=0;i<localStorage.length;i++){ var k=localStorage.key(i);
+                    if(k&&k.indexOf(NSP)===0&&k!==NSP+'gp12_role')rm.push(k); }
+                rm.forEach(function(k){ Storage.prototype.removeItem.call(localStorage,k.slice(NSP.length)); });
+            }catch(e){}
+            try{ indexedDB.deleteDatabase('goldpro_db'); }catch(e){}
+            location.replace('portal/');
+        }
+    }catch(e){}})();
+    </script>
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
@@ -59,7 +75,7 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-messaging-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.2.0/crypto-js.min.js"></script>
-    <link rel="stylesheet" href="style.css?v=434">
+    <link rel="stylesheet" href="style.css?v=437">
     <script>
     /* منع وميض نافذة الدخول: إن كانت الجلسة محفوظة، نخفيها قبل أول رسم */
     (function(){try{
@@ -185,11 +201,12 @@
                     <div class="nw-val" id="netWorth">0 DZD</div>
                     <div class="nw-sub" id="netWorthDetails">جاري الحساب...</div>
                 </div>
-                <div class="gold-sale-card">
+                <div class="gold-sale-card" onclick="openHanoutConvert()" style="cursor:pointer" title="تحويل لرأس المال (حانوت)">
                     <div class="gs-title"><i class="fas fa-coins"></i> ذهب البيع</div>
                     <div class="gs-val" id="goldSaleTotal">0.00 غ</div>
                     <div class="gs-lbl" id="goldSaleAvg" style="margin-top:.2rem;color:var(--g600);font-weight:800">—</div>
                     <div class="gs-lbl" style="margin-top:.1rem">عيار 730</div>
+                    <div class="gs-lbl" id="goldSaleHint" style="margin-top:.3rem;font-size:.58rem;color:#229ED9;font-weight:800">👆 تحويل لرأس المال</div>
                 </div>
             </div>
             <div class="bgrid">
@@ -1298,14 +1315,14 @@
 
 
 <!-- ═══ ملفات JS ═══ -->
-<script src="firebase.js?v=434"></script>
-<script src="app.js?v=434"></script>
-<script src="assistant.js?v=434"></script>
-<script src="inventory.js?v=434"></script>
-<script src="invoice.js?v=434"></script>
-<script src="raffinage.js?v=434"></script>
-<script src="workshops.js?v=434"></script>
-<script src="auth.js?v=434"></script>
+<script src="firebase.js?v=437"></script>
+<script src="app.js?v=437"></script>
+<script src="assistant.js?v=437"></script>
+<script src="inventory.js?v=437"></script>
+<script src="invoice.js?v=437"></script>
+<script src="raffinage.js?v=437"></script>
+<script src="workshops.js?v=437"></script>
+<script src="auth.js?v=437"></script>
 
 
 
