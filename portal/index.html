@@ -57,6 +57,11 @@ body{padding:0;max-width:680px;margin:0 auto}
 .banner{display:none;background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.4);color:var(--acc);border-radius:10px;padding:.5rem .7rem;font-size:.72rem;font-weight:800;text-align:center;margin-bottom:.8rem}
 .invrow{cursor:pointer}
 .invrow:active{background:var(--card2)}
+.dtc{width:62px;padding:.5rem .15rem!important;line-height:1.35;white-space:nowrap}
+.dtc .dd{direction:ltr;unicode-bidi:isolate;font-size:.6rem;font-weight:800;color:var(--t2)}
+.dtc .tt{font-size:.56rem;color:var(--t3);font-family:monospace}
+.unitn{font-family:'Tajawal',sans-serif;font-size:.58rem;font-weight:400;color:var(--t3);margin-top:2px}
+.fixn{white-space:nowrap;font-size:.56rem;font-weight:400;color:#0d9488;margin-top:3px}
 .eye{font-size:.55rem;color:#0ea5e9;margin-top:2px;font-weight:800}
 #invView{position:fixed;inset:0;z-index:50;background:#fff;display:none;overflow:auto}
 #invView .x{position:fixed;top:.55rem;left:.55rem;z-index:2;background:var(--rd);color:#fff;border:none;border-radius:10px;padding:.45rem .9rem;font-weight:900;font-family:inherit;cursor:pointer}
@@ -171,24 +176,29 @@ function render(d){
   const card=(ti,v,unit,dec)=>`<div class="bcard"><div class="ti">${ti}</div>
     <div class="vv" style="color:${clrV(v)}"><span class="num">${fmt(Math.abs(v),dec)}</span> <span style="font-size:.72rem">${unit}</span></div>
     <div class="ll" style="color:${clrV(v)}">${lbl(v)}</div></div>`;
-  let ch=card('الرصيد (دينار)',bal.din||0,'دج',0)+card('الرصيد (ذهب)',bal.g24||0,'غ',2);
-  if(Math.abs(bal.g730||0)>0.001)ch+=card('ذهب 730',bal.g730,'غ',2);
-  if(Math.abs(bal.usd||0)>0.001)ch+=card('دولار',bal.usd,'$',0);
+  /* لا تظهر بطاقة الرصيد الصفري */
+  const nz=v=>Math.abs(Number(v)||0)>0.001;
+  let ch='';
+  if(nz(bal.din))ch+=card('الرصيد (دينار)',bal.din,'دج',0);
+  if(nz(bal.g24))ch+=card('ذهب 24',bal.g24,'غ',2);
+  if(nz(bal.g730))ch+=card('ذهب 730',bal.g730,'غ',2);
+  if(nz(bal.usd))ch+=card('دولار',bal.usd,'$',0);
+  if(!ch)ch='<div class="bcard" style="grid-column:1/-1"><div class="ll" style="color:var(--gr);font-size:.85rem">✅ حسابك صافٍ — لا أرصدة مستحقة</div></div>';
   document.getElementById('cards').innerHTML=ch;
   /* السجل */
   const rows=d.rows||[];
   const body=document.getElementById('body');
   if(!rows.length){ body.innerHTML='<div class="empty">لا توجد معاملات بعد.</div>'; }
   else{
-    body.innerHTML=`<table><thead><tr><th>التاريخ</th><th>النوع</th><th>الذهب</th><th>المبلغ</th></tr></thead><tbody>`+
+    body.innerHTML=`<table><thead><tr><th style="width:62px">التاريخ</th><th>النوع والتفاصيل</th><th style="width:21%">الذهب</th><th style="width:21%">المبلغ</th></tr></thead><tbody>`+
       rows.map(r=>{
         const c=ROWCLR[r.clr]||'var(--g600)';
         const det=(r.details&&r.details.length)?`<div class="det">${r.details.map(x=>nums(esc(x))).join('<br>')}</div>`:'';
         const iv=r.inv?String(r.inv).replace(/[^A-Za-z0-9_-]/g,''):'';
         return `<tr${iv?` class="invrow" onclick="openInv('${iv}')"`:''}>
-          <td class="mono" style="color:var(--t3);font-size:.64rem">${esc(r.dt||'')}${iv?'<div class="eye">👁 الفاتورة</div>':''}</td>
-          <td><span class="pill">${esc(r.label||'—')}</span>${det}</td>
-          <td class="mono" style="font-weight:800;color:${c}">${nums(esc(r.gv||'—'))}</td>
+          <td class="dtc">${r.d?`<div class="dd">${esc(r.d)}</div>${r.tm?`<div class="tt">${esc(r.tm)}</div>`:''}`:esc(r.dt||'')}${iv?'<div class="eye">👁 الفاتورة</div>':''}</td>
+          <td><span class="pill">${esc(r.label||'—')}</span>${r.fix?'<div class="fixn">✏️ تصحيح فاتورة</div>':''}${det}</td>
+          <td class="mono" style="font-weight:800;color:${c}">${nums(esc(r.gv||'—'))}${r.u?`<div class="unitn">${esc(r.u)}</div>`:''}</td>
           <td class="mono" style="font-weight:900;color:${c}">${nums(esc(r.dv||'—'))}</td>
         </tr>`;}).join('')+`</tbody></table>`;
   }
