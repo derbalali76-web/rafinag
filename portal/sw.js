@@ -1,7 +1,7 @@
 /* portal/sw.js — service worker خاص ببوابة الزبون (مستقل عن التطبيق الرئيسي).
    كاش-أولاً لقشرة البوابة (تعمل أوفلاين + قابلة للتثبيت)، والبيانات الحيّة تمرّ مباشرة.
    اسم الكاش يبدأ بـ "portal@" فلا يحذف كاش التطبيق الرئيسي ("goldpro@..."). */
-const CACHE = 'portal@goldpro-v2';
+const CACHE = 'portal@goldpro-v4';
 const ASSETS = [
   './', './index.html', './manifest.json',
   './icon-192.png', './icon-512.png', './icon-180.png',
