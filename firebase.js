@@ -1,4 +1,4 @@
-window.FB_JS_VER='v438';
+window.FB_JS_VER='v441';
 /* ═══════════ FIREBASE ═══════════ */
 const _fbConfig={
     apiKey:"AIzaSyDevHwoNCKXGm-G8GJc_Z5eZwcSPuQS9wI",
@@ -2003,7 +2003,8 @@ function _custStatement(name){
     const key=_portalNorm(name);
     const _bal=tp=>(typeof debts!=='undefined'?debts:[]).filter(d=>_portalNorm(d.c)===key&&d.type===tp).reduce((s,d)=>s+(d.a||0),0);
     const bal={din:_bal('دينار'),g24:_bal('ذهب 24'),g730:_bal('ذهب 730'),usd:_bal('دولار')};
-    const mine=(typeof ops!=='undefined'?ops:[]).filter(o=>_portalNorm(o.c)===key).slice(0,100);
+    const _raw=(typeof ops!=='undefined'?ops:[]).filter(o=>_portalNorm(o.c)===key);
+    const mine=(typeof window._mergeFixOps==='function'?window._mergeFixOps(_raw):_raw).slice(0,100);
     const rows=mine.map(o=>{
         const _isFix=(o.t==='تصحيح فاتورة');
         const isG=!_isFix&&(o.m||'').includes('ذهب');
@@ -2016,7 +2017,10 @@ function _custStatement(name){
         const label=(typeof window._shortOpType==='function'?window._shortOpType(_pt):_pt)||'—';
         const details=o.xferTo?['🔁 تحويل إلى: '+o.xferTo]:(o.xferFrom?['🔁 تحويل وارد من: '+o.xferFrom]:((typeof opDetailLines==='function')?opDetailLines(o,true):[]));
         const inv=o.rid?('r_'+o.rid):(o.iid?('i_'+o.iid):(o.did?('d_'+o.did):''));
-        const row={dt:o.dt||'',label,gv,dv,clr,details:(details||[]).slice(0,8)};
+        const _dp=(typeof window._opDateParts==='function')?window._opDateParts(o):{d:o.dt||'',t:''};
+        const row={dt:o.dt||'',d:_dp.d,tm:_dp.t,label,gv,dv,clr,details:(details||[]).slice(0,8)};
+        if(o._fixed)row.fix=1;
+        if((o.m||'').indexOf('ذهب')===0&&!_isFix)row.u=(o.m||'').replace('ذهب','').trim();
         if(inv)row.inv=inv.replace(/[.#$\[\]\/]/g,'_');
         return row;
     });

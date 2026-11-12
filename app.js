@@ -1,4 +1,4 @@
-window.APP_JS_VER='v438';
+window.APP_JS_VER='v441';
 /* ═══════════ STATE ═══════════ */
 let B={دينار:0,'ذهب 730':0,'ذهب 24':0,دولار:0,vg730:0,vg24:0};
 let ops=[],invoices=[],debts=[],loans=[],rafInvoices=[],dollInvoices=[],dubaiInvoices=[];
@@ -2426,7 +2426,9 @@ window.sendCustomerLog=()=>{
     const user=document.getElementById('currentUserDisplay').textContent||'';
     const now=new Date().toLocaleDateString('ar-DZ',{year:'numeric',month:'long',day:'numeric'});
 
-    const rows=custOps.map((o,i)=>{
+    const _shown=window._mergeFixOps(custOps);
+    const rows=_shown.map((o,_k)=>{
+        const i=o._origIdx;
         const _xr=_xferRowDir(o);
         let out=outTypes.has(o.t), _dispT=o.t;
         if(_xr){ out=_xr.out; _dispT=_xr.label; }
@@ -2437,12 +2439,12 @@ window.sendCustomerLog=()=>{
         const detailCell=dlines.length
             ?`<td style="font-size:.72rem;color:#555;line-height:1.8">${dlines.map(l=>`<span style="display:block">${l}</span>`).join('')}</td>`
             :'<td style="color:#ccc">—</td>';
-        return`<tr style="background:${i%2?'#f9f7f0':'#fff'}">
-            <td style="color:#999;font-size:.75rem">${custOps.length-i}</td>
-            <td style="font-size:.78rem">${o.dt||''}</td>
-            <td><span style="background:${clr};color:#fff;padding:.1rem .45rem;border-radius:4px;font-size:.72rem;white-space:nowrap">${_dispT}</span></td>
+        const _dp=window._opDateParts(o);
+        return`<tr style="background:${_k%2?'#f9f7f0':'#fff'}">
+            <td style="font-size:.7rem;text-align:center;line-height:1.35;white-space:nowrap;width:62px"><div dir="ltr" style="font-weight:700">${_dp.d}</div>${_dp.t?`<div style="color:#999;font-size:.64rem">${_dp.t}</div>`:''}</td>
+            <td><span style="background:${clr};color:#fff;padding:.1rem .45rem;border-radius:4px;font-size:.72rem;white-space:nowrap">${_dispT}</span>${o._fixed?'<div style="font-size:.6rem;font-weight:400;color:#0d9488;margin-top:2px;white-space:nowrap">✏️ تصحيح فاتورة</div>':''}</td>
             <td style="font-size:.78rem">${o.m||''}</td>
-            <td style="font-weight:700;color:${clr};white-space:nowrap">${out?'−':'+'}${(o.a||0).toLocaleString('fr-FR',{minimumFractionDigits:0,maximumFractionDigits:(o.m==='دينار'||o.m==='دولار')?0:2})} ${unit}</td>
+            <td style="font-weight:700;color:${clr};white-space:nowrap">${out?'−':'+'}${(o.a||0).toLocaleString('fr-FR',{minimumFractionDigits:0,maximumFractionDigits:(o.m==='دينار'||o.m==='دولار')?0:2})} ${unit}${(o.m||'').indexOf('ذهب')===0?`<div style="font-size:.6rem;font-weight:400;color:#9ca3af;margin-top:1px;white-space:nowrap">${(o.m||'').replace('ذهب','').trim()}</div>`:''}</td>
             ${detailCell}
         </tr>`;
     }).join('');
@@ -2489,7 +2491,7 @@ td{padding:.35rem .5rem;border-bottom:1px solid #f0ece0;vertical-align:top}
 <div class="sub">سجل معاملات الزبون: <strong>${c}</strong> | طُبع بتاريخ ${now} | المستخدم: ${user}</div>
 
 <h2>📋 تفاصيل المعاملات (${custOps.length})</h2>
-<table><thead><tr><th>#</th><th>التاريخ</th><th>النوع</th><th>العملة</th><th>المبلغ</th><th>التفاصيل</th></tr></thead>
+<table><thead><tr><th style="width:62px">التاريخ</th><th style="width:15%">النوع</th><th style="width:10%">العملة</th><th style="width:16%">المبلغ</th><th>التفاصيل</th></tr></thead>
 <tbody>${rows}</tbody></table>
 
 ${netBalHtml}
@@ -2505,6 +2507,49 @@ ${netBalHtml}
 
 /* ═══ واتساب — PDF عبر Web Share API (جوال) أو نافذة طباعة (كمبيوتر) ═══ */
 /* ══ بناء HTML سجل الزبون — يُستخدَم مع html2pdf مثل الفاتورة تماماً ══ */
+/* ═══ عرض سجل الزبون: تصحيح الفاتورة لا يظهر سطراً جديداً ═══
+   (عرض فقط — البيانات والأرصدة لا تتغيّر) سطر «تصحيح فاتورة» يُدمج في سطر الفاتورة الأصلية:
+   تُعرض أرقام الفاتورة بعد التصحيح (من الفاتورة المرقّعة) مع ملاحظة رقيقة «تصحيح فاتورة».
+   إن لم تكن الفاتورة الأصلية ضمن القائمة يبقى سطر التصحيح كما هو. _origIdx = موقعه في القائمة الأصلية. */
+window._mergeFixOps=function(list){
+    list=list||[];
+    const FIX='تصحيح فاتورة', orig=new Map(), nFix={};
+    list.forEach((o,i)=>{ if(o&&o.rid&&o.t!==FIX&&!orig.has(o.rid))orig.set(o.rid,i); });
+    list.forEach(o=>{ if(o&&o.t===FIX&&o.rid&&orig.has(o.rid))nFix[o.rid]=(nFix[o.rid]||0)+1; });
+    const R=(typeof rafInvoices!=='undefined'?rafInvoices:[])||[];
+    const out=[];
+    list.forEach((o,i)=>{
+        if(!o)return;
+        if(o.t===FIX&&o.rid&&orig.has(o.rid))return;                 /* يُخفى — مدموج */
+        const c=Object.assign({},o,{_origIdx:i});
+        if(o.rid&&nFix[o.rid]&&orig.get(o.rid)===i){
+            c._fixed=nFix[o.rid];
+            const inv=R.find(x=>x&&x.id===o.rid);
+            if(inv){
+                if(inv.eq24!=null)c.a=inv.eq24;
+                if(inv.fee!=null)c.fee=inv.fee;
+                if(inv.sentW!=null)c.sentW=inv.sentW;
+                if(inv.sawared!=null&&o.sawared!=null)c.sawared=inv.sawared;
+                if(inv.lanqo!=null){ if(o.lanqo!=null)c.lanqo=inv.lanqo; if(o.rec24!=null)c.rec24=inv.lanqo; }
+                if(inv.settled!=null&&/^رافيناج زبون/.test(o.t||''))c.t=inv.settled?'رافيناج زبون (خالصة)':'رافيناج زبون (دين)';
+            }
+        }
+        out.push(c);
+    });
+    return out;
+};
+/* التاريخ: «10 oct 2026» وتحته الساعة */
+window._opDateParts=function(o){
+    const M=['janv','févr','mars','avr','mai','juin','juil','août','sept','oct','nov','déc'];
+    const ts=Number(o&&(o._ts||o.ts));
+    if(ts&&ts>1e12){
+        const d=new Date(ts), p=n=>String(n).padStart(2,'0');
+        return {d:d.getDate()+' '+M[d.getMonth()]+' '+d.getFullYear(), t:p(d.getHours())+':'+p(d.getMinutes())};
+    }
+    const s=String((o&&o.dt)||'').trim();
+    const m=s.match(/^(.*?)[,\s]+(\d{1,2}:\d{2})\s*$/);
+    return m?{d:m[1].replace(/\./g,''),t:m[2]}:{d:s.replace(/\./g,'')||'—',t:''};
+};
 function buildCustomerLogHtml(c,custOps){
     const f=(n,d=2)=>fmt(n||0,d);
     const now=new Date().toLocaleDateString('ar-DZ',{year:'numeric',month:'long',day:'numeric'});
@@ -2536,7 +2581,9 @@ function buildCustomerLogHtml(c,custOps){
             ✅ لا توجد أرصدة مستحقة — الحساب صافٍ</td>`;
 
     /* صفوف الجدول */
-    const rows=custOps.map((o,i)=>{
+    const _shown=window._mergeFixOps(custOps);
+    const rows=_shown.map((o,_k)=>{
+        const i=o._origIdx;
         const _xr=_xferRowDir(o);
         let out=outTypes.has(o.t), _dispT=o.t;
         if(_xr){ out=_xr.out; _dispT=_xr.label; }
@@ -2547,22 +2594,22 @@ function buildCustomerLogHtml(c,custOps){
         const amtColor=out?'#dc2626':'#16a34a';
         const amtSign=out?'−':'+';
         const tc=_xr?amtColor:(tColor[o.t]||'#374151');
-        const bg=i%2===0?'#fff':'#fafaf7';
+        const bg=_k%2===0?'#fff':'#fafaf7';
+        const _dp=window._opDateParts(o);
         const dlines=opDetailLines(o);
         const detailHtml=dlines.length
             ?`<div style="margin-top:4px;font-size:10px;color:#555;line-height:1.7;border-top:1px dashed #d1d5db;padding-top:3px">${
                 dlines.map(l=>`<span style="display:block">${l}</span>`).join('')}</div>`:'';
         return`<tr style="background:${bg};cursor:pointer" onclick="window._custLogRowNet&&window._custLogRowNet('${(c||'').replace(/'/g,"\\'")}',${i})">
-            <td style="padding:7px 5px;text-align:center;color:#9ca3af;font-size:12px;border-bottom:1px solid #e5e7eb">${custOps.length-i}</td>
-            <td style="padding:7px 6px;font-size:11px;color:#374151;border-bottom:1px solid #e5e7eb;white-space:nowrap">${o.dt||'—'}</td>
-            <td style="padding:7px 6px;font-size:12px;font-weight:700;color:${tc};border-bottom:1px solid #e5e7eb">${_dispT||'—'}</td>
+            <td style="padding:6px 3px;font-size:10px;color:#374151;border-bottom:1px solid #e5e7eb;text-align:center;line-height:1.35;white-space:nowrap"><div dir="ltr" style="font-weight:700">${_dp.d}</div>${_dp.t?`<div style="color:#9ca3af;font-size:9.5px">${_dp.t}</div>`:''}</td>
+            <td style="padding:7px 6px;font-size:12px;font-weight:700;color:${tc};border-bottom:1px solid #e5e7eb">${_dispT||'—'}${o._fixed?'<div style="font-size:9.5px;font-weight:400;color:#0d9488;margin-top:2px;white-space:nowrap">✏️ تصحيح فاتورة</div>':''}</td>
             <td style="padding:7px 6px;font-size:13px;font-weight:900;color:${o.t==='تصحيح فاتورة'?'#0d9488':amtColor};border-bottom:1px solid #e5e7eb;white-space:nowrap">${
                 o.t==='تصحيح فاتورة'
                     ? ((o.diffG?`${o.diffG>0?'+':'−'}${f(Math.abs(o.diffG),2)} g`:'')
                        +((o.diffG&&o.diffD)?' · ':'')
                        +(o.diffD?`${o.diffD>0?'+':'−'}${f(Math.abs(o.diffD),0)} DZD`:'')
                        ||'✏️ تصحيح')
-                    : `${amtSign}${f(_amt,(o.m==='دينار'||o.m==='دولار')?0:2)} ${unit}`}</td>
+                    : `${amtSign}${f(_amt,(o.m==='دينار'||o.m==='دولار')?0:2)} ${unit}`}${(o.m||'').indexOf('ذهب')===0?`<div style="font-size:9.5px;font-weight:400;color:#9ca3af;margin-top:1px">${(o.m||'').replace('ذهب','').trim()}</div>`:''}</td>
             <td style="padding:7px 6px;font-size:11px;border-bottom:1px solid #e5e7eb">${detailHtml}</td>
         </tr>`;}).join('');
 
@@ -2596,10 +2643,9 @@ function buildCustomerLogHtml(c,custOps){
         <table style="width:100%;border-collapse:collapse;font-size:12px">
             <thead>
                 <tr style="background:#374151;color:#fff">
-                    <th style="padding:8px 5px;text-align:center;width:28px">#</th>
-                    <th style="padding:8px 6px;text-align:right">التاريخ</th>
-                    <th style="padding:8px 6px;text-align:right">النوع</th>
-                    <th style="padding:8px 6px;text-align:right">المبلغ</th>
+                    <th style="padding:8px 3px;text-align:center;width:62px">التاريخ</th>
+                    <th style="padding:8px 6px;text-align:right;width:17%">النوع</th>
+                    <th style="padding:8px 6px;text-align:right;width:19%">المبلغ</th>
                     <th style="padding:8px 6px;text-align:right">التفاصيل</th>
                 </tr>
             </thead>
@@ -2608,7 +2654,7 @@ function buildCustomerLogHtml(c,custOps){
 
         <!-- تذييل -->
         <div style="margin-top:10px;text-align:center;font-size:10px;color:#9ca3af">
-            GoldPro | ${c} | ${now} | ${custOps.length} عملية
+            GoldPro | ${c} | ${now} | ${_shown.length} عملية
         </div>
         </div>
     </div>`;
