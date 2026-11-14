@@ -1,4 +1,4 @@
-window.FB_JS_VER='v441';
+window.FB_JS_VER='v442';
 /* ═══════════ FIREBASE ═══════════ */
 const _fbConfig={
     apiKey:"AIzaSyDevHwoNCKXGm-G8GJc_Z5eZwcSPuQS9wI",
@@ -932,6 +932,43 @@ function _applyEvt(st,evt){
             const _fix=(arr)=>{ if(!arr)return false; const b=arr.find(x=>x.id===d.id); if(b){ if(d.w>0)b.w=d.w; if(d.k>0)b.k=d.k; return true; } return false; };
             let _done=_fix(st.g730)||_fix(st.g24);
             if(!_done && st.wsBars){ for(const ws in st.wsBars){ if(_fix(st.wsBars[ws])){_done=true;break;} } }
+            break;
+        }
+        case 'INV_BARFIX':{
+            /* تصحيح سبائك فاتورة شراء/وصل قبض خرجت سبائكها من الكوفر:
+               السبيكة تُصحَّح في مكانها + بنود الفاتورة ومجموعها + رصيد الزبون بالفرق.
+               شراء: الفرق بالدينار (dTp) · وصل قبض 730: الفرق بالذهب 730 (d730). */
+            const _fx=(arr,f)=>{ if(!arr)return false; const b=arr.find(x=>x.id===f.bid); if(b){ if(f.w>0)b.w=f.w; if(f.k>0)b.k=f.k; return true; } return false; };
+            (d.fixes||[]).forEach(f=>{
+                if(!f.bid)return;
+                let ok=_fx(st.g730,f)||_fx(st.g24,f);
+                if(!ok&&st.wsBars){ for(const ws in st.wsBars){ if(_fx(st.wsBars[ws],f))break; } }
+            });
+            const _inv=(st.invoices||[]).find(x=>x.id===d.iid);
+            if(_inv){
+                (d.fixes||[]).forEach(f=>{
+                    const it=_inv.items&&_inv.items[f.idx]; if(!it)return;
+                    if(f.w>0)it.w=f.w;
+                    if(f.k>0){ it.k=f.k; it.is1000=f.k>=999; }
+                    it.eq730=(+it.w||0)*(+it.k||0)/730;
+                    if((+it.ppg||0)>0)it.total=it.eq730*it.ppg;
+                });
+                if(d.dTp)_inv.tp=(+_inv.tp||0)+d.dTp;
+                _inv.fixed=(_inv.fixed||0)+1;
+            }
+            /* سطر العملية الأصلي في السجل يأخذ المبلغ المصحَّح */
+            const _orig=(st.ops||[]).find(o=>o.iid===d.iid&&o.t!=='تصحيح فاتورة');
+            if(_orig){
+                if(d.kind==='buy'&&d.dTp)_orig.a=(+_orig.a||0)+d.dTp;
+                if(d.kind==='recv'&&d.d730){
+                    _orig.a=(+_orig.a||0)+d.d730;
+                    if(Array.isArray(_orig.barsList)&&_inv)_orig.barsList=_inv.items.map(it=>({w:it.w,k:it.k}));
+                    if(_orig.realW!=null&&_inv)_orig.realW=_inv.items.reduce((t,it)=>t+(+it.w||0),0);
+                }
+            }
+            /* الرصيد يتغيّر فقط إن كانت الفاتورة ما تزال حيّة (لو حُذفت لاحقاً لا أثر للتصحيح) */
+            if(_inv&&d.kind==='buy'&&Math.abs(d.dTp||0)>0.001)stUpdDebt(d.c,'دينار',-d.dTp);
+            if(_inv&&d.kind==='recv'&&Math.abs(d.d730||0)>1e-6)stUpdDebt(d.c,'ذهب 730',-d.d730);
             break;
         }
         case 'WS_WBARDEL':{

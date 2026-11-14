@@ -1,4 +1,4 @@
-window.APP_JS_VER='v441';
+window.APP_JS_VER='v442';
 /* ═══════════ STATE ═══════════ */
 let B={دينار:0,'ذهب 730':0,'ذهب 24':0,دولار:0,vg730:0,vg24:0};
 let ops=[],invoices=[],debts=[],loans=[],rafInvoices=[],dollInvoices=[],dubaiInvoices=[];
@@ -2514,16 +2514,18 @@ ${netBalHtml}
 window._mergeFixOps=function(list){
     list=list||[];
     const FIX='تصحيح فاتورة', orig=new Map(), nFix={};
-    list.forEach((o,i)=>{ if(o&&o.rid&&o.t!==FIX&&!orig.has(o.rid))orig.set(o.rid,i); });
-    list.forEach(o=>{ if(o&&o.t===FIX&&o.rid&&orig.has(o.rid))nFix[o.rid]=(nFix[o.rid]||0)+1; });
+    const keyOf=o=>o?(o.rid?('r:'+o.rid):(o.iid?('i:'+o.iid):'')):'';
+    list.forEach((o,i)=>{ const k=keyOf(o); if(k&&o.t!==FIX&&!orig.has(k))orig.set(k,i); });
+    list.forEach(o=>{ const k=keyOf(o); if(o&&o.t===FIX&&k&&orig.has(k))nFix[k]=(nFix[k]||0)+1; });
     const R=(typeof rafInvoices!=='undefined'?rafInvoices:[])||[];
     const out=[];
     list.forEach((o,i)=>{
         if(!o)return;
-        if(o.t===FIX&&o.rid&&orig.has(o.rid))return;                 /* يُخفى — مدموج */
+        const _k=keyOf(o);
+        if(o.t===FIX&&_k&&orig.has(_k))return;                 /* يُخفى — مدموج */
         const c=Object.assign({},o,{_origIdx:i});
-        if(o.rid&&nFix[o.rid]&&orig.get(o.rid)===i){
-            c._fixed=nFix[o.rid];
+        if(_k&&nFix[_k]&&orig.get(_k)===i)c._fixed=nFix[_k];
+        if(o.rid&&nFix[_k]&&orig.get(_k)===i){
             const inv=R.find(x=>x&&x.id===o.rid);
             if(inv){
                 if(inv.eq24!=null)c.a=inv.eq24;
@@ -5581,18 +5583,30 @@ window._fixConsumedInvBars=function(field,id,items){
     const evt=(_allEvents||[]).find(e=>e.display&&e.display[field]&&e.display[field].id===id&&e.type!=='VOID');
     const added=(evt&&evt.data&&(evt.data.barsAdd||evt.data.barsAdd24))||[];
     if(!added.length){ toast('لا سبائك قابلة للتصحيح في هذه الفاتورة','info'); return; }
+    const inv=(field==='invoice')?(invoices||[]).find(x=>x.id===id):null;
+    /* ربط كل سبيكة ببندها في الفاتورة: بنود الشراء الجديدة (بلا sbid) بنفس الترتيب */
+    const idxs=[]; if(inv&&Array.isArray(inv.items)) inv.items.forEach((it,i)=>{ if(!it.sbid)idxs.push(i); });
+    const cur=(b,i)=>{
+        const it=(inv&&inv.items&&idxs[i]!=null)?inv.items[idxs[i]]:null;
+        /* القيمة الحالية: من البند (المصحَّح سابقاً إن وُجد) وإلا من السبيكة */
+        return {w:(it&&it.w)||b.w, k:(it&&it.k)||b.k, ppg:(it&&+it.ppg)||0};
+    };
+    window._fixCtx={field,id,added,idxs,kind:inv?(inv.recv?'recv':(inv.t==='buy'?'buy':'')):'',c:inv?inv.c:''};
     let html='<div style="direction:rtl;font-family:Tajawal,sans-serif">'
         +'<h3 style="margin:.2rem 0 .8rem">✏️ تصحيح سبائك الفاتورة</h3>'
-        +'<p style="font-size:.78rem;color:var(--t2);margin-bottom:.7rem">السبائك خرجت للورشة/الرافيناج. صحّح الوزن/العيار وستبقى في مكانها بالقيمة الجديدة.</p>';
+        +'<p style="font-size:.78rem;color:var(--t2);margin-bottom:.7rem">السبائك خرجت للورشة/الرافيناج. صحّح الوزن/العيار: تُصحَّح السبيكة في مكانها، والفاتورة، ورصيد الزبون بالفرق.</p>';
     added.forEach((b,i)=>{
+        const v=cur(b,i);
         html+='<div style="display:flex;gap:.4rem;margin-bottom:.5rem;align-items:center">'
             +'<span style="font-size:.72rem;color:var(--t3);min-width:52px">سبيكة '+(i+1)+'</span>'
-            +'<input id="_fxW_'+i+'" type="number" step="any" value="'+(b.w||'')+'" placeholder="وزن" style="flex:1;padding:.45rem;border:1px solid var(--border);border-radius:8px" dir="ltr">'
-            +'<input id="_fxK_'+i+'" type="number" step="any" value="'+(b.k||'')+'" placeholder="عيار" style="flex:1;padding:.45rem;border:1px solid var(--border);border-radius:8px" dir="ltr">'
+            +'<input id="_fxW_'+i+'" type="number" step="any" value="'+(v.w||'')+'" placeholder="وزن" oninput="_fixPrev()" style="flex:1;padding:.45rem;border:1px solid var(--border);border-radius:8px" dir="ltr">'
+            +'<input id="_fxK_'+i+'" type="number" step="any" value="'+(v.k||'')+'" placeholder="عيار" oninput="_fixPrev()" style="flex:1;padding:.45rem;border:1px solid var(--border);border-radius:8px" dir="ltr">'
             +'<input type="hidden" id="_fxId_'+i+'" value="'+b.id+'">'
             +'</div>';
     });
-    html+='<div style="display:flex;gap:.5rem;margin-top:1rem">'
+    html+='<div id="_fxPrev" style="font-size:.78rem;font-weight:800;margin:.4rem 0;padding:.45rem .6rem;border-radius:8px;background:var(--card2,#f3f4f6)">—</div>'
+        +'<input id="_fxNote" placeholder="سبب التصحيح (اختياري)" style="width:100%;box-sizing:border-box;padding:.45rem;border:1px solid var(--border);border-radius:8px;margin-top:.2rem;font-family:inherit">'
+        +'<div style="display:flex;gap:.5rem;margin-top:1rem">'
         +'<button onclick="closeModal(\'_fixBarsModal\')" style="flex:1;padding:.6rem;border:1px solid var(--border);background:transparent;border-radius:10px;font-weight:900;font-family:Tajawal,sans-serif">إلغاء</button>'
         +'<button onclick="_applyFixConsumedBars('+added.length+')" style="flex:1;padding:.6rem;border:none;background:var(--gr,#059669);color:#fff;border-radius:10px;font-weight:900;font-family:Tajawal,sans-serif">💾 حفظ التصحيح</button>'
         +'</div></div>';
@@ -5600,14 +5614,59 @@ window._fixConsumedInvBars=function(field,id,items){
     if(!m){ m=document.createElement('div'); m.id='_fixBarsModal'; m.className='modal-overlay'; document.body.appendChild(m); }
     m.innerHTML='<div class="modal" style="max-width:440px">'+html+'</div>';
     m.classList.add('active');
+    _fixPrev();
+};
+/* حساب الفرق: لكل سبيكة تغيّرت → {bid,idx,w,k} + فرق الفاتورة (دينار للشراء، 730 للوصل) */
+window._fixCalc=function(){
+    const X=window._fixCtx||{}; const inv=(X.field==='invoice')?(invoices||[]).find(x=>x.id===X.id):null;
+    const fixes=[]; let dTp=0, d730=0;
+    (X.added||[]).forEach((b,i)=>{
+        const w=parseFloat(document.getElementById('_fxW_'+i)?.value)||0;
+        const k=parseFloat(document.getElementById('_fxK_'+i)?.value)||0;
+        const idx=X.idxs?X.idxs[i]:null;
+        const it=(inv&&inv.items&&idx!=null)?inv.items[idx]:null;
+        const ow=(it&&+it.w)||b.w||0, ok=(it&&+it.k)||b.k||0;
+        if(!(w>0&&k>0))return;
+        if(Math.abs(w-ow)<1e-6&&Math.abs(k-ok)<1e-6)return;
+        const dEq=(w*k-ow*ok)/730;
+        if(X.kind==='buy')dTp+=dEq*((it&&+it.ppg)||0);
+        if(X.kind==='recv')d730+=dEq;
+        fixes.push({bid:b.id,idx:(idx!=null?idx:-1),w,k,ow,ok});
+    });
+    return {fixes,dTp:Math.round(dTp*100)/100,d730:Math.round(d730*1000)/1000};
+};
+window._fixPrev=function(){
+    const el=document.getElementById('_fxPrev'); if(!el)return;
+    const X=window._fixCtx||{}, r=_fixCalc();
+    if(!r.fixes.length){ el.textContent='لا تغيير بعد'; el.style.color='var(--t3)'; return; }
+    if(X.kind==='buy'){
+        el.innerHTML='فرق الفاتورة: <span dir="ltr">'+(r.dTp>0?'+':r.dTp<0?'−':'')+fmt(Math.abs(r.dTp),0)+'</span> دج'
+            +' · '+(r.dTp>0?'يزيد ما ندين به للزبون':r.dTp<0?'ينقص ما ندين به للزبون':'');
+        el.style.color=r.dTp>0?'var(--rd)':'var(--gr)';
+    }else if(X.kind==='recv'){
+        el.innerHTML='فرق الوصل: <span dir="ltr">'+(r.d730>0?'+':r.d730<0?'−':'')+fmt(Math.abs(r.d730),2)+'</span> غ (730)';
+        el.style.color=r.d730>0?'var(--rd)':'var(--gr)';
+    }else{ el.textContent='تُصحَّح السبيكة في مكانها فقط'; el.style.color='var(--t3)'; }
 };
 window._applyFixConsumedBars=function(n){
-    for(let i=0;i<n;i++){
-        const bid=document.getElementById('_fxId_'+i).value;
-        const w=parseFloat(document.getElementById('_fxW_'+i).value)||0;
-        const k=parseFloat(document.getElementById('_fxK_'+i).value)||0;
-        if(bid&&(w>0||k>0)) emitEvent('BAR_EDIT_ANY',{id:bid,w,k},null);
+    const X=window._fixCtx||{}, r=_fixCalc();
+    if(!r.fixes.length){ closeModal('_fixBarsModal'); toast('لا تغيير','info'); return; }
+    const note=(document.getElementById('_fxNote')?.value||'').trim();
+    if(X.kind==='buy'||X.kind==='recv'){
+        const _now=new Date().toLocaleDateString('fr-FR',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
+        const op={c:X.c,t:'تصحيح فاتورة',m:X.kind==='buy'?'دينار':'ذهب 730',
+            a:X.kind==='buy'?Math.abs(r.dTp):Math.abs(r.d730),_ts:Date.now(),dt:_now,iid:X.id,
+            ...(X.kind==='buy'?{diffD:-r.dTp}:{diffG:-r.d730}),
+            note:note||r.fixes.map(f=>`${fmt(f.ow,2)}غ/${f.ok} ← ${fmt(f.w,2)}غ/${f.k}`).join(' · ')};
+        emitEvent('INV_BARFIX',{iid:X.id,c:X.c,kind:X.kind,
+            fixes:r.fixes.map(f=>({bid:f.bid,idx:f.idx,w:f.w,k:f.k})),
+            ...(X.kind==='buy'?{dTp:r.dTp}:{d730:r.d730})},{op});
+        if(typeof _sendCustomerPush==='function')_sendCustomerPush(X.c,'تصحيح فاتورة','عُدِّلت فاتورتك — افتح حسابك للاطلاع');
+        closeModal('_fixBarsModal');
+        toast('✅ صُحّحت السبيكة والفاتورة ورصيد الزبون');
+        return;
     }
+    r.fixes.forEach(f=>emitEvent('BAR_EDIT_ANY',{id:f.bid,w:f.w,k:f.k},null));
     closeModal('_fixBarsModal');
     toast('✅ صُحّحت السبائك في مكانها');
 };
