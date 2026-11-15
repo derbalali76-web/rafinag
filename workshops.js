@@ -17,23 +17,48 @@ const _wsIsWorker=()=>window._roleLock==='worker';
 /* القائمة النشطة حسب الدور: العامل قائمته المنفصلة، المسؤول قائمة المخزون */
 function _wsActiveBars(ws){ return _wsIsWorker()? _wsWBarsOf(ws) : _wsBarsOf(ws); }
 function _wsActiveSess(ws){ return _wsIsWorker()? _wsWSessOf(ws) : _wsSessOf(ws); }
-/* الروتور — محلي كما في rafinag (لا يُزامن؛ يُحفظ داخل الجلسة عند الحفظ) */
+/* الروتور:
+   • العامل: محلي (يُحفظ داخل جلسته).
+   • الأدمين: متزامن عبر الأحداث على كل الأجهزة، وكل سبيكة تدخل مخزون 730 فور تسجيلها
+     (يمكن التصرف فيها). حذفها من الروتور يحذفها من 730 — ما لم تكن قد خرجت منه. */
 let _wsRotor={workshop1:[],workshop2:[]};
+function _wsRotorList(ws){
+    ws=ws||_wsCur;
+    if(_wsIsWorker())return _wsRotor[ws]||[];
+    return ((window.wsRotor||{})[ws])||[];
+}
+/* هل سبيكة الروتور ما تزال في مخزون 730 كاملة؟ (وإلا فقد خرجت: لا تُحذف) */
+function _wsRotorInStock(r){
+    const b=(typeof g730!=='undefined'?g730:[]).find(x=>x.id===r.id);
+    return !!(b&&Math.abs((+b.w||0)-(+r.w||0))<0.0005);
+}
 window.wsAddRotor=function(){
     const w=parseFloat(document.getElementById('rotorW')?.value)||0;
     const k=parseFloat(document.getElementById('rotorK')?.value)||0;
     if(w<=0||k<=0)return toast('أدخل ميزان وعيار الروتور','error');
-    _wsRotor[_wsCur].unshift({id:'r'+Date.now(),w,k});
+    if(_wsIsWorker()){
+        _wsRotor[_wsCur].unshift({id:'r'+Date.now(),w,k});
+    }else{
+        emitEvent('WS_ROTOR_ADD',{ws:_wsCur,id:uid(),w,k,wsTitle:WS_LIST[_wsCur],dt:new Date().toLocaleDateString('fr-FR')},null);
+        toast('🔄 أُضيفت للروتور ودخلت مخزون 730');
+    }
     const a=document.getElementById('rotorW'),bq=document.getElementById('rotorK');
     if(a)a.value='';if(bq)bq.value='';a?.focus();
     renderWorkshops();
 };
 window.wsDelRotor=function(id){
-    _wsRotor[_wsCur]=_wsRotor[_wsCur].filter(r=>r.id!==id);
-    renderWorkshops();
+    if(_wsIsWorker()){
+        _wsRotor[_wsCur]=_wsRotor[_wsCur].filter(r=>r.id!==id);
+        renderWorkshops(); return;
+    }
+    const r=_wsRotorList().find(x=>x.id===id); if(!r)return;
+    if(!_wsRotorInStock(r))return toast('🔒 هذه السبيكة خرجت من مخزون 730 — لا يمكن حذفها حتى لا يفسد الحساب','error');
+    if(!confirm('حذف سبيكة الروتور '+fmt(r.w,2)+' غ؟ ستُحذف من مخزون 730 أيضاً.'))return;
+    emitEvent('WS_ROTOR_DEL',{ws:_wsCur,id},null);
+    toast('🗑️ حُذفت من الروتور ومن مخزون 730','info');
 };
-function _wsRotorRaw(){return _wsRotor[_wsCur].reduce((s,r)=>s+(r.w||0),0);}
-function _wsRotorPure(){return _wsRotor[_wsCur].reduce((s,r)=>s+(r.w*r.k/1000),0);}
+function _wsRotorRaw(){return _wsRotorList().reduce((s,r)=>s+(r.w||0),0);}
+function _wsRotorPure(){return _wsRotorList().reduce((s,r)=>s+(r.w*r.k/1000),0);}
 
 window.setWsCur = function(ws){
     if(window._wsLock && ws!==window._wsLock) ws=window._wsLock;   /* العامل مقفول على ورشته */
@@ -136,21 +161,21 @@ window.wsSaveSession = function(){
     const dispBars={[bid]:{desc:'ورشة '+WS_LIST[_wsCur]+' - سلعة واجدة',dt,src:'ورشة'}};
     const remRaw=Math.max(0,totalRaw-_wsRotorRaw());
     const remPure=Math.max(0,totalPure-_wsRotorPure());
-    /* الروتور: سبائك 730 ناتجة تعود لمخزون الـ730 */
-    const rotorBars730=_wsRotor[_wsCur].map(r=>({id:uid(),pool:'730',w:r.w,k:r.k}));
-    rotorBars730.forEach(rb=>{ dispBars[rb.id]={desc:'روتور ورشة '+WS_LIST[_wsCur],dt,src:'روتور'}; });
+    /* الروتور: سبائكه دخلت مخزون 730 لحظة تسجيلها (WS_ROTOR_ADD) — لا تُضاف ثانية */
+    const _rotorNow=_wsRotorList();
+    const rotorIds=_rotorNow.map(r=>r.id);
     const session = {
         id:'WSK-'+uid(), date:dt,
         rawWeight:remRaw, pure24:remPure, mfgWeight:mfg, lapart:mfg-remPure,
         lingotsCount:bars.length, lingots:bars.map(b=>({weight:b.w,karat:b.k})),
-        rotorItems:_wsRotor[_wsCur].map(r=>({weight:r.w,karat:r.k})),
+        rotorItems:_rotorNow.map(r=>({weight:r.w,karat:r.k})),
         wsTitle:WS_LIST[_wsCur]
     };
     /* معرّفات السبائك المستهلكة — لإزالة دقيقة (لا تفريغ أعمى) تسمح باستعادة صحيحة */
     const consumedBarIds=bars.map(b=>b.id).filter(Boolean);
     emitEvent('WS_SESSION',
         {ws:_wsCur,session,barsRemove730,barUpdates730,barsAdd24,
-         ...(rotorBars730.length?{barsAdd730:rotorBars730}:{}),
+         ...(rotorIds.length?{rotorIds}:{}),
          consumedBarIds,clearBars:true},
         {bars:dispBars}
     );
@@ -303,14 +328,19 @@ function renderWorkshops(){
     }
 
     /* الروتور */
-    const rc=document.getElementById('rotorCount'); if(rc)rc.textContent='('+_wsRotor[_wsCur].length+')';
+    const _rl=_wsRotorList();
+    const rc=document.getElementById('rotorCount'); if(rc)rc.textContent='('+_rl.length+')';
     const rb=document.getElementById('rotorBody');
     if(rb){
-        rb.innerHTML=_wsRotor[_wsCur].length?_wsRotor[_wsCur].map(r=>`<tr style="border-bottom:1px solid var(--border)">
+        rb.innerHTML=_rl.length?_rl.map(r=>{
+            const _locked=!isWorker&&!_wsRotorInStock(r);
+            return `<tr style="border-bottom:1px solid var(--border)">
             <td style="padding:.45rem;text-align:center;font-family:monospace;font-weight:900">${fmt(r.w,3)} غ</td>
             <td style="padding:.45rem;text-align:center;font-family:monospace;font-weight:800;color:var(--g600)">${r.k}</td>
-            <td style="padding:.45rem;text-align:center"><button onclick="wsDelRotor('${r.id}')" style="background:transparent;border:none;color:var(--rd);cursor:pointer">🗑️</button></td>
-        </tr>`).join('')
+            <td style="padding:.45rem;text-align:center">${_locked
+                ?`<span title="خرجت من مخزون 730 — لا تُحذف" style="font-size:.66rem;color:var(--t3);font-weight:800;white-space:nowrap">🔒 خرجت</span>`
+                :`<button onclick="wsDelRotor('${r.id}')" style="background:transparent;border:none;color:var(--rd);cursor:pointer">🗑️</button>`}</td>
+        </tr>`;}).join('')
         :'<tr><td colspan="3" style="padding:1rem;text-align:center;color:var(--t3);font-size:.74rem;font-weight:700">الروتور فارغ</td></tr>';
     }
 }

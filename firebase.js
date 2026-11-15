@@ -1,4 +1,4 @@
-window.FB_JS_VER='v442';
+window.FB_JS_VER='v443';
 /* ═══════════ FIREBASE ═══════════ */
 const _fbConfig={
     apiKey:"AIzaSyDevHwoNCKXGm-G8GJc_Z5eZwcSPuQS9wI",
@@ -881,6 +881,26 @@ function _applyEvt(st,evt){
             if(st.wsBars[d.ws])st.wsBars[d.ws]=st.wsBars[d.ws].filter(b=>b.id!==d.id);
             break;
         }
+        case 'WS_ROTOR_ADD':{
+            /* روتور الأدمين: متزامن على كل الأجهزة، والسبيكة تدخل مخزون 730 فوراً */
+            if(!st.wsRotor)st.wsRotor={};
+            if(!st.wsRotor[d.ws])st.wsRotor[d.ws]=[];
+            if(!st.wsRotor[d.ws].some(r=>r.id===d.id)){
+                st.wsRotor[d.ws].unshift({id:d.id,w:d.w,k:d.k,_ts:evt.ts});
+                st.g730.push({id:d.id,pool:'730',w:d.w,k:d.k,desc:'روتور '+(d.wsTitle||'ورشة'),dt:d.dt||'',src:'روتور',_rotorWs:d.ws,_ts:evt.ts});
+            }
+            break;
+        }
+        case 'WS_ROTOR_DEL':{
+            /* حذف من الروتور = حذف من مخزون 730 — فقط إن كانت السبيكة ما تزال فيه كاملة */
+            const _b=st.g730.find(b=>b.id===d.id);
+            const _r=(st.wsRotor&&st.wsRotor[d.ws]||[]).find(r=>r.id===d.id);
+            if(_b&&_r&&Math.abs((+_b.w||0)-(+_r.w||0))<0.0005){
+                st.g730=st.g730.filter(b=>b.id!==d.id);
+                st.wsRotor[d.ws]=st.wsRotor[d.ws].filter(r=>r.id!==d.id);
+            }
+            break;
+        }
         case 'WS_PROVISIONAL':{
             /* سلعة مبدئية: تدخل مخزون 24 فوراً (قبل حفظ الحساب) — تُلغى عند الحفظ النهائي */
             if(d.barsAdd24&&d.barsAdd24.length){d.barsAdd24.forEach(bar=>{const meta=disp.bars&&disp.bars[bar.id];st.g24.push({...bar,desc:meta?.desc||'سلعة مبدئية (ورشة)',dt:meta?.dt||'',src:meta?.src||'مبدئي',_prov:true,_provWs:d.ws,_ts:evt.ts});});}
@@ -906,6 +926,10 @@ function _applyEvt(st,evt){
                 const cs=new Set(d.consumedBarIds);
                 st.wsBars[d.ws]=(st.wsBars[d.ws]||[]).filter(b=>!cs.has(b.id));
             }else if(d.clearBars){st.wsBars[d.ws]=[];}   /* توافق مع جلسات قديمة */
+            /* روتور متزامن: يُفرَّغ من الورشة (سبائكه باقية في مخزون 730 حيث دخلت) */
+            if(d.rotorIds&&d.rotorIds.length&&st.wsRotor&&st.wsRotor[d.ws]){
+                const rs=new Set(d.rotorIds); st.wsRotor[d.ws]=st.wsRotor[d.ws].filter(r=>!rs.has(r.id));
+            }
             if(!st.wsSessions[d.ws])st.wsSessions[d.ws]=[];
             st.wsSessions[d.ws].unshift(d.session);
             break;
@@ -1200,7 +1224,7 @@ window._custBalUpToTs=function(cust,uptoTs){
         B:{دينار:0,دولار:0,'ذهب 730':0,'ذهب 24':0,vg730:0,vg24:0},
         g730:[],g24:[],debts:[],loans:[],
         ops:[],invoices:[],dollInvoices:[],rafInvoices:[],dubaiInvoices:[],
-        wsBars:{workshop1:[],workshop2:[]},wsSessions:{workshop1:[],workshop2:[]},
+        wsBars:{workshop1:[],workshop2:[]},wsSessions:{workshop1:[],workshop2:[]},wsRotor:{workshop1:[],workshop2:[]},
         wsWorkerBars:{workshop1:[],workshop2:[]},wsWorkerSessions:{workshop1:[],workshop2:[]}
     };
     live.forEach(evt=>_applyEvt(st,evt));
@@ -1227,7 +1251,7 @@ function _reproject(){
         B:{دينار:0,دولار:0,'ذهب 730':0,'ذهب 24':0,vg730:0,vg24:0},
         g730:[],g24:[],debts:[],loans:[],
         ops:[],invoices:[],dollInvoices:[],rafInvoices:[],dubaiInvoices:[],
-        wsBars:{workshop1:[],workshop2:[]},wsSessions:{workshop1:[],workshop2:[]},
+        wsBars:{workshop1:[],workshop2:[]},wsSessions:{workshop1:[],workshop2:[]},wsRotor:{workshop1:[],workshop2:[]},
         wsWorkerBars:{workshop1:[],workshop2:[]},wsWorkerSessions:{workshop1:[],workshop2:[]}
     };
     live.forEach(evt=>_applyEvt(st,evt));
@@ -1240,7 +1264,7 @@ function _reproject(){
     dollInvoices=st.dollInvoices;
     rafInvoices=st.rafInvoices;
     dubaiInvoices=st.dubaiInvoices;
-    wsBars=st.wsBars;wsSessions=st.wsSessions;
+    wsBars=st.wsBars;wsSessions=st.wsSessions;window.wsRotor=st.wsRotor||{workshop1:[],workshop2:[]};
     wsWorkerBars=st.wsWorkerBars;wsWorkerSessions=st.wsWorkerSessions;
     window._tarbahList=st.tarbah||[];
     /* حاسبة دبي من الأحداث (لا من settings) — مزامنة حتمية عبر الأجهزة */
@@ -1267,7 +1291,7 @@ window.cashAudit=function(){
         .sort((a,b)=>((a.ts||0)-(b.ts||0))||String(a.id).localeCompare(String(b.id)));
     const st={B:{'دينار':0,'دولار':0,'ذهب 730':0,'ذهب 24':0,vg730:0,vg24:0},
         g730:[],g24:[],debts:[],loans:[],ops:[],invoices:[],dollInvoices:[],rafInvoices:[],dubaiInvoices:[],
-        wsBars:{workshop1:[],workshop2:[]},wsSessions:{workshop1:[],workshop2:[]},
+        wsBars:{workshop1:[],workshop2:[]},wsSessions:{workshop1:[],workshop2:[]},wsRotor:{workshop1:[],workshop2:[]},
         wsWorkerBars:{workshop1:[],workshop2:[]},wsWorkerSessions:{workshop1:[],workshop2:[]},tarbah:[]};
     const rows=[];
     live.forEach(e=>{
@@ -1291,7 +1315,7 @@ window.g24Audit=function(){
         .sort((a,b)=>((a.ts||0)-(b.ts||0))||String(a.id).localeCompare(String(b.id)));
     const st={B:{'دينار':0,'دولار':0,'ذهب 730':0,'ذهب 24':0,vg730:0,vg24:0},
         g730:[],g24:[],debts:[],loans:[],ops:[],invoices:[],dollInvoices:[],rafInvoices:[],dubaiInvoices:[],
-        wsBars:{workshop1:[],workshop2:[]},wsSessions:{workshop1:[],workshop2:[]},
+        wsBars:{workshop1:[],workshop2:[]},wsSessions:{workshop1:[],workshop2:[]},wsRotor:{workshop1:[],workshop2:[]},
         wsWorkerBars:{workshop1:[],workshop2:[]},wsWorkerSessions:{workshop1:[],workshop2:[]},tarbah:[]};
     const tot24=s=>{const phys=s.g24.reduce((a,b)=>a+(b.w||0),0);return phys+(s.B.vg24||0)+(s.B['ذهب 24']||0);};
     const rows=[];
