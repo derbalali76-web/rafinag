@@ -1,4 +1,4 @@
-window.APP_JS_VER='v443';
+window.APP_JS_VER='v444';
 /* ═══════════ STATE ═══════════ */
 let B={دينار:0,'ذهب 730':0,'ذهب 24':0,دولار:0,vg730:0,vg24:0};
 let ops=[],invoices=[],debts=[],loans=[],rafInvoices=[],dollInvoices=[],dubaiInvoices=[];
@@ -789,6 +789,10 @@ function _netBuckets(){
     const raw_dol  = B.دولار      + d_dol;
     let _wsEq=0;
     try{Object.keys(wsBars||{}).forEach(w=>(wsBars[w]||[]).forEach(b=>{_wsEq+=(b.w||0)*((b.k||730)/730);}));}catch(e){}
+    /* الروتور (v443+): سبيكته دخلت مخزون 730 فوراً، لكنها جزء من ذهب سبائك الورشة التي ما تزال محسوبة
+       حتى حفظ الجلسة → تُطرح من حصة الورشة لئلا تُحسب مرتين. عند حفظ الجلسة يُفرَّغ الروتور وتخرج
+       سبائك الورشة، فتعود المعادلة كما كانت سابقاً. */
+    try{Object.keys(window.wsRotor||{}).forEach(w=>(window.wsRotor[w]||[]).forEach(r=>{_wsEq-=(r.w||0)*((r.k||730)/730);}));}catch(e){}
     const raw_730  = B['ذهب 730'] + (B.vg730||0) + d_730 + _wsEq;
     const raw_24   = B['ذهب 24']  + (B.vg24||0)  + d_24;
     const din  = raw_din;

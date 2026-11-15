@@ -5,13 +5,13 @@ const NS = (() => { try {
   return String(seg).toLowerCase().replace(/[^a-z0-9_-]/g,'');
 } catch(e){ return 'root'; } })();
 const CACHE_PREFIX = 'goldpro@' + NS + '-';
-const CACHE = CACHE_PREFIX + 'v443';
+const CACHE = CACHE_PREFIX + 'v444';
 const ASSETS = [
   './','./index.html',
-  './style.css?v=443',
-  './firebase.js?v=443','./app.js?v=443','./assistant.js?v=443',
-  './inventory.js?v=443','./invoice.js?v=443','./raffinage.js?v=443',
-  './workshops.js?v=443','./auth.js?v=443',
+  './style.css?v=444',
+  './firebase.js?v=444','./app.js?v=444','./assistant.js?v=444',
+  './inventory.js?v=444','./invoice.js?v=444','./raffinage.js?v=444',
+  './workshops.js?v=444','./auth.js?v=444',
   './manifest.json',
   './icons/icon-192.png','./icons/icon-512.png',
   './icons/icon-512-maskable.png','./icons/icon-180.png',
