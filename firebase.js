@@ -1,4 +1,4 @@
-window.FB_JS_VER='v448';
+window.FB_JS_VER='v449';
 /* ═══════════ FIREBASE ═══════════ */
 const _fbConfig={
     apiKey:"AIzaSyDevHwoNCKXGm-G8GJc_Z5eZwcSPuQS9wI",
@@ -1541,7 +1541,10 @@ function save(){
        كان حفظها هنا يسبّب تعارضاً — إعدادات قديمة من جهاز آخر تمسح قيوداً جديدة. */
     try{localStorage.setItem('gp_settings_'+(_currentUser||''),JSON.stringify({goldPrice,dollarRate,darkMode}));}catch(e){}
     if(!_baseRef||!_fbLoaded)return;
-    try{_baseRef.child('settings').set(_withOwner({goldPrice,dollarRate,darkMode,_ts:firebase.database.ServerValue.TIMESTAMP})).catch(_fbErr);}catch(e){}
+    try{
+        const _sr=parseFloat(String(localStorage.getItem('gp12_shiprate')||'').replace(',','.'))||0;
+        _baseRef.child('settings').set(_withOwner({goldPrice,dollarRate,darkMode,...(_sr>0?{shipRate:_sr}:{}),_ts:firebase.database.ServerValue.TIMESTAMP})).catch(_fbErr);
+    }catch(e){}
 }
 
 let _saveTimer=null;
@@ -1877,6 +1880,8 @@ function _startSettingsSync(){
         if(s.goldPrice)goldPrice=s.goldPrice;
         if(s.dollarRate)dollarRate=s.dollarRate;
         if(typeof s.darkMode==='boolean'){darkMode=s.darkMode;if(darkMode)applyDark();}
+        /* سعر الشحن ($/غ) مشترك بين الأجهزة — كان محلياً فيختلف حساب دبي/الفائدة من جهاز لآخر */
+        if(+s.shipRate>0){ try{localStorage.setItem('gp12_shiprate',String(s.shipRate).replace('.',','));}catch(e){} }
         try{localStorage.setItem('gp_settings_'+(_currentUser||''),JSON.stringify({goldPrice,dollarRate,darkMode}));}catch(e){}
         /* dubaiCalc من الأحداث لا من settings (مزامنة حتمية) */
         /* لا نطبّق ترباح من settings — الأحداث (TARBAH_ADD/DEL) هي المصدر الوحيد */

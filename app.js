@@ -1,4 +1,4 @@
-window.APP_JS_VER='v448';
+window.APP_JS_VER='v449';
 /* ═══════════ STATE ═══════════ */
 let B={دينار:0,'ذهب 730':0,'ذهب 24':0,دولار:0,vg730:0,vg24:0};
 let ops=[],invoices=[],debts=[],loans=[],rafInvoices=[],dollInvoices=[],dubaiInvoices=[];
@@ -1443,7 +1443,9 @@ window.saveShip=()=>{
     const {barsRemove,barUpdates,out24}=_pickBarsToRemove('24',w);
     const nowStr=new Date().toLocaleDateString('fr-FR',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
     const su=readNum('shipUsdRate')||0;   /* سعر الشحن $/غ — مرجع حساب غرام دبي */
-    if(su>0)try{localStorage.setItem('gp12_shiprate',String(su).replace('.',','));}catch(e){}
+    if(su>0){ try{localStorage.setItem('gp12_shiprate',String(su).replace('.',','));}catch(e){}
+        /* شارك السعر مع كل الأجهزة (إعدادات السحابة) */
+        try{ if(typeof _baseRef!=='undefined'&&_baseRef)_baseRef.child('settings/shipRate').set(su).catch(()=>{}); }catch(e){} }
     emitEvent('SHIP',
         {o,w,rc,su,barsRemove,barUpdates,...(out24>0?{out24}:{})},
         {op:{c:o,t:'شحن',m:'ذهب 24',a:w,_ts:Date.now(),dt:nowStr,su,rc}}
@@ -2857,7 +2859,8 @@ function renderDebts(){
     ops.forEach(o=>{ if(o&&o.c){ const t=o._ts||0; if(t>(lastTx[o.c]||0)) lastTx[o.c]=t; } });
     const fD=(v,d=0,unit='')=>{
         if(!v||Math.abs(v)<0.001)return'—';
-        return`<span class="${v>0?'debt-pos':'debt-neg'}">${fmt(v,d)}</span>${unit?`<small style="font-size:.65rem;color:var(--t3);margin-right:.15rem"> ${unit}</small>`:''}`;
+        /* الأحمر (سالب) بلا إشارة − : اللون وحده يدل */
+        return`<span class="${v>0?'debt-pos':'debt-neg'}">${fmt(Math.abs(v),d)}</span>${unit?`<small style="font-size:.65rem;color:var(--t3);margin-right:.15rem"> ${unit}</small>`:''}`;
     };
     const _rowsD=Object.entries(cd)
         /* أخفِ الزبائن الذين رصيدهم صفر في كل المعادن (لا دين ولا له) */
@@ -2889,7 +2892,7 @@ window.exportDebtsPdf=function(){
     if(!rows.length){toast('لا توجد ديون غير صفرية للتصدير','info');return;}
     const tot={di:0,do:0,g7:0,g2:0};
     rows.forEach(([n,v])=>{tot.di+=v.di;tot.do+=v.do;tot.g7+=v.g7;tot.g2+=v.g2;});
-    const fV=(v,d)=>{ if(!v||Math.abs(v)<0.001)return'<span style="color:#bbb">\u2014</span>'; const col=v>0?'#16a34a':'#dc2626'; return'<span style="color:'+col+';font-weight:700">'+(v>0?'+':'\u2212')+fmt(Math.abs(v),d)+'</span>'; };
+    const fV=(v,d)=>{ if(!v||Math.abs(v)<0.001)return'<span style="color:#bbb">\u2014</span>'; const col=v>0?'#16a34a':'#dc2626'; return'<span style="color:'+col+';font-weight:700">'+(v>0?'+':'')+fmt(Math.abs(v),d)+'</span>'; };
     const _bk=_netBuckets();
     const _gp=(typeof goldPrice!=='undefined'?goldPrice:0)||0;
     const _dr=(typeof dollarRate!=='undefined'?dollarRate:0)||0;
@@ -2947,7 +2950,7 @@ window.exportDebtsPdf=function(){
         histRows=keys.map(k=>{
             const pr=_calcMonthProfit(k)||0; const col=pr>=0?'#16a34a':'#dc2626';
             return '<tr style="text-align:center"><td style="border:1px solid #ddd;padding:6px;font-weight:800;text-align:right">'+_mName(k)+'</td>'
-                +'<td style="border:1px solid #ddd;padding:6px;color:'+col+';font-weight:800">'+(pr>=0?'+':'\u2212')+fmt(Math.abs(pr),0)+' \u062f\u062c</td></tr>';
+                +'<td style="border:1px solid #ddd;padding:6px;color:'+col+';font-weight:800">'+(pr>=0?'+':'')+fmt(Math.abs(pr),0)+' \u062f\u062c</td></tr>';
         }).join('');
     }catch(e){}
     const dt=new Date().toLocaleDateString('fr-FR');
@@ -2965,9 +2968,9 @@ window.exportDebtsPdf=function(){
     }catch(e){}
     const _miniCard=(lbl,val,col,sub)=>'<div style="background:#fff;border:1.5px solid #ddd;border-radius:12px;padding:9px;text-align:center"><div style="font-size:10px;color:#666;font-weight:800;margin-bottom:3px">'+lbl+'</div><div style="font-size:14px;font-weight:900;color:'+col+'">'+val+'</div>'+(sub?'<div style="font-size:9px;color:#999;margin-top:2px">'+sub+'</div>':'')+'</div>';
     const _profitBreakdown=(monthProfit==null?'':'<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px">'
-        +_miniCard('🛒 فائدة البيع والشراء',(_pfTrade>=0?'+':'−')+fmt(Math.abs(_pfTrade),0)+' دج',(_pfTrade>=0?'#16a34a':'#dc2626'),'')
+        +_miniCard('🛒 فائدة البيع والشراء',(_pfTrade>=0?'+':'')+fmt(Math.abs(_pfTrade),0)+' دج',(_pfTrade>=0?'#16a34a':'#dc2626'),'')
         +_miniCard('🔥 فائدة الرافيناج',fmt(_pfRaf,0)+' دج','#b45309','')
-        +_miniCard('⚖️ فائدة لابارت',(_pfLapDz>=0?'+':'−')+fmt(Math.abs(_pfLapDz),0)+' دج',(_pfLapDz>=0?'#16a34a':'#dc2626'),fmt(_pfLapG,2)+' غ')
+        +_miniCard('⚖️ فائدة لابارت',(_pfLapDz>=0?'+':'')+fmt(Math.abs(_pfLapDz),0)+' دج',(_pfLapDz>=0?'#16a34a':'#dc2626'),fmt(_pfLapG,2)+' غ')
         +'</div>');
     const bigCard=(label,val,sub,color)=>'<div style="background:'+color+'12;border:1.5px solid '+color+';border-radius:12px;padding:11px 13px;text-align:center"><div style="font-size:11px;color:#555;font-weight:800;margin-bottom:4px">'+label+'</div><div style="font-size:17px;font-weight:900;color:'+color+';line-height:1.2">'+val+'</div>'+(sub?'<div style="font-size:10px;color:#888;font-weight:700;margin-top:3px">'+sub+'</div>':'')+'</div>';
     /* صفوف مضغوطة (padding صغير + خط أصغر) كي يدخل الدفتر في ~4 صفحات */
@@ -2982,7 +2985,7 @@ window.exportDebtsPdf=function(){
         +bigCard('\ud83d\udcb2 \u0645\u062c\u0645\u0648\u0639 \u0627\u0644\u062f\u0648\u0644\u0627\u0631',fmt(_bk.raw_dol||0,2)+' $','\u0633\u0639\u0631 \u0627\u0644\u0635\u0631\u0641: '+fmt(_dr,0),'#7c3aed')
         +bigCard('\ud83d\udcb5 \u0645\u062c\u0645\u0648\u0639 \u0627\u0644\u062f\u064a\u0646\u0627\u0631',fmt(_bk.raw_din||0,0)+' \u062f\u062c','','#d97706')
         +'</div>'
-        +'<div style="background:'+mpCol+'12;border:1.5px solid '+mpCol+';border-radius:12px;padding:11px;text-align:center;margin-bottom:12px"><div style="font-size:11px;color:#555;font-weight:800;margin-bottom:4px">\ud83d\udcc8 '+_profitMonthLbl+' (\u0635\u0627\u0641\u064a\u0629)</div><div style="font-size:20px;font-weight:900;color:'+mpCol+'">'+(monthProfit==null?'\u2014':((monthProfit>=0?'+':'\u2212')+fmt(Math.abs(monthProfit),0)+' \u062f\u062c'))+'</div>'+(_pdfExpTotal>0?'<div style="font-size:10px;color:#888;font-weight:700;margin-top:3px">\u0627\u0644\u0641\u0627\u0626\u062f\u0629 '+fmt(_pdfGross,0)+' \u2212 \u0645\u0635\u0627\u0631\u064a\u0641 '+fmt(_pdfExpTotal,0)+'</div>':'')+'</div>'
+        +'<div style="background:'+mpCol+'12;border:1.5px solid '+mpCol+';border-radius:12px;padding:11px;text-align:center;margin-bottom:12px"><div style="font-size:11px;color:#555;font-weight:800;margin-bottom:4px">\ud83d\udcc8 '+_profitMonthLbl+' (\u0635\u0627\u0641\u064a\u0629)</div><div style="font-size:20px;font-weight:900;color:'+mpCol+'">'+(monthProfit==null?'\u2014':((monthProfit>=0?'+':'')+fmt(Math.abs(monthProfit),0)+' \u062f\u062c'))+'</div>'+(_pdfExpTotal>0?'<div style="font-size:10px;color:#888;font-weight:700;margin-top:3px">\u0627\u0644\u0641\u0627\u0626\u062f\u0629 '+fmt(_pdfGross,0)+' \u2212 \u0645\u0635\u0627\u0631\u064a\u0641 '+fmt(_pdfExpTotal,0)+'</div>':'')+'</div>'
         +_profitBreakdown
         +(_pdfExpTotal>0?'<div style="background:#dc262612;border:1.5px solid #dc2626;border-radius:12px;padding:11px;text-align:center;margin-bottom:12px"><div style="font-size:11px;color:#555;font-weight:800;margin-bottom:4px">\ud83d\udcb8 \u0645\u0635\u0627\u0631\u064a\u0641 \u0627\u0644\u0634\u0647\u0631</div><div style="font-size:18px;font-weight:900;color:#dc2626">\u2212 '+fmt(_pdfExpTotal,0)+' \u062f\u062c</div>'+(_pdfExpUsd>0?'<div style="font-size:10px;color:#888;margin-top:3px">\u062f\u064a\u0646\u0627\u0631 '+fmt(_pdfExpDz,0)+' + \u062f\u0648\u0644\u0627\u0631 '+fmt(_pdfExpUsd,0)+'$</div>':'')+'</div>':'')
         +(histRows?('<div style="margin-bottom:12px"><div style="font-size:11px;color:#666;font-weight:800;margin-bottom:5px;text-align:right">\ud83d\udcc5 \u0623\u0631\u0628\u0627\u062d \u0627\u0644\u0623\u0634\u0647\u0631 \u0627\u0644\u0633\u0627\u0628\u0642\u0629</div><table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="background:#f3f4f6"><th style="border:1px solid #ddd;padding:6px">\u0627\u0644\u0634\u0647\u0631</th><th style="border:1px solid #ddd;padding:6px">\u0627\u0644\u0631\u0628\u062d</th></tr></thead><tbody>'+histRows+'</tbody></table></div>'):'')
