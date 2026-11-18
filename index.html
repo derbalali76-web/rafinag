@@ -75,7 +75,7 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-messaging-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.2.0/crypto-js.min.js"></script>
-    <link rel="stylesheet" href="style.css?v=447">
+    <link rel="stylesheet" href="style.css?v=448">
     <script>
     /* منع وميض نافذة الدخول: إن كانت الجلسة محفوظة، نخفيها قبل أول رسم */
     (function(){try{
@@ -159,7 +159,7 @@
     <div class="hdr">
         <div class="brand">
             <div class="logo">🪙</div>
-            <div class="brand-text"><h2>GoldPro</h2><span>نظام الذهب والدولار</span><div id="appVerBrand" style="display:none"></div></div>
+            <div class="brand-text" style="display:none"><div id="appVerBrand" style="display:none"></div></div>
         </div>
         <div class="hdr-center-wrap" id="hdrCenterWrap">
             <div class="price-ball" id="priceBall" onclick="if(!window._badgeDragMoved)window._togglePricePop()" title="اضغط لعرض السعر اللحظي وسعر بيع دبي — اسحب لتحريكها">💰</div>
@@ -183,7 +183,6 @@
             <div class="badge" onclick="openSettings()">⚙ <span id="goldPriceDisplay">12500</span> دج/غ</div>
             <div class="badge" id="userBadge" onclick="openSettings()" title="المستخدم الحالي" style="background:rgba(212,175,55,.15);border-color:var(--g400);color:var(--g400);cursor:pointer">👤 <span id="currentUserDisplay">—</span></div>
             <div class="badge" id="appVerBadge" title="نسخة التطبيق" style="background:rgba(148,163,184,.12);border-color:rgba(148,163,184,.35);color:var(--t3);cursor:default;font-size:.68rem">⛭ <span id="appVerTxt">…</span></div>
-            <div class="icon-btn" onclick="doLogout()" title="تسجيل الخروج" style="background:rgba(239,68,68,.12);color:var(--rd)"><i class="fas fa-sign-out-alt"></i></div>
             <div class="icon-btn" onclick="toggleDark()" id="darkBtn"><i class="fas fa-moon"></i></div>
             <div class="icon-btn" id="fsBtn" onclick="toggleFullscreen()" title="فول سكرين"><i class="fas fa-expand"></i></div>
             <div class="icon-btn" id="installBtn" onclick="doInstallApp()" title="تثبيت التطبيق" style="display:none;background:rgba(16,185,129,.14);color:#059669"><i class="fas fa-download"></i></div>
@@ -1215,6 +1214,7 @@
         <label><i class="fas fa-dollar-sign" style="color:var(--gr)"></i> سعر الدولار (دج/$)</label>
         <input type="number" inputmode="decimal" id="settingDollarRate" step="any" min="1">
     </div>
+    <button onclick="closeModal('settingsModal');doLogout()" style="width:100%;margin:.2rem 0 .8rem;border:1.5px solid var(--rd);background:rgba(239,68,68,.07);color:var(--rd);border-radius:10px;padding:.55rem;font-weight:900;font-family:Tajawal,sans-serif;font-size:.82rem;cursor:pointer">🚪 تسجيل الخروج</button>
     <div id="tgCfgBlock" style="display:none;border:1.5px solid #229ED9;background:rgba(34,158,217,.06);border-radius:12px;padding:.7rem;margin-bottom:.8rem">
         <div style="font-weight:900;color:#229ED9;font-size:.85rem;margin-bottom:.15rem">✈️ نسخة تلقائية إلى تيليجرام</div>
         <div style="font-size:.68rem;color:var(--t3);margin-bottom:.55rem">تُرسَل نسخة كاملة من بياناتك كل ساعتين إلى محادثة البوت الخاصة بك (ما دام التطبيق مفتوحاً وفيه إنترنت).</div>
@@ -1315,14 +1315,14 @@
 
 
 <!-- ═══ ملفات JS ═══ -->
-<script src="firebase.js?v=447"></script>
-<script src="app.js?v=447"></script>
-<script src="assistant.js?v=447"></script>
-<script src="inventory.js?v=447"></script>
-<script src="invoice.js?v=447"></script>
-<script src="raffinage.js?v=447"></script>
-<script src="workshops.js?v=447"></script>
-<script src="auth.js?v=447"></script>
+<script src="firebase.js?v=448"></script>
+<script src="app.js?v=448"></script>
+<script src="assistant.js?v=448"></script>
+<script src="inventory.js?v=448"></script>
+<script src="invoice.js?v=448"></script>
+<script src="raffinage.js?v=448"></script>
+<script src="workshops.js?v=448"></script>
+<script src="auth.js?v=448"></script>
 
 
 

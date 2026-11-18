@@ -1,4 +1,4 @@
-window.APP_JS_VER='v447';
+window.APP_JS_VER='v448';
 /* ═══════════ STATE ═══════════ */
 let B={دينار:0,'ذهب 730':0,'ذهب 24':0,دولار:0,vg730:0,vg24:0};
 let ops=[],invoices=[],debts=[],loans=[],rafInvoices=[],dollInvoices=[],dubaiInvoices=[];
@@ -2873,17 +2873,7 @@ function renderDebts(){
             <td>${fD(v.g7,2,'غ (730)')}</td><td>${fD(v.g2,2,'غ (24)')}</td>
             <td><button class="btn-settle" onclick="openSettle('${n.replace(/'/g,"\\'")}')">✅ تصفية</button></td>
         </tr>`);
-    /* المجموع تحت كل عمود (للزبائن المعروضين — يتبع البحث) — مثل سطر «الإجمالي» في PDF الدفتر */
-    const _tot={di:0,do:0,g7:0,g2:0};
-    Object.entries(cd).forEach(([n,v])=>{ if(Math.abs(v.di)>0.001||Math.abs(v.do)>0.001||Math.abs(v.g7)>0.001||Math.abs(v.g2)>0.001){ _tot.di+=v.di;_tot.do+=v.do;_tot.g7+=v.g7;_tot.g2+=v.g2; } });
-    const _ts='style="border-top:2px solid var(--g500);background:linear-gradient(rgba(217,119,6,.13),rgba(217,119,6,.13)),var(--card,#fff);font-weight:900;position:sticky;bottom:0;z-index:1"';
-    const _totRow=_rowsD.length?`<tr class="debt-total-row">
-            <td ${_ts}>Σ الإجمالي <small style="font-size:.62rem;color:var(--t3);font-weight:700">(${_rowsD.length})</small></td>
-            <td ${_ts}>${fD(_tot.di,0,'Da')}</td><td ${_ts}>${fD(_tot.do,0,'$')}</td>
-            <td ${_ts}>${fD(_tot.g7,2,'غ (730)')}</td><td ${_ts}>${fD(_tot.g2,2,'غ (24)')}</td>
-            <td ${_ts}></td>
-        </tr>`:'';
-    tb.innerHTML=_rowsD.join('')+_totRow;
+    tb.innerHTML=_rowsD.join('');
 }
 window.exportDebtsPdf=function(){
     if(!debts.length){toast('لا توجد ديون للتصدير','info');return;}
@@ -2999,6 +2989,7 @@ window.exportDebtsPdf=function(){
         +'<table style="width:100%;border-collapse:collapse;font-size:'+(rows.length>110?'8.5px':rows.length>70?'10px':'12px')+'"><thead><tr style="background:#1a1a1a;color:#fff;text-align:center"><th style="padding:7px;border:1px solid #555">\u0627\u0644\u0632\u0628\u0648\u0646</th><th style="padding:7px;border:1px solid #555">\u062f\u064a\u0646\u0627\u0631</th><th style="padding:7px;border:1px solid #555">\u062f\u0648\u0644\u0627\u0631</th><th style="padding:7px;border:1px solid #555">\u0630\u0647\u0628 730</th><th style="padding:7px;border:1px solid #555">\u0630\u0647\u0628 24</th></tr></thead><tbody>'+rowsHtml
         +'<tr style="text-align:center;background:#fef3c7;font-weight:900"><td style="border:2px solid #b45309;padding:7px;text-align:right">\u0627\u0644\u0625\u062c\u0645\u0627\u0644\u064a</td><td style="border:2px solid #b45309;padding:7px">'+fV(tot.di,0)+'</td><td style="border:2px solid #b45309;padding:7px">'+fV(tot.do,0)+'</td><td style="border:2px solid #b45309;padding:7px">'+fV(tot.g7,2)+'</td><td style="border:2px solid #b45309;padding:7px">'+fV(tot.g2,2)+'</td></tr>'
         +'</tbody></table>'
+        +(function(){ try{ const ids=(_allEvents||[]).map(e=>e&&e.id).filter(Boolean).sort(); let h=5381; ids.forEach(x=>{ for(let i=0;i<x.length;i++)h=((h<<5)+h+x.charCodeAt(i))|0; }); const code=((h>>>0).toString(36).toUpperCase().padStart(7,'0')).slice(-6); return '<div style="margin-top:8px;font-size:9.5px;color:#9ca3af;text-align:center;direction:rtl">🔎 بصمة البيانات: <b dir="ltr" style="font-family:monospace;color:#6b7280">'+ids.length+' · '+code+'</b> — يجب أن تتطابق في كل الأجهزة</div>'; }catch(e){ return ''; } })()
         +'<div style="margin-top:10px;font-size:10px;color:#888;text-align:center">\u0625\u064a\u062c\u0627\u0628\u064a (\u0623\u062e\u0636\u0631) = \u0627\u0644\u0632\u0628\u0648\u0646 \u0645\u062f\u064a\u0646 \u0644\u0643 &nbsp;|&nbsp; \u0633\u0627\u0644\u0628 (\u0623\u062d\u0645\u0631) = \u0623\u0646\u062a \u0627\u0644\u0645\u062f\u064a\u0646</div>'
         +'</div>';
     if(typeof _openInternalView==='function'){ _openInternalView(html,'دفتر الديون'); return; }
