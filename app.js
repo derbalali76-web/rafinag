@@ -1,4 +1,4 @@
-window.APP_JS_VER='v444';
+window.APP_JS_VER='v447';
 /* ═══════════ STATE ═══════════ */
 let B={دينار:0,'ذهب 730':0,'ذهب 24':0,دولار:0,vg730:0,vg24:0};
 let ops=[],invoices=[],debts=[],loans=[],rafInvoices=[],dollInvoices=[],dubaiInvoices=[];
@@ -2859,7 +2859,7 @@ function renderDebts(){
         if(!v||Math.abs(v)<0.001)return'—';
         return`<span class="${v>0?'debt-pos':'debt-neg'}">${fmt(v,d)}</span>${unit?`<small style="font-size:.65rem;color:var(--t3);margin-right:.15rem"> ${unit}</small>`:''}`;
     };
-    tb.innerHTML=Object.entries(cd)
+    const _rowsD=Object.entries(cd)
         /* أخفِ الزبائن الذين رصيدهم صفر في كل المعادن (لا دين ولا له) */
         .filter(([n,v])=>Math.abs(v.di)>0.001||Math.abs(v.do)>0.001||Math.abs(v.g7)>0.001||Math.abs(v.g2)>0.001)
         .sort((a,b)=>{
@@ -2872,7 +2872,18 @@ function renderDebts(){
             <td>${fD(v.di,0,'Da')}</td><td>${fD(v.do,0,'$')}</td>
             <td>${fD(v.g7,2,'غ (730)')}</td><td>${fD(v.g2,2,'غ (24)')}</td>
             <td><button class="btn-settle" onclick="openSettle('${n.replace(/'/g,"\\'")}')">✅ تصفية</button></td>
-        </tr>`).join('');
+        </tr>`);
+    /* المجموع تحت كل عمود (للزبائن المعروضين — يتبع البحث) — مثل سطر «الإجمالي» في PDF الدفتر */
+    const _tot={di:0,do:0,g7:0,g2:0};
+    Object.entries(cd).forEach(([n,v])=>{ if(Math.abs(v.di)>0.001||Math.abs(v.do)>0.001||Math.abs(v.g7)>0.001||Math.abs(v.g2)>0.001){ _tot.di+=v.di;_tot.do+=v.do;_tot.g7+=v.g7;_tot.g2+=v.g2; } });
+    const _ts='style="border-top:2px solid var(--g500);background:linear-gradient(rgba(217,119,6,.13),rgba(217,119,6,.13)),var(--card,#fff);font-weight:900;position:sticky;bottom:0;z-index:1"';
+    const _totRow=_rowsD.length?`<tr class="debt-total-row">
+            <td ${_ts}>Σ الإجمالي <small style="font-size:.62rem;color:var(--t3);font-weight:700">(${_rowsD.length})</small></td>
+            <td ${_ts}>${fD(_tot.di,0,'Da')}</td><td ${_ts}>${fD(_tot.do,0,'$')}</td>
+            <td ${_ts}>${fD(_tot.g7,2,'غ (730)')}</td><td ${_ts}>${fD(_tot.g2,2,'غ (24)')}</td>
+            <td ${_ts}></td>
+        </tr>`:'';
+    tb.innerHTML=_rowsD.join('')+_totRow;
 }
 window.exportDebtsPdf=function(){
     if(!debts.length){toast('لا توجد ديون للتصدير','info');return;}

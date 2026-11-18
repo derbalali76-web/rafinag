@@ -1,4 +1,4 @@
-window.FB_JS_VER='v444';
+window.FB_JS_VER='v447';
 /* ═══════════ FIREBASE ═══════════ */
 const _fbConfig={
     apiKey:"AIzaSyDevHwoNCKXGm-G8GJc_Z5eZwcSPuQS9wI",
@@ -103,7 +103,7 @@ function _pushUnsyncedToFb(){
         const evt=_allEvents.find(e=>e.id===eid);
         if(!evt){_unsyncedIds.delete(eid);return;}
         try{
-            _baseRef.child('events/'+eid).set(_withOwner(evt))
+            _baseRef.child('events/'+eid).set(_withSrv(JSON.parse(JSON.stringify(_withOwner(evt)))))
                 .then(()=>{_unsyncedIds.delete(eid);_updSyncIndicator();})
                 .catch(_fbErr);
         }catch(e){}
@@ -117,13 +117,14 @@ function _fbSetEvent(evt){
     _updSyncIndicator();
     try{
         /* معقّم شامل: أي حقل undefined يُسقَط (Firebase يرفض الحمولة كلها بسببه) */
-        const _clean=JSON.parse(JSON.stringify(_withOwner(evt)));
+        const _clean=_withSrv(JSON.parse(JSON.stringify(_withOwner(evt))));
         _baseRef.child('events/'+evt.id).set(_clean)
             .then(()=>{
                 _unsyncedIds.delete(evt.id);_outboxDrop(evt.id);_updSyncIndicator();
                 /* مؤشّر خفيف: آخر ts معروف. الزبون يقرأه (بايتات قليلة) ليعرف
                    إن كان هناك جديد قبل جلب أي أحداث — توفير هائل عند الفتح المتكرّر. */
                 try{ if(evt.ts) _baseRef.child('_meta/lastTs').set(Math.max(evt.ts,Date.now())); }catch(e){}
+                try{ _baseRef.child('_meta/lastSrv').set(firebase.database.ServerValue.TIMESTAMP); }catch(e){}
             })
             .catch(e=>{_fbErr(e);});
     }catch(e){_fbErr(e);}
@@ -293,6 +294,9 @@ function _decryptBackup(parsed){
 }
 
 /* ── مساعد: يُضيف ownerUid لكل كائن يُرفع لـ Firebase ── */
+/* وقت وصول الحدث للسيرفر (_srv): يكتبه Firebase نفسه. المزامنة تعتمد عليه لا على وقت
+   إنشاء الحدث — فحدثٌ سُجّل دون نت ورُفع متأخراً يُعتبر «جديداً» عند الأجهزة الأخرى ولا يُفوَّت. */
+function _withSrv(obj){ return {...obj,_srv:firebase.database.ServerValue.TIMESTAMP}; }
 function _withOwner(obj){
     const u=firebase.auth().currentUser?.uid;
     return u?{...obj,ownerUid:u}:obj;
@@ -1368,7 +1372,7 @@ function _outboxFlush(){
     a.forEach(evt=>{
         if(!evt||!evt.id)return;
         try{
-            const _clean=JSON.parse(JSON.stringify(_withOwner(evt)));
+            const _clean=_withSrv(JSON.parse(JSON.stringify(_withOwner(evt))));
             _baseRef.child('events/'+evt.id).set(_clean)
                 .then(()=>{ _outboxDrop(evt.id); try{_unsyncedIds.delete(evt.id);_updSyncIndicator();}catch(_){} })
                 .catch(()=>{});
@@ -1438,8 +1442,13 @@ window.forceFullSync=function(){
         const data=snap.val();
         if(!data){ if(typeof toast==='function')toast('لا توجد بيانات في السحابة','info'); return; }
         const arr=Object.keys(data).map(k=>data[k]).filter(Boolean);
+        /* لا تُضيّع ما لم يُرفع بعد: أحداث محلية غير موجودة في السحابة تُبقى وتُعاد محاولة رفعها */
+        const _cloudIds=new Set(arr.map(e=>e&&e.id).filter(Boolean));
+        const _keep=(_allEvents||[]).filter(e=>e&&e.id&&!_cloudIds.has(e.id)&&(typeof _unsyncedIds==='undefined'||_unsyncedIds.has(e.id)));
+        if(_keep.length)arr.push(..._keep);
         _allEvents=arr;
         _seenIds=new Set(arr.map(e=>e&&e.id).filter(Boolean));
+        if(_keep.length)setTimeout(()=>{ try{_retryUnsynced();}catch(e){} },1500);
         try{ localStorage.setItem('gp_archived_'+(_currentUser||''),'1'); }catch(e){}
         try{ localStorage.setItem('gp_fullsync_'+(_currentUser||''),String(Date.now())); }catch(e){}
         _lsSaveEvents();
@@ -1626,7 +1635,11 @@ function _fbInitialLoadCore(){
        الأرشفة (قد يكون ضُبط بعد جلب ناقص سابق). يعالج «حدث واحد محلي» نهائياً. */
     let _localCount=_allEvents.length;
     if(_localCount<5 && navigator.onLine)_fullReload=true;
+    /* مرة واحدة بعد ترقية المزامنة بوقت السيرفر: تحميل كامل يُكمل أي حدث فاته الجهاز سابقاً */
+    try{ if(localStorage.getItem('gp_srvsync1_'+(_currentUser||''))!=='1')_fullReload=true; }catch(e){}
     let _incremental=(_lastLocalTs>0 && !_fullReload);
+    /* آخر وقت سيرفر رأيناه (من أحداث وصلت من السحابة) */
+    let _lastSrv=0; _allEvents.forEach(e=>{ const v=+e._srv; if(v>_lastSrv)_lastSrv=v; });
     /* الزبون: التحميل الكامل يجلب كل الأحداث (3006+) رغم أنه يحتاج ~4 فقط —
        أكبر مصدر للتكلفة. الحل: تزايدي كالأدمين، مع تحميل كامل أول مرة (لا بيانات
        محلية) وضمان دوري نادر. أول دخول يحتاج نت، وبعدها الأحدث فقط.
@@ -1656,15 +1669,18 @@ function _fbInitialLoadCore(){
     const _evQuery=_incremental
         ? _baseRef.child('events').orderByChild('ts').startAt(_startFrom)
         : _baseRef.child('events');                                            /* الكل */
-    if(_fullReload){ try{localStorage.setItem('gp_fullsync_'+(_currentUser||''),String(Date.now()));}catch(e){} }
+    if(_fullReload){ try{localStorage.setItem('gp_fullsync_'+(_currentUser||''),String(Date.now()));localStorage.setItem('gp_srvsync1_'+(_currentUser||''),'1');}catch(e){} }
 
     /* ═══ فحص المؤشّر الخفيف قبل جلب أي أحداث ═══
        نقرأ قيمة واحدة (_meta/lastTs, بضعة بايتات) لا كل الأحداث. إن كان التحميل
        تزايدياً ولا جديد (المؤشّر ≤ آخر ts محلي)، نتوقّف فوراً بلا جلب — أرخص ما يمكن.
        هذا جوهر التوفير: الزبون يفتح التطبيق عشرات المرات بلا تكلفة تُذكر. */
     if(_incremental){
-        _baseRef.child('_meta/lastTs').once('value', function(ms){
-            const _remoteTs = +(ms.val()||0);
+        _baseRef.child('_meta').once('value', function(ms){
+            const _mv=ms.val()||{};
+            const _remoteTs = +(_mv.lastTs||0);
+            /* مؤشّر وقت السيرفر: رفعٌ متأخر لحدث قديم يغيّره → نجلب حتماً */
+            if((+_mv.lastSrv||0)>_lastSrv && _lastSrv>0){ _runEventQuery(); return; }
             /* نتخطّى الجلب إن لا جديد. الشرط: إمّا لدينا أحداث كافية (>=5)،
                أو أن المستخدم أُرشف من قبل (جلب كامل ناجح) فأحداثه القليلة طبيعية
                لا ناقصة — حاسم للزبون (قارئ خالص بـ~4 أحداث): بدونه يجلب النطاق
@@ -1685,6 +1701,22 @@ function _fbInitialLoadCore(){
     _runEventQuery();
 
     function _runEventQuery(){
+    /* التزايدي: اجلب أيضاً ما وصل للسيرفر بعد آخر ما رأيناه (_srv) — يلتقط الرفع المتأخر */
+    if(_incremental){
+        let _srvQ=null;
+        try{ _srvQ=_baseRef.child('events').orderByChild('_srv').startAt(Math.max(1,_lastSrv-_SYNC_MARGIN)); }catch(e){}
+        if(_srvQ){
+            _srvQ.once('value',s2=>{
+                const v=s2.val();
+                if(v){ const ids=new Set(_allEvents.map(e=>e.id)); Object.values(v).forEach(e=>{ if(e&&e.id&&!ids.has(e.id)){_allEvents.push(e);ids.add(e.id);} }); }
+                _runTsQuery();
+            },()=>_runTsQuery());
+            return;
+        }
+    }
+    _runTsQuery();
+    }
+    function _runTsQuery(){
     _evQuery.once('value',snap=>{
         const evData=snap.val();
         if(evData){
@@ -1750,7 +1782,7 @@ function _fbInitialLoadCore(){
         _startFbSync();
         _startSettingsSync();
     });
-    }   /* نهاية _runEventQuery */
+    }   /* نهاية _runTsQuery */
     });   /* نهاية غلاف resetAt */
 }
 
@@ -1813,7 +1845,7 @@ function _startFbSync(){
        (كان يسبّب تجميداً عند الدخول الأول مع آلاف الأحداث). */
     /* املأ مجموعة المعرّفات العامة بما لدينا (للفحص السريع O(1) ومنع التكرار). */
     _seenIds=new Set(_allEvents.map(e=>e&&e.id).filter(Boolean));
-    _addedRef.on('child_added',snap=>{
+    const _onAdded=snap=>{
         if(_importing)return;
         const evt=snap.val();
         if(!evt||!evt.id)return;
@@ -1821,7 +1853,15 @@ function _startFbSync(){
         _seenIds.add(evt.id);
         _allEvents.push(evt);
         _debouncedReproject();
-    },_fbErr);
+    };
+    _addedRef.on('child_added',_onAdded,_fbErr);
+    /* مستمع ثانٍ بوقت وصول السيرفر: يلتقط حدثاً قديم الإنشاء رُفع الآن (جهاز كان دون نت) */
+    try{
+        firebase.database().ref('.info/serverTimeOffset').once('value',o=>{
+            const _srvNow=Date.now()+(+o.val()||0);
+            _baseRef.child('events').orderByChild('_srv').startAt(_srvNow-60000).on('child_added',_onAdded,_fbErr);
+        });
+    }catch(e){}
     /* child_removed: أُزيل — كان يجلب كل الأحداث الموجودة مرة عند كل اتصال
        (Firebase يحتاج كل الأطفال لاكتشاف الحذف)، فيحمّل ~2.5MB لكل أدمين عند
        كل إعادة اتصال (Median يقطع كثيراً) = تسرّب حصة ضخم. الحذف الفعلي نادر
