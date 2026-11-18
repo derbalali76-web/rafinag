@@ -68,7 +68,9 @@ body{padding:0;max-width:680px;margin:0 auto}
 #invHint{position:fixed;bottom:.8rem;left:50%;transform:translateX(-50%);z-index:2;background:rgba(17,24,39,.78);color:#fff;font-size:.68rem;font-weight:800;padding:.35rem .8rem;border-radius:20px;pointer-events:none;transition:opacity .4s;direction:rtl;white-space:nowrap}
 #invView .x{position:fixed;top:.55rem;left:.55rem;z-index:2;background:var(--rd);color:#fff;border:none;border-radius:10px;padding:.45rem .9rem;font-weight:900;font-family:inherit;cursor:pointer}
 #invScale{position:absolute;top:0;left:0;transform-origin:top left}
-#invBody{background:#fff;color:#111;width:520px;padding:52px 8px 8px}
+#invBody{background:#fff;color:#111;width:520px;padding:8px;box-sizing:border-box}
+#invTop{position:fixed;top:0;left:0;right:0;height:54px;background:#fff;z-index:1;box-shadow:0 1px 6px rgba(0,0,0,.08)}
+#invSizer{margin-top:54px}
 .foot{text-align:center;color:var(--t3);font-size:.62rem;padding:1.2rem 0 1.6rem}
 </style>
 </head>
@@ -103,7 +105,7 @@ body{padding:0;max-width:680px;margin:0 auto}
   </div>
 </div>
 
-<div id="invView"><button class="x" onclick="closeInv()">✕ إغلاق</button>
+<div id="invView"><div id="invTop"></div><button class="x" onclick="closeInv()">✕ إغلاق</button>
   <div id="invSizer"><div id="invScale"><div id="invBody" dir="rtl"></div></div></div>
   <div id="invHint">🤏 كبّر بإصبعين · نقرتان للتكبير</div></div>
 
@@ -212,9 +214,22 @@ function render(d){
 const PORTAL_INV='goldpro/_portalInv';
 /* تكبير الفاتورة: قياس الملاءمة × تكبير المستخدم (إصبعان أو نقرتان) */
 let _invZoom=1;
+const INV_TOP=54;
+/* عرض الفاتورة الحقيقي: فاتورة الرافيناج 190mm (~720px) — تُعطى عرضها كاملاً ثم تُصغَّر لتملأ الشاشة */
+function _invNatW(){
+  const b=document.getElementById('invBody');
+  if(b._natW)return b._natW;
+  b.style.width='520px';
+  let need=520;
+  b.querySelectorAll(':scope > *, :scope > * > *').forEach(el=>{ need=Math.max(need,el.offsetWidth+16,el.scrollWidth+16); });
+  b.style.width=need+'px';
+  need=Math.max(need,b.scrollWidth);
+  b.style.width=need+'px';
+  b._natW=need; return need;
+}
 function _invBase(){
   const b=document.getElementById('invBody');
-  const cw=Math.max(b.scrollWidth,b.offsetWidth)||520;
+  const cw=_invNatW();
   return {cw, ch:Math.max(b.scrollHeight,b.offsetHeight)||600, s:Math.min(1.6,window.innerWidth/cw)};
 }
 function _applyInvZoom(){
@@ -231,7 +246,7 @@ function _fitInv(){ _applyInvZoom(); }
 function _invAnchor(px,py){
   const v=document.getElementById('invView'), {cw,s:base}=_invBase(), s0=base*_invZoom;
   const off0=Math.max(0,(window.innerWidth-cw*s0)/2);
-  return {fx:(v.scrollLeft+px-off0)/s0, fy:(v.scrollTop+py)/s0};
+  return {fx:(v.scrollLeft+px-off0)/s0, fy:(v.scrollTop+py-INV_TOP)/s0};
 }
 /* يغيّر التكبير ويُبقي نقطة المحتوى a تحت (px,py) — المرساة تُحسب مرة واحدة عند بدء الحركة */
 function _zoomInvAt(z,px,py,a){
@@ -239,7 +254,7 @@ function _zoomInvAt(z,px,py,a){
   a=a||_invAnchor(px,py);
   _invZoom=Math.max(1,Math.min(5,z));
   const s1=_applyInvZoom(), {cw}=_invBase(), off1=Math.max(0,(window.innerWidth-cw*s1)/2);
-  v.scrollLeft=a.fx*s1+off1-px; v.scrollTop=a.fy*s1-py;
+  v.scrollLeft=a.fx*s1+off1-px; v.scrollTop=a.fy*s1+INV_TOP-py;
 }
 (function(){
   const v=document.getElementById('invView'); let p0=null, lastTap=0;
@@ -267,19 +282,19 @@ function _zoomInvAt(z,px,py,a){
 })();
 async function openInv(key){
   const v=document.getElementById('invView'), b=document.getElementById('invBody');
-  b.innerHTML='<div style="text-align:center;padding:2rem;color:#9ca3af;font-weight:800">⏳ جارٍ تحميل الفاتورة…</div>';
+  b.innerHTML='<div style="text-align:center;padding:2rem;color:#9ca3af;font-weight:800">⏳ جارٍ تحميل الفاتورة…</div>'; b._natW=0;
   _invZoom=1; v.style.display='block'; v.scrollTop=0; v.scrollLeft=0; _fitInv();
   const h=document.getElementById('invHint'); if(h){ h.style.opacity='1'; clearTimeout(window._invHintT); window._invHintT=setTimeout(()=>h.style.opacity='0',2600); }
   const ck='portal_inv_'+_phone+'_'+key;
   let html=''; try{ html=localStorage.getItem(ck)||''; }catch(e){}
-  if(html){ b.innerHTML=html; requestAnimationFrame(_fitInv); setTimeout(_fitInv,400); }
+  if(html){ b.innerHTML=html; b._natW=0; requestAnimationFrame(_fitInv); setTimeout(_fitInv,400); }
   try{
     const s=await Promise.race([_db.ref(PORTAL_INV+'/'+_phone+'/'+key).once('value'),new Promise((_,rj)=>setTimeout(()=>rj(0),9000))]);
     const d=s.val();
-    if(d&&d.html){ if(d.html!==html){ b.innerHTML=d.html; try{localStorage.setItem(ck,d.html);}catch(e){} } }
-    else if(!html) b.innerHTML='<div style="text-align:center;padding:2rem;color:#9ca3af;font-weight:800">الفاتورة غير متوفرة بعد — حاول لاحقاً</div>';
-  }catch(e){ if(!html) b.innerHTML='<div style="text-align:center;padding:2rem;color:#dc2626;font-weight:800">تعذّر التحميل — تحقّق من الاتصال</div>'; }
-  requestAnimationFrame(_fitInv); setTimeout(_fitInv,400); setTimeout(_fitInv,1000);
+    if(d&&d.html){ if(d.html!==html){ b.innerHTML=d.html; b._natW=0; try{localStorage.setItem(ck,d.html);}catch(e){} } }
+    else if(!html){ b.innerHTML='<div style="text-align:center;padding:2rem;color:#9ca3af;font-weight:800">الفاتورة غير متوفرة بعد — حاول لاحقاً</div>'; b._natW=0; }
+  }catch(e){ if(!html){ b.innerHTML='<div style="text-align:center;padding:2rem;color:#dc2626;font-weight:800">تعذّر التحميل — تحقّق من الاتصال</div>'; b._natW=0; } }
+  requestAnimationFrame(_fitInv); setTimeout(()=>{b._natW=0;_fitInv();},400); setTimeout(()=>{b._natW=0;_fitInv();},1000);
 }
 function closeInv(){ document.getElementById('invView').style.display='none'; }
 window.addEventListener('resize',()=>{ if(document.getElementById('invView').style.display==='block')_fitInv(); });
