@@ -1,4 +1,4 @@
-window.APP_JS_VER='v449';
+window.APP_JS_VER='v450';
 /* ═══════════ STATE ═══════════ */
 let B={دينار:0,'ذهب 730':0,'ذهب 24':0,دولار:0,vg730:0,vg24:0};
 let ops=[],invoices=[],debts=[],loans=[],rafInvoices=[],dollInvoices=[],dubaiInvoices=[];
@@ -536,6 +536,9 @@ function openSettings(){
     try{ const vi=document.getElementById('visionKeyInput'); if(vi)vi.value=_getVisionKey(); }catch(e){}
     /* قسم تيليجرام — للأدمين فقط */
     try{ const tb=document.getElementById('tgCfgBlock'); if(tb){ tb.style.display=isAdmin?'block':'none'; if(isAdmin&&typeof tgFillCfg==='function')tgFillCfg(); } }catch(e){}
+    try{ const tt=document.getElementById('tbTrashBlock'); if(tt){ tt.style.display=isAdmin?'block':'none';
+        const l=document.getElementById('tbTrashList'), a=document.getElementById('tbTrashArrow'); if(l)l.style.display='none'; if(a)a.textContent='▾';
+        if(isAdmin)renderTbTrash(); } }catch(e){}
     document.getElementById('settingsModal').classList.add('active');
     setTimeout(()=>document.getElementById('settingGoldPrice').focus(),320);
 }
@@ -1968,6 +1971,55 @@ window.addTarbah=()=>{
 };
 window.delTarbah=(id)=>{
     emitEvent('TARBAH_DEL',{id},null);
+};
+/* ═══ سلة محذوفات الترباح: كل TARBAH_DEL حيّ (غير ملغى) = ملاحظة محذوفة.
+   الاسترجاع = إلغاء حدث الحذف (VOID) — نفس آلية الإلغاء في التطبيق، فيتزامن على كل الأجهزة. ═══ */
+function _tbDeadSet(){
+    const vE=(_allEvents||[]).filter(e=>e&&e.type==='VOID');
+    const vT=new Set(vE.map(e=>e.data&&e.data.voids).filter(Boolean));
+    return new Set(vE.filter(e=>!vT.has(e.id)).map(e=>e.data&&e.data.voids).filter(Boolean));
+}
+window._tarbahTrash=function(){
+    const dead=_tbDeadSet(), adds={};
+    (_allEvents||[]).forEach(e=>{ if(e&&e.type==='TARBAH_ADD'&&!dead.has(e.id)&&e.data&&e.data.entry)adds[e.data.entry.id]=e.data.entry; });
+    const live=new Set((window._tarbahList||[]).map(x=>x&&x.id));
+    const out=[], seen=new Set();
+    (_allEvents||[]).filter(e=>e&&e.type==='TARBAH_DEL'&&!dead.has(e.id)&&e.data).sort((a,b)=>(b.ts||0)-(a.ts||0)).forEach(e=>{
+        const id=e.data.id; if(seen.has(id)||live.has(id)||!adds[id])return; seen.add(id);
+        out.push({entry:adds[id],delEvt:e.id,ts:e.ts||0});
+    });
+    return out;
+};
+window.renderTbTrash=function(){
+    const box=document.getElementById('tbTrashList'), cnt=document.getElementById('tbTrashCount');
+    if(!box)return;
+    const T=window._tarbahTrash();
+    if(cnt)cnt.textContent=T.length?'('+T.length+')':'';
+    if(!T.length){ box.innerHTML='<div style="text-align:center;color:var(--t3);font-size:.76rem;padding:.6rem">السلة فارغة</div>'; return; }
+    const esc=x=>String(x==null?'':x).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+    box.innerHTML=T.map(t=>{
+        const x=t.entry, buy=x.type!=='sell';
+        const d=t.ts?new Date(t.ts).toLocaleDateString('fr-FR',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}):'';
+        return `<div style="display:flex;align-items:center;gap:.5rem;background:var(--card);border:1px solid var(--border);border-radius:9px;padding:.45rem .55rem">
+            <span style="font-size:.66rem;font-weight:900;color:${buy?'#16a34a':'#dc2626'};white-space:nowrap">${buy?'🟢 شراء':'🔴 بيع'}</span>
+            <div style="flex:1;min-width:0;font-size:.76rem;line-height:1.35">
+                <div style="font-weight:800;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(x.name)||'—'}</div>
+                <div style="color:var(--t3);font-size:.68rem">${x.weight?esc(x.weight)+' غ':''}${x.weight&&x.price?' · ':''}${x.price?esc(x.price):''}${d?` · <span dir="ltr">حُذفت ${d}</span>`:''}</div>
+            </div>
+            <button onclick="restoreTarbah('${t.delEvt}')" style="border:1px solid #7c3aed;background:rgba(124,58,237,.08);color:#7c3aed;border-radius:8px;padding:.3rem .55rem;font-weight:900;font-family:inherit;font-size:.7rem;cursor:pointer;white-space:nowrap">↩️ استرجاع</button>
+        </div>`;
+    }).join('');
+};
+window.tbTrashToggle=function(){
+    const box=document.getElementById('tbTrashList'), ar=document.getElementById('tbTrashArrow'); if(!box)return;
+    const open=box.style.display==='none';
+    box.style.display=open?'flex':'none'; if(ar)ar.textContent=open?'▴':'▾';
+    if(open)renderTbTrash();
+};
+window.restoreTarbah=function(delEvtId){
+    emitEvent('VOID',{voids:delEvtId},null);
+    toast('↩️ استُرجعت ملاحظة الترباح','success');
+    setTimeout(()=>{ try{renderTbTrash();}catch(e){} },150);
 };
 function _renderTarbahList(){
     const box=document.getElementById('tarbahList'); if(!box)return;

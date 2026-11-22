@@ -75,7 +75,7 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-messaging-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.2.0/crypto-js.min.js"></script>
-    <link rel="stylesheet" href="style.css?v=449">
+    <link rel="stylesheet" href="style.css?v=450">
     <script>
     /* منع وميض نافذة الدخول: إن كانت الجلسة محفوظة، نخفيها قبل أول رسم */
     (function(){try{
@@ -1214,6 +1214,12 @@
         <label><i class="fas fa-dollar-sign" style="color:var(--gr)"></i> سعر الدولار (دج/$)</label>
         <input type="number" inputmode="decimal" id="settingDollarRate" step="any" min="1">
     </div>
+    <div id="tbTrashBlock" style="border:1.5px solid rgba(124,58,237,.35);background:rgba(124,58,237,.05);border-radius:12px;padding:.6rem .7rem;margin-bottom:.8rem">
+      <div onclick="tbTrashToggle()" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;font-weight:900;font-size:.84rem;color:#7c3aed">
+        <span>🗑️ سلة محذوفات الترباح <small id="tbTrashCount" style="font-weight:700;color:var(--t3)"></small></span><span id="tbTrashArrow">▾</span>
+      </div>
+      <div id="tbTrashList" style="display:none;margin-top:.5rem;max-height:40vh;overflow-y:auto;flex-direction:column;gap:.35rem"></div>
+    </div>
     <button onclick="closeModal('settingsModal');doLogout()" style="width:100%;margin:.2rem 0 .8rem;border:1.5px solid var(--rd);background:rgba(239,68,68,.07);color:var(--rd);border-radius:10px;padding:.55rem;font-weight:900;font-family:Tajawal,sans-serif;font-size:.82rem;cursor:pointer">🚪 تسجيل الخروج</button>
     <div id="tgCfgBlock" style="display:none;border:1.5px solid #229ED9;background:rgba(34,158,217,.06);border-radius:12px;padding:.7rem;margin-bottom:.8rem">
         <div style="font-weight:900;color:#229ED9;font-size:.85rem;margin-bottom:.15rem">✈️ نسخة تلقائية إلى تيليجرام</div>
@@ -1315,14 +1321,14 @@
 
 
 <!-- ═══ ملفات JS ═══ -->
-<script src="firebase.js?v=449"></script>
-<script src="app.js?v=449"></script>
-<script src="assistant.js?v=449"></script>
-<script src="inventory.js?v=449"></script>
-<script src="invoice.js?v=449"></script>
-<script src="raffinage.js?v=449"></script>
-<script src="workshops.js?v=449"></script>
-<script src="auth.js?v=449"></script>
+<script src="firebase.js?v=450"></script>
+<script src="app.js?v=450"></script>
+<script src="assistant.js?v=450"></script>
+<script src="inventory.js?v=450"></script>
+<script src="invoice.js?v=450"></script>
+<script src="raffinage.js?v=450"></script>
+<script src="workshops.js?v=450"></script>
+<script src="auth.js?v=450"></script>
 
 
 
