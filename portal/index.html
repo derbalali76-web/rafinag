@@ -60,6 +60,7 @@ body{padding:0;max-width:680px;margin:0 auto}
 .dtc{width:62px;padding:.5rem .15rem!important;line-height:1.35;white-space:nowrap}
 .dtc .dd{direction:ltr;unicode-bidi:isolate;font-size:.6rem;font-weight:800;color:var(--t2)}
 .dtc .tt{font-size:.56rem;color:var(--t3);font-family:monospace}
+.hd .lo{margin-inline-start:auto;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.4);color:#dc2626;border-radius:20px;padding:.32rem .8rem;font-family:inherit;font-weight:800;font-size:.72rem;cursor:pointer;white-space:nowrap}
 .unitn{font-family:'Tajawal',sans-serif;font-size:.58rem;font-weight:400;color:var(--t3);margin-top:2px}
 .fixn{white-space:nowrap;font-size:.56rem;font-weight:400;color:#0d9488;margin-top:3px}
 .eye{font-size:.55rem;color:#0ea5e9;margin-top:2px;font-weight:800}
@@ -95,6 +96,7 @@ body{padding:0;max-width:680px;margin:0 auto}
       <div class="brand">🪙 <span id="custName">—</span></div>
       <div class="sub">بوابة الزبون · GoldPro</div>
     </div>
+    <button class="lo" onclick="if(confirm('تسجيل الخروج من حسابك؟'))doLogout()">🚪 خروج</button>
   </div>
   <div class="wrap">
     <div id="offlineBanner" class="banner">⚠️ غير متصل — تعرض آخر بيانات محفوظة</div>
