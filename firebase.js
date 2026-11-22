@@ -1,4 +1,4 @@
-window.FB_JS_VER='v451';
+window.FB_JS_VER='v452';
 /* ═══════════ FIREBASE ═══════════ */
 const _fbConfig={
     apiKey:"AIzaSyDevHwoNCKXGm-G8GJc_Z5eZwcSPuQS9wI",
@@ -910,11 +910,21 @@ function _applyEvt(st,evt){
                st.wsProv[ws] = ما دخل المخزون كمبدئي لهذه الورشة (لا يُنقص منه ما استُهلك: بيع/شحن/تذويب).
                القيمة المكتوبة = «إجمالي المبدئي الآن» → السبيكة = الإجمالي − ما دخل سابقاً (لا ازدواج عند الاستبدال). */
             if(!st.wsProv)st.wsProv={};
+            if(!st.wsProvParts)st.wsProvParts={};
             if(d.barsAdd24&&d.barsAdd24.length){d.barsAdd24.forEach(bar=>{
                 const meta=disp.bars&&disp.bars[bar.id];
                 const W=+bar.w||0, entered=+st.wsProv[d.ws]||0;
-                const w=Math.max(0,parseFloat((W-entered).toFixed(4)));
-                st.wsProv[d.ws]=Math.max(entered,W);
+                let w;
+                if(d.part){
+                    /* جزء إضافي (v452+): يُضاف فوق الأجزاء السابقة */
+                    w=W; st.wsProv[d.ws]=entered+W;
+                    (st.wsProvParts[d.ws]=st.wsProvParts[d.ws]||[]).push({id:bar.id,w:W,ts:evt.ts});
+                }else{
+                    /* النمط القديم: القيمة = إجمالي المبدئي (استبدال) */
+                    w=Math.max(0,parseFloat((W-entered).toFixed(4)));
+                    st.wsProv[d.ws]=Math.max(entered,W);
+                    st.wsProvParts[d.ws]=[{id:bar.id,w:W,ts:evt.ts}];
+                }
                 if(w>0)st.g24.push({...bar,w,desc:meta?.desc||'سلعة مبدئية (ورشة)',dt:meta?.dt||'',src:meta?.src||'مبدئي',_prov:true,_provWs:d.ws,_ts:evt.ts});
             });}
             break;
@@ -929,6 +939,9 @@ function _applyEvt(st,evt){
             rm.forEach(b=>{ const ws=b._provWs||d.ws; st.wsProv[ws]=Math.max(0,(+st.wsProv[ws]||0)-(+b.w||0)); });
             const rs=new Set(rm.map(b=>b.id));
             st.g24=st.g24.filter(b=>!rs.has(b.id));
+            if(!st.wsProvParts)st.wsProvParts={};
+            if(d.provIds&&d.provIds.length){ const ps=new Set(d.provIds); Object.keys(st.wsProvParts).forEach(ws=>{ st.wsProvParts[ws]=(st.wsProvParts[ws]||[]).filter(p=>!ps.has(p.id)); }); }
+            else if(d.ws) st.wsProvParts[d.ws]=[];
             break;
         }
         case 'WS_SESSION':{
@@ -939,6 +952,7 @@ function _applyEvt(st,evt){
             const _provLeft=st.g24.filter(b=>b._prov&&b._provWs===d.ws);
             _provLeft.forEach(b=>{ delete b._prov; delete b._provWs; b.src='ورشة'; });
             if(st.wsProv)st.wsProv[d.ws]=0;
+            if(st.wsProvParts)st.wsProvParts[d.ws]=[];
             /* حركة المخزون: سبائك الجلسة تخرج من 730، والسلعة الواجدة تدخل 24 */
             if(d.barsRemove730&&d.barsRemove730.length){const ids=new Set(d.barsRemove730);st.g730=st.g730.filter(b=>!ids.has(b.id));}
             if(d.barUpdates730&&d.barUpdates730.length){d.barUpdates730.forEach(upd=>{const bar=st.g730.find(b=>b.id===upd.id);if(bar){ if(upd.prevW!=null){ bar.w=parseFloat((bar.w-(upd.prevW-upd.newW)).toFixed(4)); } else { bar.w=upd.newW; } }});}
@@ -1267,7 +1281,7 @@ window._custBalUpToTs=function(cust,uptoTs){
         B:{دينار:0,دولار:0,'ذهب 730':0,'ذهب 24':0,vg730:0,vg24:0},
         g730:[],g24:[],debts:[],loans:[],
         ops:[],invoices:[],dollInvoices:[],rafInvoices:[],dubaiInvoices:[],
-        wsBars:{workshop1:[],workshop2:[]},wsSessions:{workshop1:[],workshop2:[]},wsRotor:{workshop1:[],workshop2:[]},wsProv:{},
+        wsBars:{workshop1:[],workshop2:[]},wsSessions:{workshop1:[],workshop2:[]},wsRotor:{workshop1:[],workshop2:[]},wsProv:{},wsProvParts:{},
         wsWorkerBars:{workshop1:[],workshop2:[]},wsWorkerSessions:{workshop1:[],workshop2:[]}
     };
     live.forEach(evt=>_applyEvt(st,evt));
@@ -1294,7 +1308,7 @@ function _reproject(){
         B:{دينار:0,دولار:0,'ذهب 730':0,'ذهب 24':0,vg730:0,vg24:0},
         g730:[],g24:[],debts:[],loans:[],
         ops:[],invoices:[],dollInvoices:[],rafInvoices:[],dubaiInvoices:[],
-        wsBars:{workshop1:[],workshop2:[]},wsSessions:{workshop1:[],workshop2:[]},wsRotor:{workshop1:[],workshop2:[]},wsProv:{},
+        wsBars:{workshop1:[],workshop2:[]},wsSessions:{workshop1:[],workshop2:[]},wsRotor:{workshop1:[],workshop2:[]},wsProv:{},wsProvParts:{},
         wsWorkerBars:{workshop1:[],workshop2:[]},wsWorkerSessions:{workshop1:[],workshop2:[]}
     };
     live.forEach(evt=>_applyEvt(st,evt));
@@ -1307,7 +1321,7 @@ function _reproject(){
     dollInvoices=st.dollInvoices;
     rafInvoices=st.rafInvoices;
     dubaiInvoices=st.dubaiInvoices;
-    wsBars=st.wsBars;wsSessions=st.wsSessions;window.wsRotor=st.wsRotor||{workshop1:[],workshop2:[]};
+    wsBars=st.wsBars;wsSessions=st.wsSessions;window.wsRotor=st.wsRotor||{workshop1:[],workshop2:[]};window.wsProv=st.wsProv||{};window.wsProvParts=st.wsProvParts||{};
     wsWorkerBars=st.wsWorkerBars;wsWorkerSessions=st.wsWorkerSessions;
     window._tarbahList=st.tarbah||[];
     /* حاسبة دبي من الأحداث (لا من settings) — مزامنة حتمية عبر الأجهزة */
@@ -1334,7 +1348,7 @@ window.cashAudit=function(){
         .sort((a,b)=>((a.ts||0)-(b.ts||0))||String(a.id).localeCompare(String(b.id)));
     const st={B:{'دينار':0,'دولار':0,'ذهب 730':0,'ذهب 24':0,vg730:0,vg24:0},
         g730:[],g24:[],debts:[],loans:[],ops:[],invoices:[],dollInvoices:[],rafInvoices:[],dubaiInvoices:[],
-        wsBars:{workshop1:[],workshop2:[]},wsSessions:{workshop1:[],workshop2:[]},wsRotor:{workshop1:[],workshop2:[]},wsProv:{},
+        wsBars:{workshop1:[],workshop2:[]},wsSessions:{workshop1:[],workshop2:[]},wsRotor:{workshop1:[],workshop2:[]},wsProv:{},wsProvParts:{},
         wsWorkerBars:{workshop1:[],workshop2:[]},wsWorkerSessions:{workshop1:[],workshop2:[]},tarbah:[]};
     const rows=[];
     live.forEach(e=>{
@@ -1358,7 +1372,7 @@ window.g24Audit=function(){
         .sort((a,b)=>((a.ts||0)-(b.ts||0))||String(a.id).localeCompare(String(b.id)));
     const st={B:{'دينار':0,'دولار':0,'ذهب 730':0,'ذهب 24':0,vg730:0,vg24:0},
         g730:[],g24:[],debts:[],loans:[],ops:[],invoices:[],dollInvoices:[],rafInvoices:[],dubaiInvoices:[],
-        wsBars:{workshop1:[],workshop2:[]},wsSessions:{workshop1:[],workshop2:[]},wsRotor:{workshop1:[],workshop2:[]},wsProv:{},
+        wsBars:{workshop1:[],workshop2:[]},wsSessions:{workshop1:[],workshop2:[]},wsRotor:{workshop1:[],workshop2:[]},wsProv:{},wsProvParts:{},
         wsWorkerBars:{workshop1:[],workshop2:[]},wsWorkerSessions:{workshop1:[],workshop2:[]},tarbah:[]};
     const tot24=s=>{const phys=s.g24.reduce((a,b)=>a+(b.w||0),0);return phys+(s.B.vg24||0)+(s.B['ذهب 24']||0);};
     const rows=[];

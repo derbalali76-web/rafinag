@@ -90,31 +90,56 @@ window.wsDelBar = function(id){
     emitEvent('WS_BARDEL',{ws:_wsCur,id},null);
 };
 
-/* ═══ السلعة المبدئية: تدخل مخزون 24 فوراً قبل حفظ الحساب ═══ */
+/* ═══ السلعة المبدئية (أجزاء): كل جزء يدخل مخزون 24 فوراً قبل حفظ الحساب.
+   يمكن إضافة عدة أجزاء. المجموع المعروض ثابت (ما دخل المخزون) ولا ينقص إن تصرّفت فيه.
+   عند حفظ الحساب يُضاف للمخزون الفرق فقط: السلعة الواجدة − مجموع الأجزاء. ═══ */
 window.wsProvisionalAdd = function(){
     const mfg=parseFloat(document.getElementById('wsMfg')?.value)||0;
-    if(mfg<=0)return toast('اكتب وزن السلعة أولاً','error');
-    /* ألغِ أي مبدئي سابق لهذه الورشة (استبدال لا تراكم) */
-    emitEvent('WS_PROVISIONAL_DEL',{ws:_wsCur},null);
+    if(mfg<=0)return toast('اكتب وزن الجزء أولاً','error');
     const dt=new Date().toLocaleDateString('fr-FR');
     const bid='PROV-'+uid();
+    const n=(((window.wsProvParts||{})[_wsCur])||[]).length+1;
     const barsAdd24=[{id:bid,pool:'24',w:mfg,k:1000}];
-    const dispBars={[bid]:{desc:'سلعة مبدئية - ورشة '+WS_LIST[_wsCur],dt,src:'مبدئي'}};
-    emitEvent('WS_PROVISIONAL',{ws:_wsCur,barsAdd24},{bars:dispBars});
-    toast('✅ دخلت '+fmt(mfg,2)+' غ للمخزون (مبدئياً)','success');
+    const dispBars={[bid]:{desc:'سلعة مبدئية (جزء '+n+') - ورشة '+WS_LIST[_wsCur],dt,src:'مبدئي'}};
+    emitEvent('WS_PROVISIONAL',{ws:_wsCur,barsAdd24,part:true},{bars:dispBars});
+    toast('✅ دخل الجزء '+n+': '+fmt(mfg,2)+' غ للمخزون','success');
+    const mi=document.getElementById('wsMfg'); if(mi){ mi.value=''; }
+    if(typeof wsCalc==='function')try{wsCalc();}catch(e){}
     if(typeof updAll==='function')updAll();
     wsUpdateProvBadge();
 };
-/* تحديث شارة الحالة: كم سلعة مبدئية بالمخزون لهذه الورشة */
+window.wsProvisionalDelPart = function(id){
+    const parts=((window.wsProvParts||{})[_wsCur])||[];
+    const p=parts.find(x=>x.id===id); if(!p)return;
+    const bar=(typeof g24!=='undefined'?g24:[]).find(b=>b.id===id);
+    const left=bar?(+bar.w||0):0;
+    const used=Math.max(0,p.w-left);
+    let msg='إلغاء الجزء '+fmt(p.w,2)+' غ؟';
+    if(used>0.001)msg+='\n\nتصرّفت في '+fmt(used,2)+' غ منه — هذا الجزء يبقى محسوباً، ويُحذف من المخزون الباقي فقط ('+fmt(left,2)+' غ).';
+    if(!confirm(msg))return;
+    emitEvent('WS_PROVISIONAL_DEL',{ws:_wsCur,provIds:[id]},null);
+    setTimeout(wsUpdateProvBadge,100);
+};
+/* لوحة المبدئي: الأجزاء ومجموعها (ما دخل المخزون) — ثابت لا ينقص بالتصرّف */
 window.wsUpdateProvBadge = function(){
     const badge=document.getElementById('wsProvBadge'); if(!badge)return;
-    let provW=0;
-    try{
-        const _g24=(typeof g24!=='undefined'&&Array.isArray(g24))?g24:[];
-        provW=_g24.filter(b=>b._prov&&b._provWs===_wsCur).reduce((s,b)=>s+(b.w||0),0);
-    }catch(e){}
-    if(provW>0.001){ badge.style.display='block'; badge.textContent='⏳ مبدئي بالمخزون: '+fmt(provW,2)+' غ (يُلغى عند حفظ الحساب)'; }
-    else badge.style.display='none';
+    const parts=((window.wsProvParts||{})[_wsCur])||[];
+    const entered=+((window.wsProv||{})[_wsCur])||0;
+    if(entered<=0.001&&!parts.length){ badge.style.display='none'; badge.innerHTML=''; return; }
+    const sumParts=parts.reduce((t,p)=>t+(+p.w||0),0);
+    const extra=entered-sumParts;   /* مستعمل من أجزاء أُلغيت */
+    const mfgNow=parseFloat(document.getElementById('wsMfg')?.value)||0;
+    badge.style.display='block';
+    badge.innerHTML=`<div style="border:1px dashed #c2410c;border-radius:8px;padding:5px 6px;background:rgba(194,65,12,.05);text-align:right">
+        <div style="display:flex;justify-content:space-between;align-items:center;font-size:.68rem;font-weight:900;color:#c2410c">
+            <span>⏳ المبدئي بالمخزون</span><span style="font-family:monospace" dir="ltr">${fmt(entered,2)} غ</span></div>
+        ${parts.map((p,i)=>`<div style="display:flex;justify-content:space-between;align-items:center;font-size:.62rem;font-weight:700;color:var(--t2);margin-top:3px">
+            <span>جزء ${i+1}</span>
+            <span style="display:flex;align-items:center;gap:5px"><span style="font-family:monospace" dir="ltr">${fmt(p.w,2)} غ</span>
+            <button onclick="wsProvisionalDelPart('${p.id}')" title="إلغاء هذا الجزء" style="border:none;background:transparent;color:var(--rd);cursor:pointer;font-size:.7rem;padding:0 2px">✕</button></span></div>`).join('')}
+        ${extra>0.001?`<div style="font-size:.58rem;color:var(--t3);margin-top:3px">+ ${fmt(extra,2)} غ مستعملة من أجزاء أُلغيت</div>`:''}
+        <div style="font-size:.58rem;color:var(--t3);margin-top:4px;font-weight:700">عند حفظ الحساب يُضاف للمخزون الفرق فقط${mfgNow>0?`: <b dir="ltr" style="color:${mfgNow-entered>=0?'#16a34a':'#dc2626'}">${mfgNow-entered>=0?'+':'−'}${fmt(Math.abs(mfgNow-entered),2)} غ</b>`:''}</div>
+    </div>`;
 };
 
 window.wsSaveSession = function(){
@@ -203,6 +228,7 @@ window.wsDelSession = function(id){
 
 /* حساب لابارت الحيّ (بمنطق rafinag: بعد خصم الروتور) + معاينة أثر المخزون */
 window.wsCalc = function(){
+    try{ wsUpdateProvBadge(); }catch(e){}
     const bars = _wsActiveBars(_wsCur).filter(b=>(b.w||0)>0.001);
     const totalRaw  = bars.reduce((s,b)=>s+(b.w||0),0);
     const totalPure = bars.reduce((s,b)=>s+(b.w*b.k/1000),0);
